@@ -201,7 +201,11 @@ var vm_actions = {
 		tmp_template.CONTEXT["ROOT_PASSWD"]=user_passwd;
 		tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.sh";
 		tmp_template.GRAPHICS["PASSWD"]=d.getTime();
-       		
+   
+        	if (n_times.length){
+            		n_times_int=parseInt(n_times,10);
+        	};    		
+
 		if (!vm_name.length){ //empty name use OpenNebula core default
 			var submit_template=convert_template_to_string(tmp_template).replace(/^[\r\n]+$/g, "");
                 	var vm_temp = { "vm_raw" : submit_template };
@@ -222,10 +226,13 @@ var vm_actions = {
               			var name = "";
               			for (var i=0; i< n_times_int; i++){
                   			name = vm_name.replace(/%i/gi,i);
-                                	tmp_template.NAME = vm_name;
-					var submit_template=convert_template_to_string(tmp_template).replace(/^[\r\n]+$/g, "");
-                               		var vm_temp = { "vm_raw" : submit_template };
-                                	var vm_json = { "vm" : vm_temp };
+                                	tmp_template.NAME = name;
+					var vm_temp ="";
+					var vm_json ="";
+					var submit_template="";
+					submit_template=convert_template_to_string(tmp_template).replace(/^[\r\n]+$/g, "");
+                               		vm_temp = { "vm_raw" : submit_template };
+                                	vm_json = { "vm" : vm_temp };
 					Sunstone.runAction("VM.create_raw",vm_json);
               			};
           		};
