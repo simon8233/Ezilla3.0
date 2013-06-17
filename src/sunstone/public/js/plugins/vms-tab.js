@@ -119,6 +119,35 @@ var create_vm_tmpl ='\
                   <div class=""></div>\
               </div>\
           </div>\
+<!--- Ezilla - Passwd - Start -->\
+<div class="show_hide" id="vmpasswd_capacity">\
+    <h4><small><i class=" icon-caret-down"/> '+tr("Password for VM User")+'<a id="add_os_boot_opts" class="icon_left" href="#"></a></small></h4>\
+</div>\
+<div class="vmpasswd">\
+          <div class="row centered">\
+              <div class="four columns">\
+                  <label class="inline right" for="user_passwd">'+tr("Password for VM")+':</label>\
+              </div>\
+              <div class="seven columns">\
+                  <input type="password" name="user_passwd" id="user_passwd" />\
+              </div>\
+              <div class="one columns">\
+                  <div class="tip">'+tr("Defaults to template name when emtpy")+'.</div>\
+              </div>\
+          </div>\
+          <div class="row centered">\
+              <div class="four columns">\
+                  <label class="inline right" for="user_passwd_confirm">'+tr("Confirm password")+':</label>\
+              </div>\
+              <div class="seven columns">\
+                  <input type="password" name="user_passwd_confirm" id="user_passwd_confirm" />\
+              </div>\
+              <div class="one columns">\
+                  <div class="tip">'+tr("Defaults to template name when emtpy")+'.</div>\
+              </div>\
+          </div>\
+</div>\
+<!--- Ezilla - Passwd - End -->\
           <div class="row centered">\
               <div class="four columns">\
                   <label class="inline right" for="vm_n_times">'+tr("Deploy # VMs")+':</label>\
@@ -145,6 +174,67 @@ var $vnc_dialog;
 var rfb;
 
 var vm_actions = {
+//Ezilla - Action - Start
+    "VM.create_raw" : {
+        type: "create",
+        call: OpenNebula.VM.create,
+        callback: function (params,extra_param){
+                Sunstone.runAction("VM.list");
+        },
+        error: onError,
+    },
+
+    "VM.Template_submit" : {
+        type: "single",
+        call: OpenNebula.Template.show,
+        callback:function (request,template) {
+		var template_info = template.VMTEMPLATE;
+		var tmp_template = template_info.TEMPLATE;
+		var vm_name = $('#vm_name',$create_vm_dialog).val();
+		var user_passwd = $('#user_passwd',$create_vm_dialog).val();
+        	var n_times = $('#vm_n_times',$create_vm_dialog).val();
+        	var n_times_int=1;
+		var d = new Date();
+		var username_array=username.split('%');
+		tmp_template.CONTEXT["USERNAME"]=username_array[0];
+		tmp_template.CONTEXT["USER_PASSWD"]=user_passwd;
+		tmp_template.CONTEXT["ROOT_PASSWD"]=user_passwd;
+		tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.sh";
+		tmp_template.GRAPHICS["PASSWD"]=d.getTime();
+       		
+		if (!vm_name.length){ //empty name use OpenNebula core default
+			var submit_template=convert_template_to_string(tmp_template).replace(/^[\r\n]+$/g, "");
+                	var vm_temp = { "vm_raw" : submit_template };
+                	var vm_json = { "vm" : vm_temp };
+            		for (var i=0; i< n_times_int; i++){
+                		Sunstone.runAction("VM.create_raw",vm_json);
+            		};
+        	}else{
+          		if (vm_name.indexOf("%i") == -1){ //no wildcard
+				tmp_template.NAME = vm_name;
+				var submit_template=convert_template_to_string(tmp_template).replace(/^[\r\n]+$/g, "");
+				var vm_temp = { "vm_raw" : submit_template };
+                                var vm_json = { "vm" : vm_temp };
+              			for (var i=0; i< n_times_int; i++){
+					Sunstone.runAction("VM.create_raw",vm_json);
+              			};
+          		} else { //wildcard present: replace wildcard
+              			var name = "";
+              			for (var i=0; i< n_times_int; i++){
+                  			name = vm_name.replace(/%i/gi,i);
+                                	tmp_template.NAME = vm_name;
+					var submit_template=convert_template_to_string(tmp_template).replace(/^[\r\n]+$/g, "");
+                               		var vm_temp = { "vm_raw" : submit_template };
+                                	var vm_json = { "vm" : vm_temp };
+					Sunstone.runAction("VM.create_raw",vm_json);
+              			};
+          		};
+        	}
+	},
+        error: onError
+    },
+
+//Ezilla - Action - End 
     "VM.create" : {
         type: "custom",
         call: function(id,name) {
@@ -2750,12 +2840,39 @@ function setupCreateVMDialog(){
 
     //$('button',dialog).button();
     setupTips(dialog);
+//Ezilla - Show Passwd - Start
+    $('#vmpasswd_capacity',$create_vm_dialog).click(function(){
+        $('.vmpasswd',$create_vm_dialog).toggle();
+        return false;
+    });	    
+//Ezilla - Show Passwd - End
 
     $('#create_vm_form',dialog).submit(function(){
         var vm_name = $('#vm_name',this).val();
         var template_id = $('#template_id',this).val();
         var n_times = $('#vm_n_times',this).val();
         var n_times_int=1;
+//Ezilla - Check Passwd - Start
+	if (!$('#user_passwd',this).is(":hidden")){
+		var user_passwd = $('#user_passwd',this).val();
+        	var user_passwd_confirm = $('#user_passwd_confirm',this).val();
+		var CheckData = /[|]|{|}|<|>|'|;|&|#|"|'|!| /;
+        	if (user_passwd != user_passwd_confirm){
+            		notifyError(tr("These passwords don't match. Try again"));
+            		return false;
+        	};
+
+        	if (user_passwd.length < 6){
+            		notifyError(tr("password must be at least 6 characters"));
+            		return false;
+        	};
+
+        	if (CheckData.test(user_passwd)){
+            		notifyError(tr("Don't allow special characters in your password !"));
+            		return false;
+        	};
+	};
+//Ezilla - Check Passwd - End
 
         if (!template_id.length){
             notifyError(tr("You have not selected a template"));
@@ -2773,25 +2890,29 @@ function setupCreateVMDialog(){
 
         notifySubmit("Template.instantiate",template_id, extra_info);
 
-        if (!vm_name.length){ //empty name use OpenNebula core default
-            for (var i=0; i< n_times_int; i++){
-                Sunstone.runAction("Template.instantiate_quiet", template_id, "");
-            };
-        }
-        else
-        {
-          if (vm_name.indexOf("%i") == -1){ //no wildcard
-              for (var i=0; i< n_times_int; i++){
-                Sunstone.runAction("Template.instantiate_quiet", template_id, vm_name);
-              };
-          } else { //wildcard present: replace wildcard
-              var name = "";
-              for (var i=0; i< n_times_int; i++){
-                  name = vm_name.replace(/%i/gi,i);
-                  Sunstone.runAction("Template.instantiate_quiet", template_id, name);
-              };
-          };
-        }
+//Ezilla - Create VM - Start
+	if ($('#user_passwd',this).is(":hidden")){
+        	if (!vm_name.length){ //empty name use OpenNebula core default
+           		for (var i=0; i< n_times_int; i++){
+                		Sunstone.runAction("Template.instantiate_quiet", template_id, "");
+          	  	};
+        	}else{
+          		if (vm_name.indexOf("%i") == -1){ //no wildcard
+              			for (var i=0; i< n_times_int; i++){
+                			Sunstone.runAction("Template.instantiate_quiet", template_id, vm_name);
+              			};
+          		} else { //wildcard present: replace wildcard
+              			var name = "";
+              			for (var i=0; i< n_times_int; i++){
+                  			name = vm_name.replace(/%i/gi,i);
+                  			Sunstone.runAction("Template.instantiate_quiet", template_id, name);
+              			};
+          		};
+        	}
+	}else{
+		Sunstone.runAction("VM.Template_submit", template_id);
+	}
+//Ezilla - Create VM - End
 
         setTimeout(function(){
             Sunstone.runAction("VM.list");
