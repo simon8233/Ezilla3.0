@@ -313,6 +313,7 @@ SUNSTONE_DIRS="$SUNSTONE_LOCATION/routes \
                $SUNSTONE_LOCATION/public/vendor/4.0/jdpicker_1.1/images \
                $SUNSTONE_LOCATION/public/vendor/4.0/datetimepicker \
                $SUNSTONE_LOCATION/public/images \
+               $SUNSTONE_LOCATION/public/images/vncsnapshot \
                $SUNSTONE_LOCATION/views"
 
 OZONES_DIRS="$OZONES_LOCATION/lib \
@@ -513,6 +514,7 @@ INSTALL_SUNSTONE_FILES=(
     SUNSTONE_PUBLIC_NEW_VENDOR_TIMEPICKER:$SUNSTONE_LOCATION/public/vendor/4.0/
     SUNSTONE_PUBLIC_NEW_VENDOR_DATETIMEPICKER:$SUNSTONE_LOCATION/public/vendor/4.0/datetimepicker
     SUNSTONE_PUBLIC_IMAGES_FILES:$SUNSTONE_LOCATION/public/images
+    SUNSTONE_PUBLIC_VMPREVIEW_FILES:$SUNSTONE_LOCATION/public/images/vncsnapshot
     SUNSTONE_PUBLIC_LOCALE_CA:$SUNSTONE_LOCATION/public/locale/ca
     SUNSTONE_PUBLIC_LOCALE_CS_CZ:$SUNSTONE_LOCATION/public/locale/cs_CZ
     SUNSTONE_PUBLIC_LOCALE_DE:$SUNSTONE_LOCATION/public/locale/de
@@ -1594,6 +1596,11 @@ SUNSTONE_PUBLIC_IMAGES_FILES="src/sunstone/public/images/ajax-loader.gif \
                         src/sunstone/public/images/sort_desc.png \
                         src/sunstone/public/images/sort_desc_disabled.png\
 "
+
+SUNSTONE_PUBLIC_VMPREVIEW_FILES="\
+src/sunstone/public/images/vncsnapshot/no_signal.jpg \
+src/sunstone/public/images/vncsnapshot/vncpwd.sh \
+src/sunstone/public/images/vncsnapshot/vncsnapshot"
 
 SUNSTONE_PUBLIC_LOCALE_CA="\
 src/sunstone/locale/languages/ca.js \

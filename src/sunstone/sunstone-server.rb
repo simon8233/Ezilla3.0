@@ -25,12 +25,14 @@ if !ONE_LOCATION
     ETC_LOCATION = "/etc/one"
     SHARE_LOCATION = "/usr/share/one"
     RUBY_LIB_LOCATION = "/usr/lib/one/ruby"
+    PREVIEW_LOCATION = VAR_LOCATION + "/sunstone/public/images/vncsnapshot"
 else
     VAR_LOCATION = ONE_LOCATION + "/var"
     LOG_LOCATION = ONE_LOCATION + "/var"
     ETC_LOCATION = ONE_LOCATION + "/etc"
     SHARE_LOCATION = ONE_LOCATION + "/share"
     RUBY_LIB_LOCATION = ONE_LOCATION+"/lib/ruby"
+    PREVIEW_LOCATION = VAR_LOCATION + "/lib/sunstone/public/images/vncsnapshot"
 end
 
 SUNSTONE_AUTH             = VAR_LOCATION + "/.one/sunstone_auth"
@@ -417,6 +419,20 @@ end
 post '/vm/:id/startvnc' do
     vm_id = params[:id]
     @SunstoneServer.startvnc(vm_id, $vnc)
+end
+
+################################################################################
+### Get VNC preview for a target VM
+################################################################################
+get '/vm/:id/preview' do
+    @SunstoneServer.preview(params[:id])
+    previewimage = PREVIEW_LOCATION + "/#{params[:id]}.jpg"
+    
+    if !File.exist?(previewimage)
+        previewimage = PREVIEW_LOCATION + "/no_signal.jpg"
+    end
+
+    send_file previewimage, :type=> 'image/jpeg', :disposition => 'inline'
 end
 
 ##############################################################################

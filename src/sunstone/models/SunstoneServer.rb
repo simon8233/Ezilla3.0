@@ -237,6 +237,24 @@ class SunstoneServer < CloudServer
         return vnc.proxy(resource)
     end
 
+    ############################################################################
+    # Preview
+    ############################################################################
+    def preview(id)
+        resource = retrieve_resource("vm", id)
+        if OpenNebula.is_error?(resource)
+            return [404, nil]
+        else
+            vnc_host = resource['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']
+            vnc_port = resource['TEMPLATE/GRAPHICS/PORT']
+            vnc_pw = resource['TEMPLATE/GRAPHICS/PASSWD']
+
+            cmd = PREVIEW_LOCATION + "/vncpwd.sh #{vnc_host} #{vnc_port} " + PREVIEW_LOCATION + "/#{id}.jpg #{vnc_pw}"
+            cmd_output = `cmd &`
+            return cmd_output
+        end
+    end
+
     ########################################################################
     # Accounting & Monitoring
     ########################################################################

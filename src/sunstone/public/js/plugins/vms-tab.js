@@ -1342,6 +1342,11 @@ function updateVMInfo(request,vm){
             </thead>\
             <tbody>\
               <tr>\
+                 <td class="key_td">'+tr("Preview")+'</td>\
+                 <td class="value_td"><img src="/vm/'+vm_info.ID+'/preview" width="160" height="120"/></td>\
+                 <td></td>\
+              </tr>\
+              <tr>\
                  <td class="key_td">'+tr("ID")+'</td>\
                  <td class="value_td">'+vm_info.ID+'</td>\
                  <td></td>\
