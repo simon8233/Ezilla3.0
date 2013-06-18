@@ -249,8 +249,8 @@ class SunstoneServer < CloudServer
             vnc_port = resource['TEMPLATE/GRAPHICS/PORT']
             vnc_pw = resource['TEMPLATE/GRAPHICS/PASSWD']
 
-            cmd = PREVIEW_LOCATION + "/vncpwd.sh #{vnc_host} #{vnc_port} " + PREVIEW_LOCATION + "/#{id}.jpg #{vnc_pw}"
-            cmd_output = `cmd &`
+            cmd = PREVIEW_LOCATION + "/vncpwd.sh " + PREVIEW_LOCATION + " #{vnc_host} #{vnc_port} " + PREVIEW_LOCATION + "/#{id}.jpg #{vnc_pw}"
+            cmd_output = `#{cmd} &`
             return cmd_output
         end
     end

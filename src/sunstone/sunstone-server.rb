@@ -32,7 +32,7 @@ else
     ETC_LOCATION = ONE_LOCATION + "/etc"
     SHARE_LOCATION = ONE_LOCATION + "/share"
     RUBY_LIB_LOCATION = ONE_LOCATION+"/lib/ruby"
-    PREVIEW_LOCATION = VAR_LOCATION + "/lib/sunstone/public/images/vncsnapshot"
+    PREVIEW_LOCATION = ONE_LOCATION + "/lib/sunstone/public/images/vncsnapshot"
 end
 
 SUNSTONE_AUTH             = VAR_LOCATION + "/.one/sunstone_auth"
