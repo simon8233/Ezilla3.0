@@ -48,6 +48,45 @@ function pretty_time(time_seconds)
     return hour + ":" + mins +":" + secs + "&nbsp;" + month + "/" + day + "/" + year;
 }
 
+//add icon and color for vm state
+function pretty_vmstate(state)
+{
+        var str = state;
+
+        switch (state){
+        case "RUNNING":
+            str = "<span style='color:green'><i class='icon-ok'></i>&nbsp;RUNNING</span>";
+            break;
+        case "POWEROFF":
+            str = "<span style='color:grey'><i class='icon-off'></i>&nbsp;POWEROFF</span>";
+            break;
+        case "SUSPENDED":
+            str = "<span style='color:orange'><i class='icon-pause'></i>&nbsp;SUSPENDED</span>";
+            break;
+        case "STOPPED":
+            str = "<span style='color:grey'><i class='icon-stop'></i>&nbsp;STOPPED</span>";
+            break;
+        case "DONE":
+            str = "<span style='color:green'><i class='icon-circle-blank'></i>&nbsp;DONE</span>";
+            break;
+        case "UNDEPLOYED":
+            str = "<span style='color:grey'><i class='icon-cloud-upload'></i>&nbsp;UNDEPLOYED</span>";
+            break;
+        case "FAILURE":
+            str = "<span style='color:red'><i class='icon-remove'></i>&nbsp;FAILURE</span>";
+            break;
+        case "UNKNOWN":
+            str = "<span style='color:red'><i class='icon-question'></i>&nbsp;UNKNOWN</span>";
+            break;
+        case "HOLD":
+            str = "<span style='color:orange'><i class='icon-pushpin'></i>&nbsp;HOLD</span>";
+            break;
+        default:
+            str = "<i class='icon-spinner icon-spin'></i>&nbsp;" + state;
+        };
+        return str;
+}
+
 // Format time for plot axis
 // If show date, only date information is shown
 function pretty_time_axis(time, show_date){

@@ -1053,7 +1053,7 @@ function vMachineElementArray(vm_json){
         vm.UNAME,
         vm.GNAME,
         vm.NAME,
-        state,
+        pretty_vmstate(state),
         vm.CPU,
         humanize_size(vm.MEMORY),
         hostname,
