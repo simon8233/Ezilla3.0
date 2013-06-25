@@ -127,6 +127,23 @@ var create_image_tmpl =
                       </div>\
                       <div class="row">\
                         <div class="four columns">\
+                          <label class="right inline" for="img_ostype">'+tr("OS TYPE")+':</label>\
+                        </div>\
+                        <div class="seven columns">\
+                         <select name="img_ostype" id="img_ostype">\
+                              <option value="WINDOWS">'+tr("Windows")+'</option>\
+                              <option value="CENTOS">'+tr("Linux CentOS/Redhat")+'</option>\
+                              <option value="UBUNTU">'+tr("Linux Ubuntu/Mint")+'</option>\
+                              <option value="FEDORA">'+tr("Linux Fedora")+'</option>\
+                              <option value="OPENSUSE">'+tr("Linux openSUSE")+'</option>\
+                         </select>\
+                        </div>\
+                        <div class="one columns">\
+                          <div class="tip">'+tr("choose your OS Type, when creating os type disk.")+'</div>\
+                        </div>\
+                      </div>\
+                      <div class="row">\
+                        <div class="four columns">\
                           <label class="right inline" for="img_datastore">'+tr("Datastore")+':</label>\
                         </div>\
                         <div class="seven columns">\
@@ -902,16 +919,23 @@ function setupCreateImageDialog(){
         switch (value){
         case "DATABLOCK":
             $('#datablock_img',context).removeAttr("disabled");
+            $('#img_ostype',context).parent().parent().hide();
             //$('#empty_datablock', context).show();
+            break;
+        case "CDROM":
+            $('#datablock_img',context).attr('disabled','disabled');
+            $('#img_ostype',context).parent().parent().hide();
+            $('#path_img',context).click();
+
             break;
         default:
             $('#datablock_img',context).attr('disabled','disabled');
+            $('#img_ostype',context).parent().parent().show();
             //$('#empty_datablock', context).hide();
             $('#path_img',context).click();
 
         }
     });
-
 
     $('#img_path,#img_fstype,#img_size,#file-uploader',dialog).closest('.row').hide();
 
@@ -1117,6 +1141,11 @@ function setupCreateImageDialog(){
 
         var type = $('#img_type',dialog).val();
         img_json["TYPE"]= type;
+       
+        if ( type == "OS" ){
+            var ostype = $('#img_ostype',dialog).val();
+            img_json["OSTYPE"]= ostype; 
+        }
 
         img_json["PERSISTENT"] = $('#img_persistent:checked',dialog).length ? "YES" : "NO";
 
