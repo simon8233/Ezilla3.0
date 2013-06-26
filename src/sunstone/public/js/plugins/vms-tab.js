@@ -2988,7 +2988,7 @@ function updateVNCState(rfb, state, oldstate, msg) {
 function setupVNC(){
 
     //Append to DOM
-    dialogs_context.append('<div id="vnc_dialog" style="width:auto; max-width:70%" title=\"'+tr("VNC connection")+'\"></div>');
+    dialogs_context.append('<div id="vnc_dialog" style="width:auto; max-width:100%" title=\"'+tr("VNC connection")+'\"></div>');
     $vnc_dialog = $('#vnc_dialog',dialogs_context);
     var dialog = $vnc_dialog;
 
@@ -3003,7 +3003,7 @@ function setupVNC(){
       </small>\
     </h3>\
   </div>\
-  <div class="reveal-body" style="width:100%; overflow-x:overlay">\
+  <div class="reveal-body" style="margin:-10px 0px 0px 0px;padding:0px;width:100%; height:100%; overflow-x:overlay">\
     <canvas id="VNC_canvas" width="640px">\
         '+tr("Canvas not supported.")+'\
     </canvas>\
@@ -3021,7 +3021,7 @@ function setupVNC(){
     //    resizable:true,
     //    closeOnEscape: false
     //});
-    dialog.addClass("reveal-modal large max-height");
+    dialog.addClass("reveal-modal vncscreencss  max-height");
 
     $('#sendCtrlAltDelButton',dialog).click(function(){
         rfb.sendCtrlAltDel();

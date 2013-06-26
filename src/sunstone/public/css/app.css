@@ -3035,6 +3035,15 @@ ul.orbit-bullets li.active.has-thumb {
   font-weight: bold;
   cursor: pointer;
 }
+/*@media screen and (max-width: 1280px) {*/
+    .reveal-modal.vncscreencss{
+    top:0px;
+    max-height:100%;
+    height:850px;
+    width:100%;
+    margin-left:-35%;
+    }
+/*}*/
 /* line 23, ../../../../../../../.rbenv/versions/1.9.3-p392/lib/ruby/gems/1.9.1/gems/zurb-foundation-3.2.5/scss/foundation/components/modules/_reveal.scss */
 .reveal-modal.small {
   width: 30%;
