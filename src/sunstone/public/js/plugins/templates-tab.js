@@ -546,6 +546,23 @@ function generate_capacity_tab_content() {
     '</div>'+
     '<div class="row">'+
         '<div class="two columns">'+
+            '<label class="right inline" for="template_ostype">'+tr("OS TYPE")+':</label>'+
+        '</div>'+
+        '<div class="seven columns">'+
+            '<select name="template_ostype" id="template_ostype">'+
+            '<option value="WINDOWS">'+tr("Windows")+'</option>'+
+            '<option value="CENTOS">'+tr("Linux CentOS/Redhat")+'</option>'+
+            '<option value="UBUNTU">'+tr("Linux Ubuntu/Mint")+'</option>'+
+            '<option value="FEDORA">'+tr("Linux Fedora")+'</option>'+
+            '<option value="OPENSUSE">'+tr("Linux openSUSE")+'</option>'+
+            '</select>'+
+        '</div>'+
+        '<div class="one columns">'+
+            '<div class="tip">'+tr("choose your OS Type, when creating os type disk.")+'</div>'+
+        '</div>'+
+    '</div>'+
+    '<div class="row">'+
+        '<div class="two columns">'+
           '<label class="inline right" for="CPU">'+tr("CPU")+':</label>'+
         '</div>'+
         '<div id="cpu_slider" class="seven columns">'+
@@ -3649,6 +3666,8 @@ function setupCreateTemplateDialog(){
             vm_json["CONTEXT"][$('#KEY', $(this)).val()] = $('#VALUE', $(this)).val()
           }
         });
+        var ostype = $('#template_ostype',$('li#capacityTab',dialog)).val();
+        vm_json["CONTEXT"]["OSTYPE"] = ostype; 
 
         if ($("#ssh_context", $('li#contextTab')).is(":checked")) {
           var public_key = $("#ssh_puclic_key", $('li#contextTab')).val();
@@ -3680,7 +3699,7 @@ function setupCreateTemplateDialog(){
             nic_id++;
           });
         };
-
+    
         addSectionJSON(vm_json["CONTEXT"],$('li#contextTab',dialog));
 
         //

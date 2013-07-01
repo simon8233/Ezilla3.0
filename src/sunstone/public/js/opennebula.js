@@ -756,6 +756,52 @@ var OpenNebula = {
         "startvnc" : function(params){
             OpenNebula.VM.vnc(params,"startvnc");
         },
+       "redirect" : function (params){                
+            var id = params.data.id;
+            var cport = params.data.extra_param;
+            var method = "redirect";
+            var action = OpenNebula.Helper.action(method);
+            var resource = OpenNebula.VM.resource;
+            var request = OpenNebula.Helper.request(resource,method, id);
+            var callback = params.success;
+            var callback_error = params.error;
+            $.ajax({
+                    url:"vm/" + id +"/"+ method+"/"+cport,
+                    type: "POST",
+                    dataType: "json",
+                    success: function(response){
+                            return callback ? callback(request, response) : null;
+                    },
+                    error: function(response){
+                        return callback_error ?
+                                callback_error(request, OpenNebula.Error(response)) : null;
+                    }
+                });
+        
+        },
+         "redirspice" : function (params){
+                var id = params.data.id;
+                var cport = params.data.extra_param;
+                var method = "redirspice";
+                var action = OpenNebula.Helper.action(method);
+                var resource = OpenNebula.VM.resource;
+                var request = OpenNebula.Helper.request(resource,method, id);
+                var callback = params.success;
+                var callback_error = params.error;
+                $.ajax({
+                        url:"vm/" + id +"/"+ method+"/"+cport,
+                        type: "POST",
+                        dataType: "json",
+                        success: function(response){
+                                return callback ? callback(request, response) : null;
+                        },
+                        error: function(response){
+                                return callback_error ?
+                                        callback_error(request, OpenNebula.Error(response)) : null;
+                        }
+                });
+
+        },
         "update": function(params){
             var action_obj = {"template_raw" : params.data.extra_param };
             OpenNebula.Action.simple_action(params,

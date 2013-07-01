@@ -434,7 +434,58 @@ get '/vm/:id/preview' do
 
     send_file previewimage, :type=> 'image/jpeg', :disposition => 'inline'
 end
+##############################################################################
+###Start a Redirect Port for a target VM
+##############################################################################
+post '/vm/:id/redirect/:port' do
 
+    vm_id = params[:id]
+    port = params[:port]
+        redir_hash = session['redir']
+
+        if !redir_hash  || !redir_hash[vm_id]
+                session['redir']= {}
+            rc = @SunstoneServer.redirect(vm_id,port,'')
+            info = rc[1]
+                session['redir'][vm_id] = info.clone
+                info.delete(:pipe)
+            rc = [ 200 , info.to_json]
+        session['redir'].delete(vm_id)
+            return rc
+        elsif redir_hash[vm_id]
+                #return existing information
+                info = redir_hash[vm_id].clone
+                info.delete(:pipe)
+                return [200, info.to_json]
+        end
+
+end
+################################################################################
+###Start a Redirect Port for a target VM of SPICE
+################################################################################
+post '/vm/:id/redirspice/:port' do
+
+        vm_id = params[:id]
+        port = params[:port]
+    spice_hash = session['spice']
+
+    if !spice_hash  || !spice_hash[vm_id]
+        session['spice']= {}
+            rc = @SunstoneServer.redirect(vm_id,port,'spice')
+            info = rc[1]
+        session['spice'][vm_id] = info.clone
+        info.delete(:pipe)
+            rc = [ 200 , info.to_json]
+        session['spice'].delete(vm_id)
+            return rc
+    elsif spice_hash[vm_id]
+            #return existing information
+                info = spice_hash[vm_id].clone
+                info.delete(:pipe)
+        return [200, info.to_json]
+    end
+
+end
 ##############################################################################
 # Perform an action on a Resource
 ##############################################################################

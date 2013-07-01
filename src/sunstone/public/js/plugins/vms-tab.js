@@ -82,6 +82,7 @@ var vms_tab_content = '\
       <th>'+tr("IPs")+'</th>\
       <th>'+tr("Start Time")+'</th>\
       <th>'+tr("VNC")+'</th>\
+      <th>'+tr("Remote")+'</th>\
     </tr>\
   </thead>\
   <tbody id="tbodyvmachines">\
@@ -171,6 +172,7 @@ var vmachine_list_json = {};
 var dataTable_vMachines;
 var $create_vm_dialog;
 var $vnc_dialog;
+var $redir_dialog;
 var rfb;
 
 var vm_actions = {
@@ -560,7 +562,20 @@ var vm_actions = {
         error: onError,
         notify: true
     },
-
+    "VM.redirect" : {
+        type: "single",
+        call : OpenNebula.VM.redirect,
+        callback: RedirectPortCallback,
+        error: onError,
+        notify: true
+    },
+    "VM.redirspice" : {
+        type: "single",
+        call : OpenNebula.VM.redirspice,
+        callback: RedirectPortCallback,
+        error: onError,
+        notify: true
+    },
     "VM.monitor" : {
         type: "monitor",
         call : OpenNebula.VM.monitor,
@@ -1059,7 +1074,8 @@ function vMachineElementArray(vm_json){
         hostname,
         ip_str(vm),
         str_start_time(vm),
-        vncIcon(vm)
+        vncIcon(vm),
+        redirectPortIcon(vm)
     ];
 };
 
@@ -3065,6 +3081,7 @@ function vncIcon(vm){
     if (graphics && graphics.TYPE.toLowerCase() == "vnc" && $.inArray(state, VNCstates)!=-1){
         gr_icon = '<a class="vnc" href="#" vm_id="'+vm.ID+'">';
         gr_icon += '<i class="icon-desktop" style="color: rgb(111, 111, 111)"/>';
+
     }
     else {
         gr_icon = '';
@@ -3072,6 +3089,144 @@ function vncIcon(vm){
 
     gr_icon += '</a>'
     return gr_icon;
+}
+
+function setupRedirectPort(){
+
+
+    //Append to DOM
+    dialogs_context.append('<div id="redir_dialog" title=\"'+tr("Redirect Port Information")+'\"></div>');
+    $redir_dialog = $('#redir_dialog',dialogs_context);
+    var dialog = $redir_dialog;
+    dialog.html('\
+        <div class="panel">\
+            <h3>\
+                <small id="RedirectPort_Info">'+tr("Redirect Port Information")+' \
+                </small>\
+           </h3>\
+            <div class="reveal-body" >\
+                <table border=0 width="100%"><tr>\
+                <td width="200"><div id="RedirectPort_Info_image"></div></td>\
+                </div>\
+                <td><div id="RedirectPort_Info_output">'+tr("Loading")+'</td>\
+                </div>\
+                </tr></table>\
+        </div>\
+        <a class="close-reveal-modal">&#215;</a>\
+    ');
+    dialog.addClass("reveal-modal medium");
+
+/*     dialog.bind("dialogclose",function(event, ui){
+            $('.disable_redir').addClass('redir');
+        });*/
+/*
+    $('.redir_spice').live("click",function(){
+
+        var id=$(this).attr('vm_id');
+                var port = $(this).attr('vm_port');
+                var loc = $(this).attr('vm_loc');
+                if (loc == "spice"){
+                        Sunstone.runAction("VM.redirspice",id,port);
+                }
+                return false;
+    });
+*/
+    $('.redir').live("click",function(){
+        var id = $(this).attr('vm_id');
+        var port = $(this).attr('vm_port');
+        var loc = $(this).attr('vm_loc');
+        Sunstone.runAction("VM.redirect",id,port);
+        $('.redir').addClass('disable_redir');
+        $('.redir').removeClass('redir');
+        return false;
+    });
+}
+
+function RedirectPortCallback(request,response){
+    setTimeout(function(){
+        var srv_hostname = window.location.host;
+
+    if ( srv_hostname.search(":") > 0 ){
+            srv_hostname = srv_hostname.substring(0,srv_hostname.indexOf(":"));
+    }
+    else{
+        srv_hostname = srv_hostname;
+    }
+    var port;
+    var id = response["id"];
+    if ( response["loc"]  == "spice" ){
+        port = $(".redir_spice").attr('vm_port');
+    }
+    else{
+        port = response["cport"];
+    }
+    var connecting_tool_image ='<a class="connecting_info">';
+    var connecting_tool;
+    if ( port == "3389" ){
+        connecting_tool = tr("To connect to the Virtual Machine , you can use RDP tools to connect. copy above connect information,and paste to your RDP tools");
+        connecting_tool_image += '<img src="images/rdp_icon_big.png" alt=\"'+tr("RDP TOOLS")+'\" /></a>';
+    }
+    else{
+        if ( port == "22" ){
+            connecting_tool = tr("To connect to the Virtual Machine , you can use SSH tools to connect. copy above connect information,and paste to your SSH tools");
+            connecting_tool_image += '<img src="images/ssh_icon_big.png" alt=\"'+tr("SSH TOOLS")+'\" /></a>';
+        }
+        else{
+            connecting_tool = tr("To connect to the Virtual Machine , you can use SPICE tools to connect. copy above connect information,and paste to your SPICE tools");
+                        connecting_tool_image += '<img src="images/spice_icon_big.png" alt=\"'+tr("SSH TOOLS")+'\" /></a>';
+        }
+    }
+    $('#RedirectPort_Info_image').html(connecting_tool_image);
+    $('#RedirectPort_Info_output').html(tr("Connecting information")+'<input type=text readonly=false id=\'connecting_textarea\' value=\"\" style=\'width:250px;height:15px;\'/>'+connecting_tool);
+    $('#connecting_textarea').attr("value",function(){
+    return  srv_hostname+":"+response["info"];
+    });
+   
+    $redir_dialog.reveal({"closed": function () {
+             $('.disable_redir').addClass('redir');
+             $('redir').removeClass('disable_redir');
+    }});
+
+    },1000);
+};
+
+
+function redirectPortIcon(vm){
+    var redir_icon;
+    var ostype;
+    var state = OpenNebula.Helper.resource_state("vm_lcm",vm.LCM_STATE);
+    if (typeof(vm.TEMPLATE.CONTEXT) != "undefined"){
+        if (typeof(vm.TEMPLATE.CONTEXT.OSTYPE) != "undefined"){
+            ostype = vm.TEMPLATE.CONTEXT.OSTYPE;
+            if ( ostype == "WINDOWS"  && state == tr("RUNNING") ){
+                redir_icon = '<a class="redir" href="#" vm_id="'+vm.ID+'" vm_port="3389">'; 
+                redir_icon += '<i class="icon-windows icon-redir-border " style="color:rgb(111, 111, 111);"></i></a>';
+            }
+            else if ( ostype == "WINDOWS" && state != tr("RUNNING") ){
+             //   redir_icon = '<a class="disable_redir" href="#" vm_id="'+vm.ID+'" vm_port="3389">';
+             //   redir_icon += '<i class="icon-windows" style="color:rgb(111, 111, 111);"></i></a>';
+                redir_icon='';
+            }
+            else if ( ostype != "WINDOWS" && state == tr("RUNNING") ) {
+                redir_icon = '<a class="redir" href="#" vm_id="'+vm.ID+'" vm_port="22">';
+                redir_icon += '<i class="icon-terminal icon-light icon-redir-border" style="background-color:rgb(111,111,111);"></i></span></a>';
+
+            }
+            else {
+                redir_icon='';
+            //    redir_icon = '<a class="disable_redir" href="#" vm_id="'+vm.ID+'" vm_port="22">';                
+            //    redir_icon += '<span class="icon-stack"><i class="icon-sign-blank icon-stack-base" style="color: rgb(111, 111, 111)"></i><i class="icon-terminal icon-light"></i></span></a>';
+            }
+        }
+        else{
+            redir_icon = "";
+        }
+   }
+   else{
+        redir_icon  = "";
+   }
+    return redir_icon;
+
 }
 
 
@@ -3116,6 +3271,7 @@ $(document).ready(function(){
     setupCreateVMDialog();
     setVMAutorefresh();
     setupVNC();
+    setupRedirectPort();
     hotpluggingOps();
     setup_vm_network_tab();
     setup_vm_capacity_tab();
