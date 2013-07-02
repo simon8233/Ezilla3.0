@@ -201,7 +201,15 @@ var vm_actions = {
 		tmp_template.CONTEXT["USERNAME"]=username_array[0];
 		tmp_template.CONTEXT["USER_PASSWD"]=user_passwd;
 		tmp_template.CONTEXT["ROOT_PASSWD"]=user_passwd;
-		tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.sh";
+        
+        if (typeof(tmp_template.CONTEXT.OSTYPE) != "undefined"){
+            if (tmp_template.CONTEXT["OSTYPE"] == "WINDOWS") {
+                tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.ps1";
+            }
+            else{
+                tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.sh";
+            }
+        }
 		tmp_template.GRAPHICS["PASSWD"]=d.getTime();
    
         	if (n_times.length){
@@ -3203,8 +3211,6 @@ function redirectPortIcon(vm){
                 redir_icon += '<i class="icon-windows icon-redir-border " style="color:rgb(111, 111, 111);"></i></a>';
             }
             else if ( ostype == "WINDOWS" && state != tr("RUNNING") ){
-             //   redir_icon = '<a class="disable_redir" href="#" vm_id="'+vm.ID+'" vm_port="3389">';
-             //   redir_icon += '<i class="icon-windows" style="color:rgb(111, 111, 111);"></i></a>';
                 redir_icon='';
             }
             else if ( ostype != "WINDOWS" && state == tr("RUNNING") ) {
@@ -3214,8 +3220,6 @@ function redirectPortIcon(vm){
             }
             else {
                 redir_icon='';
-            //    redir_icon = '<a class="disable_redir" href="#" vm_id="'+vm.ID+'" vm_port="22">';                
-            //    redir_icon += '<span class="icon-stack"><i class="icon-sign-blank icon-stack-base" style="color: rgb(111, 111, 111)"></i><i class="icon-terminal icon-light"></i></span></a>';
             }
         }
         else{
