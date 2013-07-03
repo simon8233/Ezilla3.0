@@ -175,6 +175,22 @@ class SunstoneServer < CloudServer
             return [404, resource.to_json]
         end
         if resource.is_a?(VirtualMachineJSON)
+
+        # clean spice redirect function process        
+        graphics = resource["TEMPLATE/GRAPHICS/TYPE"]
+            if  graphics.downcase.eql? "spice"
+                ip = resource['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']
+                cport  = resource["TEMPLATE/GRAPHICS/PORT"] 
+                File.delete("/tmp/redir/#{ip}:#{cport}") if File.exist?("/tmp/redir/#{ip}:#{cport}")
+                redir_pid = %x{ps -ef | grep "caddr=#{ip} --cport=#{cport}" |grep -v grep | awk '{print $2}'}
+                redir_pid =  redir_pid.split("\n")
+                if redir_pid.length > 1
+                    %x{kill -9 `ps -ef | grep "caddr=#{ip} --cport=#{cport}" |grep -v grep | awk '{print $2}'`}
+                else
+                    %x{kill -9 #{redir_pid[0]}}if !redir_pid[0].nil?
+                end          
+            end
+        # clean redirect function process 
             ip=resource["TEMPLATE/NIC/IP"] if !resource["TEMPLATE/NIC/IP"].nil?
             ostype=resource["TEMPLATE/CONTEXT/OSTYPE"] if  !resource["TEMPLATE/CONTEXT/OSTYPE"].nil?
             if !ostype.nil?  &&  !ip.nil?
@@ -215,6 +231,24 @@ class SunstoneServer < CloudServer
             perform_action = action_hash['perform'] # get "VM action information." 
 
             if perform_action.eql? "shutdown" or perform_action.eql? "cancel" # VM lifecycle will go done status.
+                
+        # clean spice redirect function process
+                graphics = resource["TEMPLATE/GRAPHICS/TYPE"]
+ 
+                if  graphics.downcase.eql? "spice"
+                    ip = resource['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']
+                    cport  = resource["TEMPLATE/GRAPHICS/PORT"]
+                    File.delete("/tmp/redir/#{ip}:#{cport}") if File.exist?("/tmp/redir/#{ip}:#{cport}")
+                    redir_pid = %x{ps -ef | grep "caddr=#{ip} --cport=#{cport}" |grep -v grep | awk '{print $2}'}
+                    redir_pid =  redir_pid.split("\n")
+                    if redir_pid.length > 1
+                        %x{kill -9 `ps -ef | grep "caddr=#{ip} --cport=#{cport}" |grep -v grep | awk '{print $2}'`}
+                    else
+                        %x{kill -9 #{redir_pid[0]}}if !redir_pid[0].nil?
+                    end          
+                end
+
+        # clean redirect function process 
                 ip=resource["TEMPLATE/NIC/IP"] if !resource["TEMPLATE/NIC/IP"].nil?
                 ostype=resource["TEMPLATE/CONTEXT/OSTYPE"] if  !resource["TEMPLATE/CONTEXT/OSTYPE"].nil?
                 if !ostype.nil?  &&  !ip.nil?
@@ -307,7 +341,8 @@ class SunstoneServer < CloudServer
                 return [404,nil]
         end
         if loc == "spice"
-        ip = resource['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']
+            ip = resource['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']
+            spice_pw = resource['TEMPLATE/GRAPHICS/PASSWD']
         else
             ip = resource['TEMPLATE/NIC/IP']
         end
@@ -336,7 +371,7 @@ class SunstoneServer < CloudServer
             file_redir_info.close
         end
         redir_port = File.new("/tmp/redir/#{ip}:#{cport}").read
-        info = {:info=>redir_port,:loc=>loc,:id=>id,:cport=>cport}
+        info = {:info=>redir_port,:loc=>loc,:id=>id,:cport=>cport,:spice_pw=>spice_pw}
         return [200,info]
     end    
     ########################################################################

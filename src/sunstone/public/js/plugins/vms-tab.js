@@ -3083,13 +3083,19 @@ function vncCallback(request,response){
 
 function vncIcon(vm){
     var graphics = vm.TEMPLATE.GRAPHICS;
+    var port = vm.TEMPLATE.GRAPHICS.PORT;
+
     var state = OpenNebula.Helper.resource_state("vm_lcm",vm.LCM_STATE);
     var gr_icon;
 
     if (graphics && graphics.TYPE.toLowerCase() == "vnc" && $.inArray(state, VNCstates)!=-1){
         gr_icon = '<a class="vnc" href="#" vm_id="'+vm.ID+'">';
-        gr_icon += '<i class="icon-desktop" style="color: rgb(111, 111, 111)"/>';
+        gr_icon += '<i class="icon-desktop icon-redir-noborder" style="color: rgb(111, 111, 111)"/>';
 
+    }
+    else if (graphics && graphics.TYPE.toLowerCase() == "spice" && state == tr("RUNNING") ){
+        gr_icon =  '<a class="redir_spice" href="#" vm_id="'+vm.ID+'" vm_port="'+port+'" vm_loc="spice">';
+        gr_icon += '<i class="icon-desktop icon-light icon-redir-noborder" style="background-color:rgb(111, 111, 111);"/>';
     }
     else {
         gr_icon = '';
@@ -3124,10 +3130,6 @@ function setupRedirectPort(){
     ');
     dialog.addClass("reveal-modal medium");
 
-/*     dialog.bind("dialogclose",function(event, ui){
-            $('.disable_redir').addClass('redir');
-        });*/
-/*
     $('.redir_spice').live("click",function(){
 
         var id=$(this).attr('vm_id');
@@ -3138,7 +3140,6 @@ function setupRedirectPort(){
                 }
                 return false;
     });
-*/
     $('.redir').live("click",function(){
         var id = $(this).attr('vm_id');
         var port = $(this).attr('vm_port');
@@ -3152,7 +3153,7 @@ function setupRedirectPort(){
 
 function RedirectPortCallback(request,response){
     setTimeout(function(){
-        var srv_hostname = window.location.host;
+    var srv_hostname = window.location.host;
 
     if ( srv_hostname.search(":") > 0 ){
             srv_hostname = srv_hostname.substring(0,srv_hostname.indexOf(":"));
@@ -3164,6 +3165,7 @@ function RedirectPortCallback(request,response){
     var id = response["id"];
     if ( response["loc"]  == "spice" ){
         port = $(".redir_spice").attr('vm_port');
+        spice_password=response["spice_pw"];
     }
     else{
         port = response["cport"];
@@ -3172,20 +3174,24 @@ function RedirectPortCallback(request,response){
     var connecting_tool;
     if ( port == "3389" ){
         connecting_tool = tr("To connect to the Virtual Machine , you can use RDP tools to connect. copy above connect information,and paste to your RDP tools");
-        connecting_tool_image += '<img src="images/rdp_icon_big.png" alt=\"'+tr("RDP TOOLS")+'\" /></a>';
+        connecting_tool_image += '<img src="images/rdp_icon_big.png" /></a>';
     }
     else{
         if ( port == "22" ){
             connecting_tool = tr("To connect to the Virtual Machine , you can use SSH tools to connect. copy above connect information,and paste to your SSH tools");
-            connecting_tool_image += '<img src="images/ssh_icon_big.png" alt=\"'+tr("SSH TOOLS")+'\" /></a>';
+            connecting_tool_image += '<img src="images/ssh_icon_big.png"/></a>';
         }
         else{
-            connecting_tool = tr("To connect to the Virtual Machine , you can use SPICE tools to connect. copy above connect information,and paste to your SPICE tools");
-                        connecting_tool_image += '<img src="images/spice_icon_big.png" alt=\"'+tr("SSH TOOLS")+'\" /></a>';
+            connecting_tool = tr("SPICE protocol password")+"<input type=text readonly=false id=\'spice_protocol_password\' value="+spice_password+" style=\'width:250px;height:15px;\'/>"; 
+            connecting_tool += tr("To connect to the Virtual Machine , you can use SPICE tools to connect. copy above connect information,and paste to your SPICE tools");
+            connecting_tool_image += '<img src="images/spice_icon_big.png" /></a>';
         }
     }
     $('#RedirectPort_Info_image').html(connecting_tool_image);
     $('#RedirectPort_Info_output').html(tr("Connecting information")+'<input type=text readonly=false id=\'connecting_textarea\' value=\"\" style=\'width:250px;height:15px;\'/>'+connecting_tool);
+    
+
+
     $('#connecting_textarea').attr("value",function(){
     return  srv_hostname+":"+response["info"];
     });
