@@ -18,6 +18,15 @@
 var INCLUDE_URI = "vendor/noVNC/";
 var VM_HISTORY_LENGTH = 40;
 
+function generatepass(p_length){
+    var keylist="abcdefghijklmnopqrstuvwxyz123456789"
+    var temp=''
+    temp=''
+    for (i=0;i<p_length;i++)
+        temp+=keylist.charAt(Math.floor(Math.random()*keylist.length))
+    return temp
+}
+
 function loadVNC(){
     var script = '<script src="vendor/noVNC/vnc.js"></script>';
     document.write(script);
@@ -196,8 +205,8 @@ var vm_actions = {
 		var user_passwd = $('#user_passwd',$create_vm_dialog).val();
         	var n_times = $('#vm_n_times',$create_vm_dialog).val();
         	var n_times_int=1;
-		var d = new Date();
-		var username_array=username.split('%');
+	    var password_length = 8;	
+        var username_array=username.split('%');
 		tmp_template.CONTEXT["USERNAME"]=username_array[0];
 		tmp_template.CONTEXT["USER_PASSWD"]=user_passwd;
 		tmp_template.CONTEXT["ROOT_PASSWD"]=user_passwd;
@@ -210,7 +219,7 @@ var vm_actions = {
                 tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.sh";
             }
         }
-		tmp_template.GRAPHICS["PASSWD"]=d.getTime();
+		tmp_template.GRAPHICS["PASSWD"]= generatepass(password_length);
    
         	if (n_times.length){
             		n_times_int=parseInt(n_times,10);
