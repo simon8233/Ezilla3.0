@@ -44,11 +44,27 @@ class OneDatastoreHelper < OpenNebulaHelper::OneHelper
                 d["ID"]
             end
 
-            column :NAME, "Name of the Datastore", :left, :size=>25 do |d|
+            column :NAME, "Name of the Datastore", :left, :size=>13 do |d|
                 d["NAME"]
             end
 
-            column :CLUSTER, "Name of the Cluster", :left, :size=>15 do |d|
+            column :SIZE, "Datastore total size", :size =>10 do |d|
+                if d['TEMPLATE']['TYPE'] == 'SYSTEM_DS'
+                    "-"
+                else
+                    OpenNebulaHelper.unit_to_str(d['TOTAL_MB'].to_i, {}, 'M')
+                end
+            end
+
+            column :AVAIL, "Datastore free size", :left, :size =>5 do |d|
+                if d['TOTAL_MB'].to_i == 0
+                    "-"
+                else
+                    "#{((d['FREE_MB'].to_f/d['TOTAL_MB'].to_f) * 100).round()}%"
+                end
+            end
+
+            column :CLUSTER, "Name of the Cluster", :left, :size=>12 do |d|
                 OpenNebulaHelper.cluster_str(d["CLUSTER"])
             end
 
@@ -73,7 +89,7 @@ class OneDatastoreHelper < OpenNebulaHelper::OneHelper
                 d["TM_MAD"]
             end
 
-            default :ID, :NAME, :CLUSTER, :IMAGES, :TYPE, :DS, :TM
+            default :ID, :NAME, :SIZE, :AVAIL, :CLUSTER, :IMAGES, :TYPE, :DS, :TM
         end
 
         table
@@ -99,6 +115,8 @@ class OneDatastoreHelper < OpenNebulaHelper::OneHelper
         str="%-15s: %-20s"
         str_h1="%-80s"
 
+        system = datastore.type == 1
+
         CLIHelper.print_header(str_h1 % "DATASTORE #{datastore['ID']} INFORMATION")
         puts str % ["ID",       datastore.id.to_s]
         puts str % ["NAME",     datastore.name]
@@ -111,6 +129,12 @@ class OneDatastoreHelper < OpenNebulaHelper::OneHelper
         puts str % ["TM_MAD",   datastore['TM_MAD']]
         puts str % ["BASE PATH",datastore['BASE_PATH']]
         puts str % ["DISK_TYPE",Image::DISK_TYPES[datastore['DISK_TYPE'].to_i]]
+        puts
+
+        CLIHelper.print_header(str_h1 % "DATASTORE CAPACITY", false)
+        puts str % ["TOTAL:", system ? '-' : OpenNebulaHelper.unit_to_str(datastore['TOTAL_MB'].to_i, {},'M')]
+        puts str % ["USED: ", system ? '-' : OpenNebulaHelper.unit_to_str(datastore['USED_MB'].to_i, {},'M')]
+        puts str % ["FREE:",  system ? '-' : OpenNebulaHelper.unit_to_str(datastore['FREE_MB'].to_i, {},'M')]
         puts
 
         CLIHelper.print_header(str_h1 % "PERMISSIONS",false)

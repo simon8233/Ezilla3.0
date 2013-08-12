@@ -927,10 +927,10 @@ function updateVNetworkInfo(request,vn){
 // It adds the "add lease", "hold lease" fields, and each lease comes with
 // hold, release buttons etc. Listeners in setupLeasesOps()
 function printLeases(vn_info){
-    var html ='<form id="leases_form" vnid="'+vn_info.ID+'"><div class="six columns">';
+    var html ='<form id="leases_form" vnid="'+vn_info.ID+'"><div class="twelve columns">';
     html +='';
 
-    html += '<table id="vn_leases_info_table" class="twelve datatable extended_table">\
+    html += '<table id="vn_leases_info_table" class="six datatable extended_table">\
              <thead>\
                 <tr><th colspan="5">'+tr("Network information")+'</th></tr>\
              </thead>\
@@ -955,7 +955,7 @@ function printLeases(vn_info){
               </tr>\
             </tbody></table>';
 
-    html += '<table id="vn_leases_table" class="twelve datatable extended_table">\
+    html += '<table id="vn_leases_table" class="six datatable extended_table">\
       <thead>\
         <tr><th colspan="7">'+tr("Leases information")+'</th></tr>\
       </thead>\
@@ -989,6 +989,8 @@ function printLeases(vn_info){
     };
 
     html +='</tbody>\
+      </table>\
+      <table class="twelve datatable extended_table">\
       <thead>\
         <tr>\
         <th></th>\
@@ -1190,6 +1192,7 @@ function setupCreateVNetDialog() {
             $('input#phydev,label[for="phydev"]',$create_vn_dialog).hide();
             $('select#vlan,label[for="vlan"]',$create_vn_dialog).show();
             $('input#vlan_id,label[for="vlan_id"]',$create_vn_dialog).show();
+            break;
         case "vmware":
             $('input#bridge,label[for="bridge"]',$create_vn_dialog).show();
             $('input#phydev,label[for="phydev"]',$create_vn_dialog).hide();
@@ -1197,9 +1200,6 @@ function setupCreateVNetDialog() {
             $('input#vlan_id,label[for="vlan_id"]',$create_vn_dialog).show();
             break;
         };
-
-        if (!mustBeAdmin())
-            $('input#vlan_id,label[for="vlan_id"]',$create_vn_dialog).hide();
     });
 
     //Initialize shown options
@@ -1565,38 +1565,40 @@ function setVNetAutorefresh() {
 $(document).ready(function(){
     var tab_name = 'vnets-tab';
 
-    dataTable_vNetworks = $("#datatable_vnetworks",main_tabs_context).dataTable({
-        "aoColumnDefs": [
-            { "bSortable": false, "aTargets": ["check"] },
-            { "sWidth": "35px", "aTargets": [0] },
-            { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
-            { "bVisible": false, "aTargets": ['_all']}
-        ]
-    });
+    if (Config.isTabEnabled(tab_name)) {
+      dataTable_vNetworks = $("#datatable_vnetworks",main_tabs_context).dataTable({
+          "aoColumnDefs": [
+              { "bSortable": false, "aTargets": ["check"] },
+              { "sWidth": "35px", "aTargets": [0] },
+              { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
+              { "bVisible": false, "aTargets": ['_all']}
+          ]
+      });
 
-    $('#vnet_search').keyup(function(){
-      dataTable_vNetworks.fnFilter( $(this).val() );
-    })
+      $('#vnet_search').keyup(function(){
+        dataTable_vNetworks.fnFilter( $(this).val() );
+      })
 
-    dataTable_vNetworks.on('draw', function(){
-      recountCheckboxes(dataTable_vNetworks);
-    })
+      dataTable_vNetworks.on('draw', function(){
+        recountCheckboxes(dataTable_vNetworks);
+      })
 
-    Sunstone.runAction("Network.list");
+      Sunstone.runAction("Network.list");
 
-    setupCreateVNetDialog();
-    setupLeasesOps();
-    setVNetAutorefresh();
+      setupCreateVNetDialog();
+      setupLeasesOps();
+      setVNetAutorefresh();
 
-    initCheckAllBoxes(dataTable_vNetworks);
-    tableCheckboxesListener(dataTable_vNetworks);
-    infoListener(dataTable_vNetworks,'Network.showinfo');
+      initCheckAllBoxes(dataTable_vNetworks);
+      tableCheckboxesListener(dataTable_vNetworks);
+      infoListener(dataTable_vNetworks,'Network.showinfo');
 
-    // Reset list filter in case it was set because we were lookin
-    // at a single cluster view
-    $('div#menu li#li_vnets_tab').live('click',function(){
-        dataTable_vNetworks.fnFilter('',5);
-    });
+      // Reset list filter in case it was set because we were lookin
+      // at a single cluster view
+      $('div#menu li#li_vnets_tab').live('click',function(){
+          dataTable_vNetworks.fnFilter('',5);
+      });
 
-    $('div#vnets_tab div.legend_div').hide();
+      $('div#vnets_tab div.legend_div').hide();
+    }
 });

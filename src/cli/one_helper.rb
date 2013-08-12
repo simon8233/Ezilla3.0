@@ -67,6 +67,13 @@ EOT
         :description => "Describe list columns"
     }
 
+    APPEND = {
+        :name => "append",
+        :short => "-a",
+        :large => "--append",
+        :description => "Append new attributes to the current template"
+    }
+
     # Command line VM template options
     TEMPLATE_NAME_VM={
         :name   => 'name',
@@ -655,21 +662,31 @@ EOT
     end
 
     def OpenNebulaHelper.update_template(id, resource, path=nil, xpath='TEMPLATE')
+        return update_template_helper(false, id, resource, path, xpath)
+    end
+
+    def OpenNebulaHelper.append_template(id, resource, path=nil, xpath='TEMPLATE')
+        return update_template_helper(true, id, resource, path, xpath)
+    end
+
+    def OpenNebulaHelper.update_template_helper(append, id, resource, path, xpath)
         unless path
             require 'tempfile'
 
             tmp  = Tempfile.new(id.to_s)
             path = tmp.path
 
-            rc = resource.info
+            if !append
+                rc = resource.info
 
-            if OpenNebula.is_error?(rc)
-                puts rc.message
-                exit -1
+                if OpenNebula.is_error?(rc)
+                    puts rc.message
+                    exit -1
+                end
+
+                tmp << resource.template_like_str(xpath)
+                tmp.flush
             end
-
-            tmp << resource.template_like_str(xpath)
-            tmp.flush
 
             editor_path = ENV["EDITOR"] ? ENV["EDITOR"] : EDITOR_PATH
             system("#{editor_path} #{path}")
@@ -743,26 +760,8 @@ EOT
                 end
             end
 
-            if options[:net_context] && options[:nic]
-                nets=options[:nic].map {|n| parse_user_object(n).last }
-
-                if nets!=nets.uniq
-                    STDERR.puts "Network context generation from command "<<
-                        "line is not supported for VMs with\n"<<
-                        "more than one network with the same name."
-                    exit(-1)
-                end
-
-                nets.each_with_index do |name, index|
-                    lines<<"ETH#{index}_IP = \"$NIC[IP, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_NETWORK = \"$NETWORK[NETWORK_ADDRESS, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_MASK = \"$NETWORK[NETWORK_MASK, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_GATEWAY = \"$NETWORK[GATEWAY, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_DNS = \"$NETWORK[DNS, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_IPV6 = \"$NIC[IP6_GLOBAL, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_GATEWAY6 = \"$NETWORK[GATEWAY6, NETWORK=\\\"#{name}\\\"]\""
-                    lines<<"ETH#{index}_CONTEXT_FORCE_IPV4 = \"$NETWORK[CONTEXT_FORCE_IPV4, NETWORK=\\\"#{name}\\\"]\""
-                end
+            if options[:net_context]
+                    lines << "NETWORK = \"YES\""
             end
 
             lines+=options[:context] if options[:context]

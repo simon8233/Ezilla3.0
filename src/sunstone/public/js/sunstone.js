@@ -25,6 +25,7 @@ var dialogs_context;
 var plots_context;
 var info_panels_context;
 
+panel_extended = false;
 
 //Sunstone configuration is formed by predifined "actions", main tabs
 //and "info_panels". Each tab has "content" and "buttons". Each
@@ -63,10 +64,12 @@ var Sunstone = {
 
     //Adds a new main tab. Refreshes the dom if wanted.
     "addMainTab" : function(tab_id,tab_obj,refresh) {
-        SunstoneCfg["tabs"][tab_id] = tab_obj;
-        if (refresh){
-            insertTab(tab_id);
-            //$(document).foundationCustomForms();
+        if (Config.isTabEnabled(tab_id)) {
+            SunstoneCfg["tabs"][tab_id] = tab_obj;
+            if (refresh){
+                insertTab(tab_id);
+                //$(document).foundationCustomForms();
+            }
         }
     },
 
@@ -131,10 +134,27 @@ var Sunstone = {
                     <div id="refresh_div">\
                         <button type="button" style="float:left; margin-right:5px" class="button secondary tiny radius" id="'+panel_name+'_refresh"><span class="icon-refresh"></span></button>\
                     </div>\
+                    <div id="aa" class="right">\
+                        <a href="#" id="'+panel_name+'_resize_50" '+ (!panel_extended ? "hidden" : "") +'><span class="icon-resize-small"></span>&emsp;</a>\
+                        <a href="#" id="'+panel_name+'_resize_75" '+ (panel_extended ? "hidden" : "") +'><span class="icon-resize-full"></span>&emsp;</a>\
+                    </div>\
                 </dl>\
             </div>\
             <ul class="tabs-content"></ul>\
         </div>');
+
+        $('#'+panel_name+'_resize_75').live('click', function(){
+            panel_extended = true;
+            changeInnerLayout(0.75);
+            $('#'+panel_name+'_resize_75').hide();
+            $('#'+panel_name+'_resize_50').show();
+        })
+        $('#'+panel_name+'_resize_50').live('click', function(){
+            panel_extended = false;
+            changeInnerLayout(0.5);
+            $('#'+panel_name+'_resize_50').hide();
+            $('#'+panel_name+'_resize_75').show();
+        })
 
         var tabs = SunstoneCfg["info_panels"][panel_name];
         var tab=null;
@@ -458,7 +478,7 @@ function setLogin(){
     };
 
     var user_login_content =  '<div href="#" class="button tiny secondary dropdown" id="logout">\
-      <i class="icon-user header-icon"></i> '+ username + '\
+      <i class="icon-user header-icon"></i> '+ decodeURIComponent(username) + '\
       <ul>\
         <li><a href="#" class="configuration"><i class="icon-cog"></i> Settings</a></li>\
         <li><a href="#" class="logout"><i class="icon-off"></i> Sign Out</a></li>\
@@ -530,21 +550,16 @@ function insertTab(tab_name){
 
     var li_item = '<li id="li_'+tab_name+'" class="'+tabClass+' '+parent+'"><a href="#">'+tab_info.title+'<span class="icon-caret-left icon-large plusIcon right"></span></a></li>';
 
+    $('div#menu ul#navigation').append(li_item);
+
     //if this is a submenu...
     if (parent.length) {
-        var children = $('div#menu ul#navigation li.'+parent);
+        var children = $('div#menu ul#navigation #li_'+parent);
         //if there are other submenus, insert after last of them
-        if (children.length)
-            $(children[children.length-1]).after(li_item);
-        else //instert after parent menu
-            $('div#menu ul#navigation li#li_'+parent).after(li_item);
-    } else { //not a submenu, instert in the end
-        $('div#menu ul#navigation').append(li_item);
-    };
-
-    if (parent){ //this is a subtab
-        $('div#menu li#li_'+tab_name).hide();//hide by default
-        $('div#menu li#li_'+parent+' span').css("display","inline-block");
+        if (children.length) {
+            $('div#menu li#li_'+tab_name).hide();//hide by default
+            $('div#menu li#li_'+parent+' span').css("display","inline-block");
+        }
     };
 
     if (showOnTop){
@@ -573,15 +588,20 @@ function insertButtons(){
 
 //If we have defined a block of action buttons in a tab,
 //this function takes care of inserting them in the DOM.
-function insertButtonsInTab(tab_name){
-    var buttons = SunstoneCfg["tabs"][tab_name]["buttons"];
+function insertButtonsInTab(tab_name, panel_name, panel_buttons, custom_context){
+    var buttons = panel_buttons ? panel_buttons : SunstoneCfg["tabs"][tab_name]["buttons"];
     var button_code="";
     var sel_obj=null;
     var condition=null;
 
-    //Check if we have included an appropiate space our tab to
-    //insert them (an .action_blocks div)
-    var action_block = $('div#'+tab_name+' div.action_blocks',main_tabs_context)
+    var context;
+    if (custom_context) {
+        context = custom_context;
+    } else {
+        context = $('div#'+tab_name, main_tabs_context);
+    }
+
+    var action_block = $('div.action_blocks', context)
 
     if (action_block.length){
 
@@ -660,7 +680,7 @@ function insertButtonsInTab(tab_name){
                   '<ul class="button-group right">'+
                     '<li>'+
                         "<div id='more_buttons'>"+
-                            "<div href='#' class='top_button small button secondary dropdown radius'>More "+
+                            "<div href='#' class='top_button small button secondary dropdown radius'> " + tr("More")+
                                 "<ul>"+
                                 "</ul>"+
                             "</div>"+
@@ -696,7 +716,7 @@ function insertButtonsInTab(tab_name){
             button = buttons[button_name];
 
             //if we meet the condition we proceed. Otherwise we skip it.
-            if (Config.isTabActionEnabled(tab_name, button_name) == false) {
+            if (Config.isTabActionEnabled(tab_name, button_name, panel_name) == false) {
                 continue;
             }
 
@@ -725,7 +745,7 @@ function insertButtonsInTab(tab_name){
             switch (button.layout) {
             case "create":
                 context = $("#create_buttons", buttons_row);
-                text = button.text ? '<i class="icon-plus-sign"/>  ' + button.text : '<i class="icon-plus-sign"/>  Create';
+                text = button.text ? '<i class="icon-plus-sign"/>  ' + button.text : '<i class="icon-plus-sign"/>  ' + tr("Create");
                 str_class.push("success", "button", "small", "radius");
                 button_code = '<button class="'+str_class.join(' ')+'" href="'+button_name+'">'+text+'</button>';
                 break;
@@ -784,7 +804,7 @@ function insertButtonsInTab(tab_name){
                 break;
             case "del":
                 context = $("#delete_buttons", buttons_row);
-                text = '<i class=" icon-trash"/>  Delete';
+                text = '<i class=" icon-trash"/>  ' + tr("Delete");
                 str_class.push("alert", "button", "small", "radius");
                 button_code = '<button class="'+str_class.join(' ')+'" href="'+button_name+'">'+text+'</button>';
                 break;

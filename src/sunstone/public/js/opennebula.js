@@ -453,7 +453,7 @@ var OpenNebula = {
                     var token = username + ':' + password;
                     var authString = 'Basic ';
                     if (typeof(btoa) === 'function')
-                        authString += btoa(token)
+                        authString += btoa(unescape(encodeURIComponent( token )))
                     else {
                         token = CryptoJS.enc.Utf8.parse(token);
                         authString += CryptoJS.enc.Base64.stringify(token)
@@ -1066,8 +1066,7 @@ var OpenNebula = {
             OpenNebula.Action.simple_action(params,OpenNebula.Template.resource,"unpublish");
         },
         "instantiate" : function(params) {
-            var vm_name = params.data.extra_param ? params.data.extra_param : "";
-            var action_obj = { "vm_name" : vm_name };
+            var action_obj = params.data.extra_param ? params.data.extra_param : {};
             OpenNebula.Action.simple_action(params,OpenNebula.Template.resource,
                                             "instantiate",action_obj);
         },
@@ -1200,7 +1199,7 @@ var OpenNebula = {
 
         "show" : function(params){
             params.error = function() {
-                return notifyError("Cannot connect with OpenNebula Marketplace")
+                return notifyError("Cannot connect to OpenNebula Marketplace")
             };
             OpenNebula.Action.show(params,OpenNebula.Marketplace.resource);
         },
@@ -1222,7 +1221,7 @@ var OpenNebula = {
                         callback(request, response) : null;
                 },
                 error: function(res){
-                    return notifyError("Cannot connect with OpenNebula Marketplace");
+                    return notifyError("Cannot connect to OpenNebula Marketplace");
                 }
             });
         }

@@ -836,7 +836,11 @@ void Nebula::start()
 
         nebula_configuration->get("DATASTORE_MAD", image_mads);
 
-        imagem = new ImageManager(ipool,image_mads);
+        imagem = new ImageManager(timer_period,
+                                  monitor_period,
+                                  ipool,
+                                  dspool,
+                                  image_mads);
     }
     catch (bad_alloc&)
     {
@@ -848,6 +852,24 @@ void Nebula::start()
     if ( rc != 0 )
     {
        throw runtime_error("Could not start the Image Manager");
+    }
+
+    // -----------------------------------------------------------
+    // Load mads
+    // -----------------------------------------------------------
+
+    sleep(2);
+
+    vmm->load_mads(0);
+
+    im->load_mads(0);
+    tm->load_mads(0);
+    hm->load_mads(0);
+    imagem->load_mads(0);
+
+    if ( authm != 0 )
+    {
+        authm->load_mads(0);
     }
 
     // ---- Request Manager ----
@@ -870,24 +892,6 @@ void Nebula::start()
     if ( rc != 0 )
     {
        throw runtime_error("Could not start the Request Manager");
-    }
-
-    // -----------------------------------------------------------
-    // Load mads
-    // -----------------------------------------------------------
-
-    sleep(2);
-
-    vmm->load_mads(0);
-
-    im->load_mads(0);
-    tm->load_mads(0);
-    hm->load_mads(0);
-    imagem->load_mads(0);
-
-    if ( authm != 0 )
-    {
-        authm->load_mads(0);
     }
 
     // -----------------------------------------------------------

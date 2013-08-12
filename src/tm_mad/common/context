@@ -52,6 +52,10 @@ DST_PATH=`arg_path $DST`
 DST_HOST=`arg_host $DST`
 DST_DIR=`dirname $DST_PATH`
 
+#-------------------------------------------------------------------------------
+# Create DST path
+#-------------------------------------------------------------------------------
+
 ssh_make_path $DST_HOST $DST_DIR
 
 #-------------------------------------------------------------------------------
@@ -89,7 +93,7 @@ for f in "${SRC[@]}"; do
     [ -n "$ERROR" ] && exit_error
 done
 
-exec_and_set_error "$MKISOFS -o $ISO_FILE -J -R $ISO_DIR" \
+exec_and_set_error "$MKISOFS -o $ISO_FILE -V CONTEXT -J -R $ISO_DIR" \
     "Error creating iso fs"
 [ -n "$ERROR" ] && exit_error
 

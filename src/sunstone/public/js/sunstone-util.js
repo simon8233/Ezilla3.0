@@ -142,9 +142,9 @@ function deleteElement(dataTable,tag){
 
 //Handle the activation of action buttons and the check_all box
 //when elements in a datatable are modified.
-function recountCheckboxes(dataTable){
+function recountCheckboxes(dataTable, custom_context){
     var table = $('tbody',dataTable);
-    var context = table.parents('form');
+    var context = custom_context||table.parents('form');
     var nodes = $('tr',table); //visible nodes
     var total_length = nodes.length;
     var checked_length = $('input.check_item:checked',nodes).length;
@@ -176,9 +176,9 @@ function recountCheckboxes(dataTable){
 }
 
 //Init action buttons and checkboxes listeners
-function tableCheckboxesListener(dataTable){
+function tableCheckboxesListener(dataTable, custom_context){
     //Initialization - disable all buttons
-    var context = dataTable.parents('form');
+    var context = custom_context||dataTable.parents('form');
 
     $('.last_action_button',context).attr('disabled', true);
     $('.top_button, .list_button',context).attr('disabled', true);
@@ -200,7 +200,7 @@ function tableCheckboxesListener(dataTable){
             $(this).parents('tr').children().removeClass('markrowselected');
         }
 
-        recountCheckboxes(datatable);
+        recountCheckboxes(datatable, context);
     });
 }
 
@@ -221,7 +221,7 @@ function updateView(item_list,dataTable){
         var dTable_settings = dataTable.fnSettings();
         var prev_start = dTable_settings._iDisplayStart;
 
-        dataTable.fnClearTable();
+        dataTable.fnClearTable(0);
         dataTable.fnAddData(item_list);
 
         var new_start = prev_start;
@@ -393,11 +393,11 @@ function prettyPrintRowJSON(field,value,padding,weight, border_bottom,padding_to
 
 //Add a listener to the check-all box of a datatable, enabling it to
 //check and uncheck all the checkboxes of its elements.
-function initCheckAllBoxes(datatable){
+function initCheckAllBoxes(datatable, custom_context){
 
     //small css hack
-    $('input.check_all').css({"border":"2px"});
-    $('input.check_all').live("change",function(){
+    $('input.check_all', datatable).css({"border":"2px"});
+    $('input.check_all', datatable).live("change",function(){
         var table = $(this).closest('.dataTables_wrapper');
         var checked = $(this).attr('checked');
         if (checked) { //check all
@@ -407,13 +407,15 @@ function initCheckAllBoxes(datatable){
             $('tbody input.check_item',table).removeAttr('checked');
             $('td',table).removeClass('markrowchecked');
         };
-        recountCheckboxes(table);
+
+        var context = custom_context||table.parents('form');
+        recountCheckboxes(table, context);
     });
 }
 
 //standard handling for the server errors on ajax requests.
 //Pops up a message with the information.
-function onError(request,error_json) {
+function onError(request,error_json, container) {
     var method;
     var action;
     var object;
@@ -448,6 +450,11 @@ function onError(request,error_json) {
         }
         return false;
     };
+
+    if (container) {
+        container.show();
+        return false;
+    }
 
     if (message.match(/^Network is unreachable .+$/)){
         if (!onError.disabled){
@@ -599,11 +606,11 @@ function getValue(filter_str,filter_col,value_col,dataTable){
 
 //Replaces all class"tip" divs with an information icon that
 //displays the tip information on mouseover.
-function setupTips(context){
+function setupTips(context, position){
 
     $('ui-dialog').css('z-index', '1000')
     //For each tip in this context
-    $('div.tip',context).each(function(){
+    $('.tip',context).each(function(){
        // //store the text
        // var obj = $(this);
        // var tip = obj.html();
@@ -638,8 +645,13 @@ function setupTips(context){
         var obj = $(this);
         obj.removeClass('tip');
         var tip = obj.html();
+
+        var tip_classes = ['has-tip']
+        if (position) {
+            tip_classes.push(position)
+        }
         //replace the text with an icon and spans
-        obj.html('<span class="has-tip" data-width="210" title="'+tip+'"><i class="icon-info-sign"></i></span>');
+        obj.html('<span class="'+tip_classes.join(' ')+'" data-width="210" title="'+tip+'"><i class="icon-info-sign"></i></span>');
 
         //obj.append('<span class="ui-icon ui-icon-alert man_icon" />');
 
