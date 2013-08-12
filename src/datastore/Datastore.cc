@@ -44,14 +44,18 @@ Datastore::Datastore(
         int                 umask,
         DatastoreTemplate*  ds_template,
         int                 cluster_id,
-        const string&       cluster_name):
+        const string&       cluster_name,
+        const string&       ds_location):
             PoolObjectSQL(-1,DATASTORE,"",uid,gid,uname,gname,table),
             ObjectCollection("IMAGES"),
             Clusterable(cluster_id, cluster_name),
             ds_mad(""),
             tm_mad(""),
-            base_path(""),
-            type(IMAGE_DS)
+            base_path(ds_location),
+            type(IMAGE_DS),
+            total_mb(0),
+            free_mb(0),
+            used_mb(0)
 {
     if (ds_template != 0)
     {
@@ -132,8 +136,6 @@ int Datastore::insert(SqlDB *db, string& error_str)
     string        s_disk_type;
     string        s_ds_type;
 
-    Nebula& nd = Nebula::instance();
-
     // -------------------------------------------------------------------------
     // Check default datastore attributes
     // -------------------------------------------------------------------------
@@ -166,7 +168,7 @@ int Datastore::insert(SqlDB *db, string& error_str)
         goto error_tm;
     }
 
-    oss << nd.get_ds_location() << oid;
+    oss << base_path << oid; //base_path points to ds_location - constructor
 
     base_path = oss.str();
 
@@ -332,6 +334,9 @@ string& Datastore::to_xml(string& xml) const
         "<DISK_TYPE>"   << disk_type    << "</DISK_TYPE>"   <<
         "<CLUSTER_ID>"  << cluster_id   << "</CLUSTER_ID>"  <<
         "<CLUSTER>"     << cluster      << "</CLUSTER>"     <<
+        "<TOTAL_MB>"    << total_mb     << "</TOTAL_MB>"    <<
+        "<FREE_MB>"     << free_mb      << "</FREE_MB>"    <<
+        "<USED_MB>"     << used_mb      << "</USED_MB>"    <<
         collection_xml  <<
         obj_template->to_xml(template_xml)                  <<
     "</DATASTORE>";
@@ -369,6 +374,10 @@ int Datastore::from_xml(const string& xml)
 
     rc += xpath(cluster_id, "/DATASTORE/CLUSTER_ID", -1);
     rc += xpath(cluster,    "/DATASTORE/CLUSTER",    "not_found");
+
+    rc += xpath(total_mb, "/DATASTORE/TOTAL_MB", 0);
+    rc += xpath(free_mb,  "/DATASTORE/FREE_MB",  0);
+    rc += xpath(used_mb,  "/DATASTORE/USED_MB",  0);
 
     // Permissions
     rc += perms_from_xml();
@@ -499,6 +508,9 @@ int Datastore::replace_template(const string& tmpl_str, string& error_str)
     if ( type == SYSTEM_DS )
     {
         new_ds_mad = "-";
+
+        // System DS are not monitored, clear current info
+        update_monitor(0, 0, 0);
     }
     else
     {
@@ -533,3 +545,27 @@ int Datastore::replace_template(const string& tmpl_str, string& error_str)
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
+bool Datastore::get_avail_mb(unsigned int &avail)
+{
+    float max_used_size;
+    bool  check;
+
+    avail = free_mb;
+
+    if (get_template_attribute("MAX_USED_SIZE", max_used_size))
+    {
+        if (used_mb >= (unsigned int) max_used_size)
+        {
+            avail = 0;
+        }
+    }
+
+    if (!get_template_attribute("DATASTORE_CAPACITY_CHECK", check))
+    {
+        Nebula& nd = Nebula::instance();
+
+        nd.get_configuration_attribute("DATASTORE_CAPACITY_CHECK", check);
+    }
+
+    return check;
+}

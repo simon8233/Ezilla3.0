@@ -24,5 +24,5 @@ SOURCE="$2"
 TARGET="$3"
 TARGET_INDEX="$4"
 
-exec_and_log "$XM_DETACH_DISK $DOMAIN /dev/$TARGET" \
+exec_and_log "$XM_DETACH_DISK $DOMAIN ${TARGET_PREFIX}$TARGET" \
     "Could not detach $TARGET from $DOMAIN"

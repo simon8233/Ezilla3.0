@@ -11,7 +11,6 @@
     <script src="vendor/4.0/foundation/modernizr.foundation.js" type="text/javascript"></script>
     <script src="vendor/4.0/datatables/jquery.dataTables.min.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation_datatables/responsive-tables.js" type="text/javascript"></script>
-    <script src="vendor/4.0/foundation_datatables/datatables.foundation.js" type="text/javascript"></script>
     <script src="vendor/flot/jquery.flot.min.js" type="text/javascript"></script>
     <script src="vendor/flot/jquery.flot.pie.min.js" type="text/javascript"></script>
     <script src="vendor/flot/jquery.flot.resize.min.js" type="text/javascript"></script>
@@ -25,13 +24,13 @@
     <link href="vendor/4.0/jquery_layout/layout-default-latest.css" rel="stylesheet" type="text/css"></link>
     <link href="vendor/4.0/nouislider/nouislider.css" rel="stylesheet" type="text/css"></link>
     <link href="vendor/4.0/jdpicker_1.1/jdpicker.css" rel="stylesheet" type="text/css"></link>
-    <link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css"></link>
     <!--[if lte IE 8]
       <script src="vendor/explorercanvas/excanvas.compiled.js" type="text/javascript"></script>
     -->
     <% if session[:lang] %>
       <script src="locale/<%= session[:lang] %>/<%= session[:lang] %>.js" type="text/javascript"></script>
     <% end %>
+    <script src="vendor/4.0/foundation_datatables/datatables.foundation.js" type="text/javascript"></script>
     <link href="css/app.css" media="screen, projector, print" rel="stylesheet" type="text/css"></link>
     <script src="js/opennebula.js" type="text/javascript"></script>
     <script src="js/layout.js" type="text/javascript"></script>
@@ -64,7 +63,7 @@
     <script src="js/plugins/config-tab.js" type="text/javascript"></script>
 
     <!-- enabled tabs: -->
-    <%- view['enabled_tabs'].each do |tab_name| -%>
+    <%- $views_config.available_tabs.each do |tab_name| -%>
         <script src="js/plugins/<%= tab_name %>.js" type="text/javascript"></script>
     <%- end -%>
     <!-- end tabs -->
@@ -86,7 +85,7 @@
       </div>
 
         <div id="footer" style="overflow:visible;text-align:center;padding:8px;font-size:12px">
-            <a href="http://opennebula.org" target="_blank">OpenNebula 4.0.1</a> by <a href="http://c12g.com" target="_blank">C12G Labs</a>.
+            <a href="http://opennebula.org" target="_blank">OpenNebula 4.2.0</a> by <a href="http://c12g.com" target="_blank">C12G Labs</a>.
         </div>
     </div>
     <div id="dialogs"></div>
@@ -94,15 +93,10 @@
     <div id="info_panels"></div>
 
     <script src="vendor/4.0/foundation/jquery.foundation.reveal.js" type="text/javascript"></script>
-    <script src="vendor/4.0/foundation/jquery.foundation.orbit.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation/jquery.foundation.forms.js" type="text/javascript"></script>
-    <script src="vendor/4.0/foundation/jquery.placeholder.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation/jquery.foundation.tooltips.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation/jquery.foundation.alerts.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation/jquery.foundation.buttons.js" type="text/javascript"></script>
-    <script src="vendor/4.0/foundation/jquery.foundation.accordion.js" type="text/javascript"></script>
-    <script src="vendor/4.0/foundation/jquery.foundation.navigation.js" type="text/javascript"></script>
-    <script src="vendor/4.0/foundation/jquery.foundation.mediaQueryToggle.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation/jquery.foundation.tabs.js" type="text/javascript"></script>
     <script src="vendor/4.0/foundation/app.js" type="text/javascript"></script>
   </body>

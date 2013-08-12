@@ -44,11 +44,14 @@ DatastorePool::DatastorePool(SqlDB * db):
     ostringstream oss;
     string        error_str;
 
+    Nebula& nd = Nebula::instance();
+
     if (get_lastOID() == -1) //lastOID is set in PoolSQL::init_cb
     {
         DatastoreTemplate * ds_tmpl;
 
-        int     rc;
+        string ds_location = nd.get_ds_location();
+        int    rc;
 
         // ---------------------------------------------------------------------
         // Create the system datastore
@@ -75,6 +78,7 @@ DatastorePool::DatastorePool(SqlDB * db):
                 &rc,
                 ClusterPool::NONE_CLUSTER_ID,
                 ClusterPool::NONE_CLUSTER_NAME,
+                ds_location,
                 error_str);
 
         if( rc < 0 )
@@ -109,6 +113,7 @@ DatastorePool::DatastorePool(SqlDB * db):
                 &rc,
                 ClusterPool::NONE_CLUSTER_ID,
                 ClusterPool::NONE_CLUSTER_NAME,
+                ds_location,
                 error_str);
 
         if( rc < 0 )
@@ -143,6 +148,7 @@ DatastorePool::DatastorePool(SqlDB * db):
                 &rc,
                 ClusterPool::NONE_CLUSTER_ID,
                 ClusterPool::NONE_CLUSTER_NAME,
+                ds_location,
                 error_str);
 
         if( rc < 0 )
@@ -177,6 +183,7 @@ int DatastorePool::allocate(
         int *               oid,
         int                 cluster_id,
         const string&       cluster_name,
+        string&             ds_location,
         string&             error_str)
 {
     Datastore * ds;
@@ -186,8 +193,13 @@ int DatastorePool::allocate(
 
     ostringstream oss;
 
+    if (*ds_location.rbegin() != '/' )
+    {
+        ds_location += '/';
+    }
+
     ds = new Datastore(uid, gid, uname, gname, umask,
-            ds_template, cluster_id, cluster_name);
+            ds_template, cluster_id, cluster_name, ds_location);
 
     // -------------------------------------------------------------------------
     // Check name & duplicates
@@ -208,6 +220,17 @@ int DatastorePool::allocate(
     }
 
     *oid = PoolSQL::allocate(ds, error_str);
+
+    if ( *oid != -1 )
+    {
+        Nebula& nd        = Nebula::instance();
+        ImageManager * im = nd.get_imagem();
+
+        if (im != 0 ) //Do not monitor during bootstrap
+        {
+            im->monitor_datastore(*oid);
+        }
+    }
 
     return *oid;
 

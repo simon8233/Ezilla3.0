@@ -56,6 +56,7 @@ var datastores_tab_content = '\
       <th>'+tr("Owner")+'</th>\
       <th>'+tr("Group")+'</th>\
       <th>'+tr("Name")+'</th>\
+      <th>'+tr("Capacity")+'</th>\
       <th>'+tr("Cluster")+'</th>\
       <th>'+tr("Basepath")+'</th>\
       <th>'+tr("TM MAD")+'</th>\
@@ -100,8 +101,7 @@ var create_datastore_tmpl =
         <div class="seven columns">\
           <select id="presets" name="presets">\
             <option value="fs">' + tr("Filesystem") + '</option>\
-            <option value="vmware_fs">' + tr("VMware (FS Based)") + '</option>\
-            <option value="vmware_vmfs">' + tr("VMware (VMFS Based)") + '</option>\
+            <option value="vmware_vmfs">' + tr("VMware VMFS") + '</option>\
             <option value="iscsi">' + tr("iSCSI") + '</option>\
             <option value="lvm">' + tr("LVM") + '</option>\
             <option value="ceph">' + tr("Ceph") + '</option>\
@@ -217,7 +217,7 @@ var create_datastore_tmpl =
         <input type="text" name="safe_dirs" id="safe_dirs" />\
       </div>\
       <div class="one columns">\
-        <div class="tip">'+tr("Paths that can not be used to register images. A space separated list of paths. This will prevent users registering important files as VM images and accessing them thourgh their VMs. OpenNebula will automatically add its configuration directories: /var/lib/one, /etc/one and oneadmin's home ($HOME).")+'</div>\
+        <div class="tip">'+tr("If you need to un-block a directory under one of the RESTRICTED_DIRS")+'</div>\
       </div>\
     </div>\
     <div class="twelve columns">\
@@ -228,7 +228,7 @@ var create_datastore_tmpl =
         <input type="text" name="restricted_dirs" id="restricted_dirs" />\
       </div>\
       <div class="one columns">\
-        <div class="tip">'+tr("If you need to un-block a directory under one of the RESTRICTED_DIRS")+'</div>\
+        <div class="tip">'+tr("Paths that can not be used to register images. A space separated list of paths. This will prevent users registering important files as VM images and accessing them thourgh their VMs. OpenNebula will automatically add its configuration directories: /var/lib/one, /etc/one and oneadmin's home ($HOME).")+'</div>\
       </div>\
     </div>\
     <div class="twelve columns">\
@@ -606,6 +606,23 @@ function datastoreElementArray(element_json){
       type = element.TEMPLATE.TYPE;
     }
 
+    var total = parseInt(element.TOTAL_MB);
+
+    var used = total - parseInt(element.FREE_MB);
+
+    if (total > 0) {
+        var ratio = Math.round((used / total) * 100);
+        info_str = humanize_size_from_mb(used) + ' / ' + humanize_size_from_mb(total) + ' (' + ratio + '%)';
+    } else {
+        if(element.TYPE == 1) {
+            info_str = '- / -';
+        } else {
+            info_str = humanize_size(used) + ' / -';
+        }
+    }
+
+    var pb_capacity = quotaBarHtml(used, total, info_str);
+
     return [
         '<input class="check_item" type="checkbox" id="datastore_'+
                              element.ID+'" name="selected_items" value="'+
@@ -614,6 +631,7 @@ function datastoreElementArray(element_json){
         element.UNAME,
         element.GNAME,
         element.NAME,
+        pb_capacity,
         element.CLUSTER.length ? element.CLUSTER : "-",
         element.BASE_PATH,
         element.TM_MAD,
@@ -694,11 +712,13 @@ function updateDatastoreInfo(request,ds){
         images_str=getImageName(info.IMAGES.ID);
     };
 
-    var cluster_str = '<td class="key_td">Cluster</td><td>-</td>';
+    var cluster_str = '<td class="key_td">Cluster</td><td colspan="2">-</td>';
     if (info.ID != "0")
     {
         cluster_str = insert_cluster_dropdown("Datastore",info.ID,info.CLUSTER,info.CLUSTER_ID);
     }
+
+    var is_system = (info.TYPE == 1)
 
     var info_tab_content = '<div class="">\
         <div class="six columns">\
@@ -724,6 +744,19 @@ function updateDatastoreInfo(request,ds){
                  <td class="key_td">'+tr("Base path")+'</td>\
                  <td class="value_td">'+info.BASE_PATH+'</td>\
                  <td></td>\
+              </tr>\
+              <thead><tr><th colspan="3" style="width:130px">'+tr("Capacity")+'</th>\</tr></thead>\
+              <tr>\
+                <td class="key_td">' + tr("Total") + '</td>\
+                <td class="value_td" colspan="2">'+(is_system ? '-' : humanize_size_from_mb(info.TOTAL_MB))+'</td>\
+              </tr>\
+              <tr>\
+                <td class="key_td">' + tr("Used") + '</td>\
+                <td class="value_td" colspan="2">'+(is_system ? '-' : humanize_size_from_mb(info.USED_MB))+'</td>\
+              </tr>\
+              <tr>\
+                <td class="key_td">' + tr("Free") + '</td>\
+                <td class="value_td" colspan="2">'+(is_system ? '-' : humanize_size_from_mb(info.FREE_MB))+'</td>\
               </tr>\
             </tbody>\
           </table>'
@@ -854,9 +887,6 @@ function setupCreateDatastoreDialog(){
         {
           case 'fs':
             select_filesystem();
-            break;
-          case 'vmware_fs':
-            select_vmware_fs();
             break;
           case 'vmware_vmfs':
             select_vmware_vmfs();
@@ -1003,23 +1033,6 @@ function select_filesystem(){
     $('select#disk_type').attr('disabled', 'disabled');
 }
 
-function select_vmware_fs(){
-    $('select#ds_mad').val('vmware');
-    $('select#ds_mad').attr('disabled', 'disabled');
-    $('select#tm_mad').val('shared');
-    $('select#tm_mad').children('option').each(function() {
-      var value_str = $(this).val();
-      $(this).attr('disabled', 'disabled');
-      if (value_str == "shared"  ||
-          value_str == "ssh")
-      {
-           $(this).removeAttr('disabled');
-      }
-    });
-    $('select#disk_type').val('file');
-    $('select#disk_type').attr('disabled', 'disabled');
-}
-
 function select_vmware_vmfs(){
     $('label[for="bridge_list"],input#bridge_list').fadeIn();
     $('label[for="ds_use_ssh"],input#ds_use_ssh').fadeIn();
@@ -1103,38 +1116,42 @@ function setDatastoreAutorefresh(){
 }
 
 $(document).ready(function(){
+    var tab_name = 'datastores-tab';
 
-    dataTable_datastores = $("#datatable_datastores",main_tabs_context).dataTable({
-        "aoColumnDefs": [
-            { "bSortable": false, "aTargets": ["check"] },
-            { "sWidth": "35px", "aTargets": [0] },
-            { "bVisible": true, "aTargets": config['view']['tabs']['datastores-tab']['table_columns']},
-            { "bVisible": false, "aTargets": ['_all']}
-        ]
-    });
+    if (Config.isTabEnabled(tab_name)) {
+      dataTable_datastores = $("#datatable_datastores",main_tabs_context).dataTable({
+          "aoColumnDefs": [
+              { "bSortable": false, "aTargets": ["check"] },
+              { "sWidth": "35px", "aTargets": [0] },
+              { "sWidth": "200px", "aTargets": [5] },
+              { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
+              { "bVisible": false, "aTargets": ['_all']}
+          ]
+      });
 
-    $('#datastore_search').keyup(function(){
-      dataTable_datastores.fnFilter( $(this).val() );
-    })
+      $('#datastore_search').keyup(function(){
+        dataTable_datastores.fnFilter( $(this).val() );
+      })
 
-    dataTable_datastores.on('draw', function(){
-      recountCheckboxes(dataTable_datastores);
-    })
+      dataTable_datastores.on('draw', function(){
+        recountCheckboxes(dataTable_datastores);
+      })
 
-    Sunstone.runAction("Datastore.list");
+      Sunstone.runAction("Datastore.list");
 
-    setupCreateDatastoreDialog();
-    setDatastoreAutorefresh();
+      setupCreateDatastoreDialog();
+      setDatastoreAutorefresh();
 
-    initCheckAllBoxes(dataTable_datastores);
-    tableCheckboxesListener(dataTable_datastores);
-    infoListener(dataTable_datastores,'Datastore.showinfo');
+      initCheckAllBoxes(dataTable_datastores);
+      tableCheckboxesListener(dataTable_datastores);
+      infoListener(dataTable_datastores,'Datastore.showinfo');
 
-    // Reset filter in case the view was filtered because it was accessed
-    // from a single cluster.
-    $('div#menu li#li_datastores_tab').live('click',function(){
-        dataTable_datastores.fnFilter('',5);
-    });
+      // Reset filter in case the view was filtered because it was accessed
+      // from a single cluster.
+      $('div#menu li#li_datastores_tab').live('click',function(){
+          dataTable_datastores.fnFilter('',5);
+      });
 
-    $('div#datastores_tab div.legend_div').hide();
+      $('div#datastores_tab div.legend_div').hide();
+    }
 })

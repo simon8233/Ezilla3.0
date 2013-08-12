@@ -342,7 +342,10 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
     Datastore *     ds;
     Image::DiskType ds_disk_type;
 
-    int             umask;
+    unsigned int    avail;
+
+    int  umask;
+    bool ds_check;
 
     // ------------------------- Get user's umask ------------------------------
 
@@ -407,6 +410,7 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
 
     ds_name      = ds->get_name();
     ds_disk_type = ds->get_disk_type();
+    ds_check     = ds->get_avail_mb(avail);
 
     ds->to_xml(ds_data);
 
@@ -433,6 +437,14 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
         failure_response(INTERNAL,
                          request_error("Cannot parse SIZE", size_str),
                          att);
+        delete tmpl;
+        return;
+    }
+
+    if (ds_check && ((unsigned int) size_mb > avail))
+    {
+        failure_response(ACTION, "Not enough space in datastore", att);
+
         delete tmpl;
         return;
     }
@@ -658,12 +670,27 @@ int DatastoreAllocate::pool_allocate(
         const string&               cluster_name,
         int                         umask)
 {
-    DatastorePool * dspool = static_cast<DatastorePool *>(pool);
-
+    DatastorePool * dspool      = static_cast<DatastorePool *>(pool);
     DatastoreTemplate * ds_tmpl = static_cast<DatastoreTemplate *>(tmpl);
 
+    Nebula&   nd          = Nebula::instance();
+    string    ds_location = nd.get_ds_location();
+
+    if ( cluster_id != ClusterPool::NONE_CLUSTER_ID )
+    {
+        ClusterPool * cpool = nd.get_clpool();
+        Cluster *   cluster = cpool->get(cluster_id, true);
+
+        if (cluster != 0)
+        {
+            ds_location = cluster->get_ds_location(ds_location);
+
+            cluster->unlock();
+        }
+    }
+
     return dspool->allocate(att.uid, att.gid, att.uname, att.gname, umask,
-            ds_tmpl, &id, cluster_id, cluster_name, error_str);
+            ds_tmpl, &id, cluster_id, cluster_name, ds_location, error_str);
 }
 
 /* -------------------------------------------------------------------------- */

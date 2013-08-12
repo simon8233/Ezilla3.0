@@ -213,7 +213,7 @@ end
 before do
     cache_control :no_store
     content_type 'application/json', :charset => 'utf-8'
-    unless request.path=='/login' || request.path=='/'
+    unless request.path=='/login' || request.path=='/' || request.path=='/vnc'
         halt 401 unless authorized?
 
         @SunstoneServer = SunstoneServer.new(
@@ -224,7 +224,7 @@ before do
 end
 
 after do
-    unless request.path=='/login' || request.path=='/'
+    unless request.path=='/login' || request.path=='/' || request.path=='/'
         unless session[:remember] == "true"
             if params[:timeout] == "true"
                 env['rack.session.options'][:defer] = true
@@ -262,6 +262,15 @@ get '/login' do
     content_type 'text/html', :charset => 'utf-8'
     if !authorized?
         erb :login
+    end
+end
+
+get '/vnc' do
+    content_type 'text/html', :charset => 'utf-8'
+    if !authorized?
+        erb :login
+    else
+        erb :vnc
     end
 end
 

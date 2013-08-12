@@ -17,23 +17,34 @@
 var user_cookie = $.cookie("one-user");
 
 setInterval(function(){
-    var new_cookie = $.cookie("one-user");
-
-    if ((new_cookie == null) || (new_cookie !== user_cookie)) {
-        window.location.href='/';
-    } else {
-        user_cookie = new_cookie
+    if (whichUI() == "sunstone") {
+        var user_cookie = cookie["one-user"];
+        readCookie();
+        if ((cookie["one-user"] == null) || (cookie["one-user"] !== user_cookie)) {
+            window.location.href='/';
+        }
+    } else if (whichUI() == "ozones") {
+        var user_cookie = cookie["ozones-user"];
+        readCookie();
+        if ((cookie["ozones-user"] == null) || (cookie["ozones-user"] !== user_cookie)) {
+            window.location.href='/';
+        }
     }
 },5000);
 
-
 Config = {
     "isTabEnabled": function(tab_name){
-      var enabled = config['view']['tabs'][tab_name]['enabled'];
+      var enabled = config['view']['enabled_tabs'][tab_name];
       return enabled;
     },
-    "isTabActionEnabled": function(tab_name, action_name){
-      var enabled = config['view']['tabs'][tab_name]['actions'][action_name];
+    "isTabActionEnabled": function(tab_name, action_name, panel_name){
+      var enabled;
+      if (panel_name) {
+        enabled = config['view']['tabs'][tab_name]['panel_tabs_actions'][panel_name][action_name];
+      } else {
+        enabled = config['view']['tabs'][tab_name]['actions'][action_name];
+      }
+
       return enabled;
     },
 
@@ -101,6 +112,7 @@ var config_tab_content =
                  <option value="ca">Catalan (ca)</option>\
                  <option value="cs_CZ">Czech (cs_CZ)</option>\
                  <option value="nl_NL">Dutch (nl_NL)</option>\
+                 <option value="da">Danish (da)</option>\
                  <option value="fr_FR">French (fr_FR)</option>\
                  <option value="de">German (de)</option>\
                  <option value="el_GR">Greek (el_GR)</option>\

@@ -28,6 +28,7 @@
 #include "VirtualNetworkPool.h"
 #include "ImagePool.h"
 #include "NebulaLog.h"
+#include "NebulaUtil.h"
 
 #include "Nebula.h"
 
@@ -641,6 +642,90 @@ int VirtualMachine::parse_context(string& error_str)
 
     context->remove("FILES_DS");
 
+    // ----------- Inject Network context in marshalled string  ----------------
+
+    bool net_context;
+    context->vector_value("NETWORK", net_context);
+
+    if (net_context)
+    {
+        vector<Attribute  * > v_attributes;
+        VectorAttribute *     vatt;
+
+        int num_vatts = obj_template->get("NIC", v_attributes);
+
+        for(int i=0; i<num_vatts; i++)
+        {
+            vatt = dynamic_cast<VectorAttribute * >(v_attributes[i]);
+
+            if ( vatt == 0 )
+            {
+                continue;
+            }
+
+            string name   = vatt->vector_value("NETWORK");
+            string ip     = vatt->vector_value("IP");
+            string ip6    = vatt->vector_value("IP6_GLOBAL");
+            string nic_id = vatt->vector_value("NIC_ID");
+
+            ostringstream var;
+            ostringstream val;
+
+            var << "ETH" << nic_id << "_IP";
+            context->replace(var.str(), ip);
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_NETWORK";
+            val << "$NETWORK[NETWORK_ADDRESS, NETWORK=\"" << name << "\"]";
+            context->replace(var.str(), val.str());
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_MASK";
+            val << "$NETWORK[NETWORK_MASK, NETWORK=\"" << name << "\"]";
+            context->replace(var.str(), val.str());
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_GATEWAY";
+            val << "$NETWORK[GATEWAY, NETWORK=\"" << name << "\"]";
+            context->replace(var.str(), val.str());
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_GATEWAY";
+            val << "$NETWORK[GATEWAY, NETWORK=\"" << name << "\"]";
+            context->replace(var.str(), val.str());
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_DNS";
+            val << "$NETWORK[DNS, NETWORK=\"" << name << "\"]";
+            context->replace(var.str(), val.str());
+
+            if (!ip6.empty())
+            {
+                var.str(""); val.str("");
+
+                var << "ETH" << nic_id << "_IP6";
+                context->replace(var.str(), ip6);
+
+                var.str(""); val.str("");
+
+                var << "ETH" << nic_id << "_GATEWAY6";
+                val << "$NETWORK[GATEWAY6, NETWORK=\"" << name << "\"]";
+                context->replace(var.str(), val.str());
+
+                var.str(""); val.str("");
+
+                var << "ETH" << nic_id << "_CONTEXT_FORCE_IPV4";
+                val << "$NETWORK[CONTEXT_FORCE_IPV4, NETWORK=\"" << name << "\"]";
+                context->replace(var.str(), val.str());
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Parse CONTEXT variables & free vector attributes
     // -------------------------------------------------------------------------
@@ -727,6 +812,45 @@ int VirtualMachine::parse_context(string& error_str)
     }
 
     obj_template->set(context_parsed);
+
+    // -------------------------------------------------------------------------
+    // OneGate URL
+    // -------------------------------------------------------------------------
+
+    bool token;
+    context_parsed->vector_value("TOKEN", token);
+
+    if (token)
+    {
+        string onegate_url;
+        context_parsed->vector_value("ONEGATE_URL");
+
+        if (onegate_url.empty())
+        {
+            string endpoint;
+            endpoint = context_parsed->vector_value("ONEGATE_ENDPOINT");
+
+            if ( endpoint.empty() )
+            {
+                Nebula::instance().get_configuration_attribute(
+                        "ONEGATE_ENDPOINT", endpoint);
+            }
+
+            if ( endpoint.empty() )
+            {
+                error_str = "CONTEXT/TOKEN set, but OneGate endpoint was not "
+                    "defined in oned.conf or CONTEXT.";
+                return -1;
+            }
+            else
+            {
+                ostringstream oss;
+                oss << endpoint << "/vm/" << oid;
+
+                context_parsed->replace("ONEGATE_URL", oss.str());
+            }
+        }
+    }
 
     return rc;
 
@@ -2361,7 +2485,7 @@ int VirtualMachine::release_network_leases(VectorAttribute const * nic, int vmid
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int VirtualMachine::generate_context(string &files, int &disk_id)
+int VirtualMachine::generate_context(string &files, int &disk_id, string& token_password)
 {
     ofstream file;
     string   files_ds;
@@ -2372,6 +2496,7 @@ int VirtualMachine::generate_context(string &files, int &disk_id)
     map<string, string>::const_iterator it;
 
     files = "";
+    bool token;
 
     if ( history == 0 )
         return -1;
@@ -2411,13 +2536,77 @@ int VirtualMachine::generate_context(string &files, int &disk_id)
         files += files_ds;
     }
 
+    context->vector_value("TOKEN", token);
+
+    if (token)
+    {
+        ofstream      token_file;
+        ostringstream oss;
+
+        string* encrypted;
+        string  tk_error;
+
+        if (token_password.empty())
+        {
+            tk_error = "CONTEXT/TOKEN set, but TOKEN_PASSWORD is not defined"
+                " in the user template.";
+
+            file.close();
+
+            log("VM", Log::ERROR, tk_error.c_str());
+            set_template_error_message(tk_error);
+
+            return -1;
+        }
+
+        // The token_password is taken from the owner user's template.
+        // We store this original owner in case a chown operation is performed.
+        add_template_attribute("CREATED_BY", uid);
+
+        token_file.open(history->token_file.c_str(), ios::out);
+
+        if (token_file.fail())
+        {
+            tk_error = "Cannot create token file";
+
+            file.close();
+
+            log("VM", Log::ERROR, tk_error.c_str());
+            set_template_error_message(tk_error);
+
+            return -1;
+        }
+
+        oss << oid << ':' << stime;
+
+        encrypted = one_util::aes256cbc_encrypt(oss.str(), token_password);
+
+        token_file << *encrypted << endl;
+
+        token_file.close();
+
+        delete encrypted;
+
+        files += (" " + history->token_file);
+    }
+
     const map<string, string> values = context->value();
 
     file << "# Context variables generated by OpenNebula\n";
 
     for (it=values.begin(); it != values.end(); it++ )
     {
-        file << it->first <<"=\""<< it->second << "\"" << endl;
+        //Replace every ' in value by '\''
+        string escape_str(it->second);
+        size_t pos = 0;
+
+        while ((pos = escape_str.find('\'', pos)) != string::npos)
+        {
+            escape_str.replace(pos,1,"'\\''");
+            pos = pos + 4;
+        }
+
+        file << it->first <<"='" << escape_str << "'" << endl;
     }
 
     file.close();
@@ -3119,9 +3308,8 @@ int VirtualMachine::from_xml(const string &xml_str)
 string VirtualMachine::get_system_dir() const
 {
     ostringstream oss;
-    Nebula&       nd = Nebula::instance();
 
-    oss << nd.get_ds_location() << history->ds_id << "/"<< oid;
+    oss << history->ds_location << "/" << history->ds_id << "/"<< oid;
 
     return oss.str();
 };
@@ -3209,6 +3397,47 @@ int VirtualMachine::replace_template(
     delete user_obj_template;
 
     user_obj_template = new_tmpl;
+
+    return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int VirtualMachine::append_template(
+        const string&   tmpl_str,
+        bool            keep_restricted,
+        string&         error)
+{
+    VirtualMachineTemplate * new_tmpl =
+            new VirtualMachineTemplate(false,'=',"USER_TEMPLATE");
+
+    if ( new_tmpl == 0 )
+    {
+        error = "Cannot allocate a new template";
+        return -1;
+    }
+
+    if ( new_tmpl->parse_str_or_xml(tmpl_str, error) != 0 )
+    {
+        delete new_tmpl;
+        return -1;
+    }
+
+    if (keep_restricted)
+    {
+        new_tmpl->remove_restricted();
+    }
+
+    if (user_obj_template != 0)
+    {
+        user_obj_template->merge(new_tmpl, error);
+        delete new_tmpl;
+    }
+    else
+    {
+        user_obj_template = new_tmpl;
+    }
 
     return 0;
 }

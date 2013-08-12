@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: condensed;
+  src: local('Open Sans'), local('OpenSans'), url('opensans.woff') format('woff');
+}
+
 // Your custom settings file to override Foundation defaults
 @import "settings";
 
@@ -610,6 +618,7 @@ ul.button-group {
 
 .value_td {
     text-overflow:ellipsis;
+    word-break: break-all;
 }
 
 small {
@@ -1007,3 +1016,32 @@ div.dataTables_scrollFoot table {
 
 
 
+table.policies_table {
+    th, td {
+        font-size: 13px;
+    }
+    input {
+        margin: 0px !important;
+        height: 23px !important;
+        font-size: 13px;
+    }
+}
+
+.key_td {
+    font-weight: bold;
+}
+
+.detach-vnc-icon {
+    top: 11px;
+    right: 40px;
+    position: absolute;
+    color: #aaa;
+}
+
+.detach-vnc-icon:hover {
+    color: #222;
+}
+
+.dataTables_length select {
+    margin-right: 8px;
+}

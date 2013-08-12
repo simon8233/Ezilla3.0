@@ -41,7 +41,9 @@ usage() {
  echo "    an absolute path."
  echo "-c: install client utilities: OpenNebula cli, occi and ec2 client files"
  echo "-s: install OpenNebula Sunstone"
+ echo "-G: install OpenNebula Gate"
  echo "-o: install OpenNebula Zones (OZones)"
+ echo "-f: install OpenNebula Flow"
  echo "-r: remove Opennebula, only useful if -d was not specified, otherwise"
  echo "    rm -rf \$ONE_LOCATION would do the job"
  echo "-l: creates symlinks instead of copying files, useful for development"
@@ -68,8 +70,10 @@ INSTALL_ETC="yes"
 UNINSTALL="no"
 LINK="no"
 CLIENT="no"
+ONEGATE="no"
 SUNSTONE="no"
 OZONES="no"
+ONEFLOW="no"
 ONEADMIN_USER=`id -u`
 ONEADMIN_GROUP=`id -g`
 SRC_DIR=$PWD
@@ -81,8 +85,10 @@ while true ; do
         -r) UNINSTALL="yes"   ; shift ;;
         -l) LINK="yes" ; shift ;;
         -c) CLIENT="yes"; INSTALL_ETC="no" ; shift ;;
+        -G) ONEGATE="yes"; shift ;;
         -s) SUNSTONE="yes"; shift ;;
         -o) OZONES="yes"; shift ;;
+        -f) ONEFLOW="yes"; shift ;;
         -u) ONEADMIN_USER="$2" ; shift 2;;
         -g) ONEADMIN_GROUP="$2"; shift 2;;
         -d) ROOT="$2" ; shift 2 ;;
@@ -103,8 +109,10 @@ if [ -z "$ROOT" ] ; then
     ETC_LOCATION="/etc/one"
     LOG_LOCATION="/var/log/one"
     VAR_LOCATION="/var/lib/one"
+    ONEGATE_LOCATION="$LIB_LOCATION/onegate"
     SUNSTONE_LOCATION="$LIB_LOCATION/sunstone"
     OZONES_LOCATION="$LIB_LOCATION/ozones"
+    ONEFLOW_LOCATION="$LIB_LOCATION/oneflow"
     SYSTEM_DS_LOCATION="$VAR_LOCATION/datastores/0"
     DEFAULT_DS_LOCATION="$VAR_LOCATION/datastores/1"
     RUN_LOCATION="/var/run/one"
@@ -127,8 +135,22 @@ if [ -z "$ROOT" ] ; then
         DELETE_DIRS="$MAKE_DIRS"
 
         CHOWN_DIRS=""
+    elif [ "$ONEGATE" = "yes" ]; then
+        MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $VAR_LOCATION \
+                   $ONEGATE_LOCATION $ETC_LOCATION"
+
+        DELETE_DIRS="$MAKE_DIRS"
+
+        CHOWN_DIRS=""
     elif [ "$OZONES" = "yes" ]; then
         MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $VAR_LOCATION $OZONES_LOCATION \
+                    $ETC_LOCATION"
+
+        DELETE_DIRS="$MAKE_DIRS"
+
+        CHOWN_DIRS=""
+    elif [ "$ONEFLOW" = "yes" ]; then
+        MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $VAR_LOCATION $ONEFLOW_LOCATION \
                     $ETC_LOCATION"
 
         DELETE_DIRS="$MAKE_DIRS"
@@ -139,7 +161,7 @@ if [ -z "$ROOT" ] ; then
                    $INCLUDE_LOCATION $SHARE_LOCATION \
                    $LOG_LOCATION $RUN_LOCATION $LOCK_LOCATION \
                    $SYSTEM_DS_LOCATION $DEFAULT_DS_LOCATION $MAN_LOCATION \
-                   $VM_LOCATION"
+                   $VM_LOCATION $ONEGATE_LOCATION $ONEFLOW_LOCATION"
 
         DELETE_DIRS="$LIB_LOCATION $ETC_LOCATION $LOG_LOCATION $VAR_LOCATION \
                      $RUN_LOCATION $SHARE_DIRS"
@@ -152,8 +174,10 @@ else
     LIB_LOCATION="$ROOT/lib"
     ETC_LOCATION="$ROOT/etc"
     VAR_LOCATION="$ROOT/var"
+    ONEGATE_LOCATION="$LIB_LOCATION/onegate"
     SUNSTONE_LOCATION="$LIB_LOCATION/sunstone"
     OZONES_LOCATION="$LIB_LOCATION/ozones"
+    ONEFLOW_LOCATION="$LIB_LOCATION/oneflow"
     SYSTEM_DS_LOCATION="$VAR_LOCATION/datastores/0"
     DEFAULT_DS_LOCATION="$VAR_LOCATION/datastores/1"
     INCLUDE_LOCATION="$ROOT/include"
@@ -163,6 +187,11 @@ else
 
     if [ "$CLIENT" = "yes" ]; then
         MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $ETC_LOCATION"
+
+        DELETE_DIRS="$MAKE_DIRS"
+    elif [ "$ONEGATE" = "yes" ]; then
+        MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $VAR_LOCATION \
+                   $ONEGATE_LOCATION $ETC_LOCATION"
 
         DELETE_DIRS="$MAKE_DIRS"
     elif [ "$SUNSTONE" = "yes" ]; then
@@ -175,11 +204,16 @@ else
                    $ETC_LOCATION"
 
         DELETE_DIRS="$MAKE_DIRS"
+    elif [ "$ONEFLOW" = "yes" ]; then
+        MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $VAR_LOCATION $ONEFLOW_LOCATION \
+                   $ETC_LOCATION"
+
+        DELETE_DIRS="$MAKE_DIRS"
     else
         MAKE_DIRS="$BIN_LOCATION $LIB_LOCATION $ETC_LOCATION $VAR_LOCATION \
                    $INCLUDE_LOCATION $SHARE_LOCATION $SYSTEM_DS_LOCATION \
                    $DEFAULT_DS_LOCATION $MAN_LOCATION $OZONES_LOCATION \
-                   $VM_LOCATION"
+                   $VM_LOCATION $ONEGATE_LOCATION $ONEFLOW_LOCATION"
 
         DELETE_DIRS="$MAKE_DIRS"
 
@@ -214,6 +248,12 @@ LIB_DIRS="$LIB_LOCATION/ruby \
           $LIB_LOCATION/ruby/cloud/marketplace \
           $LIB_LOCATION/ruby/cloud/CloudAuth \
           $LIB_LOCATION/ruby/onedb \
+          $LIB_LOCATION/ruby/vendors \
+          $LIB_LOCATION/ruby/vendors/rbvmomi \
+          $LIB_LOCATION/ruby/vendors/rbvmomi/lib \
+          $LIB_LOCATION/ruby/vendors/rbvmomi/lib/rbvmomi \
+          $LIB_LOCATION/ruby/vendors/rbvmomi/lib/rbvmomi/utils \
+          $LIB_LOCATION/ruby/vendors/rbvmomi/lib/rbvmomi/vim \
           $LIB_LOCATION/mads \
           $LIB_LOCATION/sh \
           $LIB_LOCATION/ruby/cli \
@@ -222,7 +262,8 @@ LIB_DIRS="$LIB_LOCATION/ruby \
 VAR_DIRS="$VAR_LOCATION/remotes \
           $VAR_LOCATION/remotes/im \
           $VAR_LOCATION/remotes/im/kvm.d \
-          $VAR_LOCATION/remotes/im/xen.d \
+          $VAR_LOCATION/remotes/im/xen3.d \
+          $VAR_LOCATION/remotes/im/xen4.d \
           $VAR_LOCATION/remotes/im/vmware.d \
           $VAR_LOCATION/remotes/im/ganglia.d \
           $VAR_LOCATION/remotes/vmm \
@@ -277,10 +318,12 @@ SUNSTONE_DIRS="$SUNSTONE_LOCATION/routes \
                $SUNSTONE_LOCATION/public/locale \
                $SUNSTONE_LOCATION/public/locale/ca \
                $SUNSTONE_LOCATION/public/locale/cs_CZ \
+               $SUNSTONE_LOCATION/public/locale/da \
                $SUNSTONE_LOCATION/public/locale/de \
                $SUNSTONE_LOCATION/public/locale/el_GR \
                $SUNSTONE_LOCATION/public/locale/en_US \
                $SUNSTONE_LOCATION/public/locale/es_ES \
+               $SUNSTONE_LOCATION/public/locale/da \
                $SUNSTONE_LOCATION/public/locale/fa_IR \
                $SUNSTONE_LOCATION/public/locale/fr_FR \
                $SUNSTONE_LOCATION/public/locale/it_IT \
@@ -343,6 +386,10 @@ OZONES_CLIENT_DIRS="$LIB_LOCATION/ruby \
                  $LIB_LOCATION/ruby/cli/ozones_helper \
                  $LIB_LOCATION/ruby/zona"
 
+ONEFLOW_DIRS="$ONEFLOW_LOCATION/lib \
+              $ONEFLOW_LOCATION/lib/strategy \
+              $ONEFLOW_LOCATION/lib/models"
+
 LIB_ECO_CLIENT_DIRS="$LIB_LOCATION/ruby \
                  $LIB_LOCATION/ruby/opennebula \
                  $LIB_LOCATION/ruby/cloud/ \
@@ -368,13 +415,17 @@ if [ "$CLIENT" = "yes" ]; then
     MAKE_DIRS="$MAKE_DIRS $LIB_ECO_CLIENT_DIRS $LIB_OCCI_CLIENT_DIRS $LIB_MARKET_CLIENT_DIRS \
                $LIB_OCA_CLIENT_DIRS $LIB_CLI_CLIENT_DIRS $CONF_CLI_DIRS \
                $ETC_LOCATION $OZONES_CLIENT_DIRS"
+elif [ "$ONEGATE" = "yes" ]; then
+    MAKE_DIRS="$MAKE_DIRS $LIB_OCA_CLIENT_DIRS"
 elif [ "$SUNSTONE" = "yes" ]; then
     MAKE_DIRS="$MAKE_DIRS $SUNSTONE_DIRS $LIB_OCA_CLIENT_DIRS"
 elif [ "$OZONES" = "yes" ]; then
     MAKE_DIRS="$MAKE_DIRS $OZONES_DIRS $OZONES_CLIENT_DIRS $LIB_OCA_CLIENT_DIRS"
+elif [ "$ONEFLOW" = "yes" ]; then
+    MAKE_DIRS="$MAKE_DIRS $ONEFLOW_DIRS $LIB_OCA_CLIENT_DIRS"
 else
     MAKE_DIRS="$MAKE_DIRS $SHARE_DIRS $ETC_DIRS $LIB_DIRS $VAR_DIRS \
-                $OZONES_DIRS $OZONES_CLIENT_DIRS $SUNSTONE_DIRS"
+                $OZONES_DIRS $OZONES_CLIENT_DIRS $SUNSTONE_DIRS $ONEFLOW_DIRS"
 fi
 
 #-------------------------------------------------------------------------------
@@ -397,7 +448,8 @@ INSTALL_FILES=(
     MADS_LIB_FILES:$LIB_LOCATION/mads
     IM_PROBES_FILES:$VAR_LOCATION/remotes/im
     IM_PROBES_KVM_FILES:$VAR_LOCATION/remotes/im/kvm.d
-    IM_PROBES_XEN_FILES:$VAR_LOCATION/remotes/im/xen.d
+    IM_PROBES_XEN3_FILES:$VAR_LOCATION/remotes/im/xen3.d
+    IM_PROBES_XEN4_FILES:$VAR_LOCATION/remotes/im/xen4.d
     IM_PROBES_VMWARE_FILES:$VAR_LOCATION/remotes/im/vmware.d
     IM_PROBES_GANGLIA_FILES:$VAR_LOCATION/remotes/im/ganglia.d
     AUTH_SSH_FILES:$VAR_LOCATION/remotes/auth/ssh
@@ -423,7 +475,6 @@ INSTALL_FILES=(
     DATASTORE_DRIVER_COMMON_SCRIPTS:$VAR_LOCATION/remotes/datastore/
     DATASTORE_DRIVER_DUMMY_SCRIPTS:$VAR_LOCATION/remotes/datastore/dummy
     DATASTORE_DRIVER_FS_SCRIPTS:$VAR_LOCATION/remotes/datastore/fs
-    DATASTORE_DRIVER_VMWARE_SCRIPTS:$VAR_LOCATION/remotes/datastore/vmware
     DATASTORE_DRIVER_VMFS_SCRIPTS:$VAR_LOCATION/remotes/datastore/vmfs
     DATASTORE_DRIVER_ISCSI_SCRIPTS:$VAR_LOCATION/remotes/datastore/iscsi
     DATASTORE_DRIVER_LVM_SCRIPTS:$VAR_LOCATION/remotes/datastore/lvm
@@ -453,6 +504,11 @@ INSTALL_FILES=(
     MAN_FILES:$MAN_LOCATION
     CLI_LIB_FILES:$LIB_LOCATION/ruby/cli
     ONE_CLI_LIB_FILES:$LIB_LOCATION/ruby/cli/one_helper
+    RBVMOMI_VENDOR_RUBY_FILES:$LIB_LOCATION/ruby/vendors/rbvmomi
+    RBVMOMI_VENDOR_RUBY_LIB_FILES:$LIB_LOCATION/ruby/vendors/rbvmomi/lib
+    RBVMOMI_VENDOR_RUBY_LIB_RBVMOMI_FILES:$LIB_LOCATION/ruby/vendors/rbvmomi/lib/rbvmomi
+    RBVMOMI_VENDOR_RUBY_LIB_RBVMOMI_VIM_FILES:$LIB_LOCATION/ruby/vendors/rbvmomi/lib/rbvmomi/vim
+    RBVMOMI_VENDOR_RUBY_LIB_RBVMOMI_UTILS_FILES:$LIB_LOCATION/ruby/vendors/rbvmomi/lib/rbvmomi/utils
 )
 
 INSTALL_CLIENT_FILES=(
@@ -492,6 +548,7 @@ INSTALL_SUNSTONE_FILES=(
     SUNSTONE_VIEWS_FILES:$SUNSTONE_LOCATION/views
     SUNSTONE_PUBLIC_JS_FILES:$SUNSTONE_LOCATION/public/js
     SUNSTONE_PUBLIC_JS_PLUGINS_FILES:$SUNSTONE_LOCATION/public/js/plugins
+    SUNSTONE_ROUTES_FILES:$SUNSTONE_LOCATION/routes
     SUNSTONE_PUBLIC_CSS_FILES:$SUNSTONE_LOCATION/public/css
     SUNSTONE_PUBLIC_VENDOR_CRYPTOJS:$SUNSTONE_LOCATION/public/vendor/crypto-js
     SUNSTONE_PUBLIC_VENDOR_EXPLORERCANVAS:$SUNSTONE_LOCATION/public/vendor/explorercanvas
@@ -518,6 +575,7 @@ INSTALL_SUNSTONE_FILES=(
     SUNSTONE_PUBLIC_LOCALE_CA:$SUNSTONE_LOCATION/public/locale/ca
     SUNSTONE_PUBLIC_LOCALE_CS_CZ:$SUNSTONE_LOCATION/public/locale/cs_CZ
     SUNSTONE_PUBLIC_LOCALE_DE:$SUNSTONE_LOCATION/public/locale/de
+    SUNSTONE_PUBLIC_LOCALE_DA:$SUNSTONE_LOCATION/public/locale/da
     SUNSTONE_PUBLIC_LOCALE_EL_GR:$SUNSTONE_LOCATION/public/locale/el_GR
     SUNSTONE_PUBLIC_LOCALE_EN_US:$SUNSTONE_LOCATION/public/locale/en_US
     SUNSTONE_PUBLIC_LOCALE_ES_ES:$SUNSTONE_LOCATION/public/locale/es_ES
@@ -537,6 +595,15 @@ INSTALL_SUNSTONE_FILES=(
 INSTALL_SUNSTONE_ETC_FILES=(
     SUNSTONE_ETC_FILES:$ETC_LOCATION
     SUNSTONE_ETC_VIEW_FILES:$ETC_LOCATION/sunstone-views
+)
+
+INSTALL_ONEGATE_FILES=(
+    ONEGATE_FILES:$ONEGATE_LOCATION
+    ONEGATE_BIN_FILES:$BIN_LOCATION
+)
+
+INSTALL_ONEGATE_ETC_FILES=(
+    ONEGATE_ETC_FILES:$ETC_LOCATION
 )
 
 INSTALL_OZONES_RUBY_FILES=(
@@ -576,6 +643,17 @@ INSTALL_OZONES_ETC_FILES=(
     OZONES_ETC_FILES:$ETC_LOCATION
 )
 
+INSTALL_ONEFLOW_FILES=(
+    ONEFLOW_FILES:$ONEFLOW_LOCATION
+    ONEFLOW_BIN_FILES:$BIN_LOCATION
+    ONEFLOW_LIB_FILES:$ONEFLOW_LOCATION/lib
+    ONEFLOW_LIB_STRATEGY_FILES:$ONEFLOW_LOCATION/lib/strategy
+    ONEFLOW_LIB_MODELS_FILES:$ONEFLOW_LOCATION/lib/models
+)
+
+INSTALL_ONEFLOW_ETC_FILES=(
+    ONEFLOW_ETC_FILES:$ETC_LOCATION
+)
 
 INSTALL_ETC_FILES=(
     ETC_FILES:$ETC_LOCATION
@@ -609,6 +687,8 @@ BIN_FILES="src/nebula/oned \
            src/cli/oneacl \
            src/cli/onedatastore \
            src/cli/onecluster \
+           src/cli/oneflow \
+           src/cli/oneflow-template \
            src/onedb/onedb \
            src/onedb/onezonedb/onezonedb \
            src/mad/utils/tty_expect \
@@ -774,7 +854,8 @@ VMM_EXEC_VMWARE_SCRIPTS="src/vmm_mad/remotes/vmware/cancel \
                          src/vmm_mad/remotes/vmware/poll \
                          src/vmm_mad/remotes/vmware/checkpoint \
                          src/vmm_mad/remotes/vmware/shutdown \
-                         src/vmm_mad/remotes/vmware/vmware_driver.rb"
+                         src/vmm_mad/remotes/vmware/vmware_driver.rb \
+                         src/vmm_mad/remotes/vmware/vi_driver.rb"
 
 #-------------------------------------------------------------------------------
 # Information Manager Probes, to be installed under $REMOTES_LOCATION/im
@@ -788,11 +869,17 @@ IM_PROBES_KVM_FILES="src/im_mad/remotes/kvm.d/kvm.rb \
                      src/im_mad/remotes/kvm.d/poll.sh \
                      src/im_mad/remotes/kvm.d/name.sh"
 
-IM_PROBES_XEN_FILES="src/im_mad/remotes/xen.d/xen.rb \
-                     src/im_mad/remotes/xen.d/architecture.sh \
-                     src/im_mad/remotes/xen.d/cpu.sh \
-                     src/im_mad/remotes/xen.d/poll.sh \
-                     src/im_mad/remotes/xen.d/name.sh"
+IM_PROBES_XEN3_FILES="src/im_mad/remotes/xen.d/xen.rb \
+                      src/im_mad/remotes/xen.d/architecture.sh \
+                      src/im_mad/remotes/xen.d/cpu.sh \
+                      src/im_mad/remotes/xen.d/poll3.sh \
+                      src/im_mad/remotes/xen.d/name.sh"
+
+IM_PROBES_XEN4_FILES="src/im_mad/remotes/xen.d/xen.rb \
+                      src/im_mad/remotes/xen.d/architecture.sh \
+                      src/im_mad/remotes/xen.d/cpu.sh \
+                      src/im_mad/remotes/xen.d/poll4.sh \
+                      src/im_mad/remotes/xen.d/name.sh"
 
 IM_PROBES_VMWARE_FILES="src/im_mad/remotes/vmware.d/vmware.rb"
 
@@ -976,24 +1063,21 @@ DATASTORE_DRIVER_DUMMY_SCRIPTS="src/datastore_mad/remotes/dummy/cp \
                          src/datastore_mad/remotes/dummy/mkfs \
                          src/datastore_mad/remotes/dummy/stat \
                          src/datastore_mad/remotes/dummy/clone \
+                         src/datastore_mad/remotes/dummy/monitor \
                          src/datastore_mad/remotes/dummy/rm"
 
 DATASTORE_DRIVER_FS_SCRIPTS="src/datastore_mad/remotes/fs/cp \
                          src/datastore_mad/remotes/fs/mkfs \
                          src/datastore_mad/remotes/fs/stat \
                          src/datastore_mad/remotes/fs/clone \
+                         src/datastore_mad/remotes/fs/monitor \
                          src/datastore_mad/remotes/fs/rm"
-
-DATASTORE_DRIVER_VMWARE_SCRIPTS="src/datastore_mad/remotes/vmware/cp \
-                         src/datastore_mad/remotes/vmware/mkfs \
-                         src/datastore_mad/remotes/vmware/stat \
-                         src/datastore_mad/remotes/vmware/clone \
-                         src/datastore_mad/remotes/vmware/rm"
 
 DATASTORE_DRIVER_VMFS_SCRIPTS="src/datastore_mad/remotes/vmfs/cp \
                          src/datastore_mad/remotes/vmfs/mkfs \
                          src/datastore_mad/remotes/vmfs/stat \
                          src/datastore_mad/remotes/vmfs/clone \
+                         src/datastore_mad/remotes/vmfs/monitor \
                          src/datastore_mad/remotes/vmfs/rm \
                          src/datastore_mad/remotes/vmfs/vmfs.conf"
 
@@ -1002,12 +1086,14 @@ DATASTORE_DRIVER_ISCSI_SCRIPTS="src/datastore_mad/remotes/iscsi/cp \
                          src/datastore_mad/remotes/iscsi/stat \
                          src/datastore_mad/remotes/iscsi/rm \
                          src/datastore_mad/remotes/iscsi/clone \
+                         src/datastore_mad/remotes/iscsi/monitor \
                          src/datastore_mad/remotes/iscsi/iscsi.conf"
 
 DATASTORE_DRIVER_LVM_SCRIPTS="src/datastore_mad/remotes/lvm/cp \
                          src/datastore_mad/remotes/lvm/mkfs \
                          src/datastore_mad/remotes/lvm/stat \
                          src/datastore_mad/remotes/lvm/rm \
+                         src/datastore_mad/remotes/lvm/monitor \
                          src/datastore_mad/remotes/lvm/clone \
                          src/datastore_mad/remotes/lvm/lvm.conf"
 
@@ -1015,6 +1101,7 @@ DATASTORE_DRIVER_CEPH_SCRIPTS="src/datastore_mad/remotes/ceph/cp \
                          src/datastore_mad/remotes/ceph/mkfs \
                          src/datastore_mad/remotes/ceph/stat \
                          src/datastore_mad/remotes/ceph/rm \
+                         src/datastore_mad/remotes/ceph/monitor \
                          src/datastore_mad/remotes/ceph/clone \
                          src/datastore_mad/remotes/ceph/ceph.conf"
 
@@ -1045,6 +1132,8 @@ ONEDB_MIGRATOR_FILES="src/onedb/2.0_to_2.9.80.rb \
                       src/onedb/3.9.80_to_3.9.90.rb \
                       src/onedb/3.9.90_to_4.0.0.rb \
                       src/onedb/4.0.0_to_4.0.1.rb \
+                      src/onedb/4.0.1_to_4.1.80.rb \
+                      src/onedb/4.1.80_to_4.2.0.rb \
                       src/onedb/fsck.rb \
                       src/onedb/onedb.rb \
                       src/onedb/onedb_backend.rb"
@@ -1136,38 +1225,39 @@ INSTALL_GEMS_SHARE_FILE="share/install_gems/install_gems"
 #-------------------------------------------------------------------------------
 OCA_LIB_FILES="src/oca/ruby/opennebula.rb"
 
-RUBY_OPENNEBULA_LIB_FILES="src/oca/ruby/opennebula/host.rb \
-                           src/oca/ruby/opennebula/host_pool.rb \
-                           src/oca/ruby/opennebula/pool.rb \
-                           src/oca/ruby/opennebula/user.rb \
-                           src/oca/ruby/opennebula/user_pool.rb \
-                           src/oca/ruby/opennebula/virtual_machine.rb \
-                           src/oca/ruby/opennebula/virtual_machine_pool.rb \
-                           src/oca/ruby/opennebula/virtual_network.rb \
-                           src/oca/ruby/opennebula/virtual_network_pool.rb \
-                           src/oca/ruby/opennebula/image.rb \
-                           src/oca/ruby/opennebula/image_pool.rb \
-                           src/oca/ruby/opennebula/template.rb \
-                           src/oca/ruby/opennebula/template_pool.rb \
-                           src/oca/ruby/opennebula/document.rb \
-                           src/oca/ruby/opennebula/document_pool.rb \
-                           src/oca/ruby/opennebula/document_json.rb \
-                           src/oca/ruby/opennebula/document_pool_json.rb \
-                           src/oca/ruby/opennebula/group.rb \
-                           src/oca/ruby/opennebula/group_pool.rb \
-                           src/oca/ruby/opennebula/acl.rb \
-                           src/oca/ruby/opennebula/acl_pool.rb \
-                           src/oca/ruby/opennebula/datastore.rb \
-                           src/oca/ruby/opennebula/datastore_pool.rb \
-                           src/oca/ruby/opennebula/cluster.rb \
-                           src/oca/ruby/opennebula/cluster_pool.rb \
-                           src/oca/ruby/opennebula/xml_utils.rb \
-                           src/oca/ruby/opennebula/client.rb \
-                           src/oca/ruby/opennebula/error.rb \
-                           src/oca/ruby/opennebula/pool_element.rb \
-                           src/oca/ruby/opennebula/xml_element.rb \
-                           src/oca/ruby/opennebula/xml_pool.rb \
-                           src/oca/ruby/opennebula/system.rb"
+RUBY_OPENNEBULA_LIB_FILES="src/oca/ruby/opennebula/acl_pool.rb \
+                            src/oca/ruby/opennebula/acl.rb \
+                            src/oca/ruby/opennebula/client.rb \
+                            src/oca/ruby/opennebula/cluster_pool.rb \
+                            src/oca/ruby/opennebula/cluster.rb \
+                            src/oca/ruby/opennebula/datastore_pool.rb \
+                            src/oca/ruby/opennebula/datastore.rb \
+                            src/oca/ruby/opennebula/document_json.rb \
+                            src/oca/ruby/opennebula/document_pool_json.rb \
+                            src/oca/ruby/opennebula/document_pool.rb \
+                            src/oca/ruby/opennebula/document.rb \
+                            src/oca/ruby/opennebula/error.rb \
+                            src/oca/ruby/opennebula/group_pool.rb \
+                            src/oca/ruby/opennebula/group.rb \
+                            src/oca/ruby/opennebula/host_pool.rb \
+                            src/oca/ruby/opennebula/host.rb \
+                            src/oca/ruby/opennebula/image_pool.rb \
+                            src/oca/ruby/opennebula/image.rb \
+                            src/oca/ruby/opennebula/pool_element.rb \
+                            src/oca/ruby/opennebula/pool.rb \
+                            src/oca/ruby/opennebula/system.rb \
+                            src/oca/ruby/opennebula/template_pool.rb \
+                            src/oca/ruby/opennebula/template.rb \
+                            src/oca/ruby/opennebula/user_pool.rb \
+                            src/oca/ruby/opennebula/user.rb \
+                            src/oca/ruby/opennebula/virtual_machine_pool.rb \
+                            src/oca/ruby/opennebula/virtual_machine.rb \
+                            src/oca/ruby/opennebula/virtual_network_pool.rb \
+                            src/oca/ruby/opennebula/virtual_network.rb \
+                            src/oca/ruby/opennebula/xml_element.rb \
+                            src/oca/ruby/opennebula/xml_pool.rb \
+                            src/oca/ruby/opennebula/xml_utils.rb \
+                            src/oca/ruby/opennebula/oneflow_client.rb"
 
 #-------------------------------------------------------------------------------
 # Common Cloud Files
@@ -1183,6 +1273,7 @@ CLOUD_AUTH_LIB_FILES="src/cloud/common/CloudAuth/OCCICloudAuth.rb \
                       src/cloud/common/CloudAuth/SunstoneCloudAuth.rb \
                       src/cloud/common/CloudAuth/EC2CloudAuth.rb \
                       src/cloud/common/CloudAuth/X509CloudAuth.rb \
+                      src/cloud/common/CloudAuth/OneGateCloudAuth.rb \
                       src/cloud/common/CloudAuth/OpenNebulaCloudAuth.rb"
 
 #-------------------------------------------------------------------------------
@@ -1358,6 +1449,8 @@ CLI_BIN_FILES="src/cli/onevm \
                src/cli/oneacl \
                src/cli/onedatastore \
                src/cli/onecluster \
+               src/cli/oneflow \
+               src/cli/oneflow-template \
                src/cli/oneacct"
 
 CLI_CONF_FILES="src/cli/etc/onegroup.yaml \
@@ -1388,7 +1481,9 @@ SUNSTONE_ETC_FILES="src/sunstone/etc/sunstone-server.conf \
                     src/sunstone/etc/sunstone-views.yaml"
 
 SUNSTONE_ETC_VIEW_FILES="src/sunstone/etc/sunstone-views/admin.yaml \
-                    src/sunstone/etc/sunstone-views/user.yaml"
+                    src/sunstone/etc/sunstone-views/user.yaml \
+                    src/sunstone/etc/sunstone-views/cloud.yaml \
+                     src/sunstone/etc/sunstone-views/vdcadmin.yaml"
 
 SUNSTONE_MODELS_FILES="src/sunstone/models/OpenNebulaJSON.rb \
                        src/sunstone/models/SunstoneServer.rb \
@@ -1410,6 +1505,7 @@ SUNSTONE_MODELS_JSON_FILES="src/sunstone/models/OpenNebulaJSON/HostJSON.rb \
 
 SUNSTONE_VIEWS_FILES="src/sunstone/views/index.erb \
                       src/sunstone/views/login.erb \
+                      src/sunstone/views/vnc.erb \
                       src/sunstone/views/_login_standard.erb \
                       src/sunstone/views/_login_x509.erb"
 
@@ -1437,9 +1533,15 @@ SUNSTONE_PUBLIC_JS_PLUGINS_FILES="\
                         src/sunstone/public/js/plugins/acls-tab.js \
                         src/sunstone/public/js/plugins/vnets-tab.js \
                         src/sunstone/public/js/plugins/marketplace-tab.js \
-                        src/sunstone/public/js/plugins/config-tab.js"
+                        src/sunstone/public/js/plugins/config-tab.js \
+                        src/sunstone/public/js/plugins/oneflow-dashboard.js \
+                        src/sunstone/public/js/plugins/oneflow-services.js \
+                        src/sunstone/public/js/plugins/oneflow-templates.js"
+
+SUNSTONE_ROUTES_FILES="src/sunstone/routes/oneflow.rb"
 
 SUNSTONE_PUBLIC_CSS_FILES="src/sunstone/public/css/app.css \
+                src/sunstone/public/css/opensans.woff \
                 src/sunstone/public/css/login.css"
 
 SUNSTONE_PUBLIC_VENDOR_FLOT="\
@@ -1614,6 +1716,10 @@ SUNSTONE_PUBLIC_LOCALE_DE="\
 src/sunstone/locale/languages/de.js \
 src/sunstone/locale/languages/de_datatable.txt"
 
+SUNSTONE_PUBLIC_LOCALE_DA="\
+src/sunstone/locale/languages/da.js \
+src/sunstone/locale/languages/da_datatable.txt"
+
 SUNSTONE_PUBLIC_LOCALE_EL_GR="\
 src/sunstone/locale/languages/el_GR.js \
 src/sunstone/locale/languages/el_datatable.txt"
@@ -1670,6 +1776,16 @@ SUNSTONE_PUBLIC_LOCALE_ZH_TW="\
 src/sunstone/locale/languages/zh_TW.js \
 src/sunstone/locale/languages/zh_datatable.txt"
 
+#-----------------------------------------------------------------------------
+# OneGate files
+#-----------------------------------------------------------------------------
+
+ONEGATE_FILES="src/onegate/onegate-server.rb \
+                src/onegate/config.ru"
+
+ONEGATE_BIN_FILES="src/onegate/bin/onegate-server"
+
+ONEGATE_ETC_FILES="src/onegate/etc/onegate-server.conf"
 
 #-----------------------------------------------------------------------------
 # Ozones files
@@ -1840,6 +1956,35 @@ OZONES_BIN_CLIENT_FILES="src/ozones/Client/bin/onevdc \
 OZONES_RUBY_LIB_FILES="src/oca/ruby/OpenNebula.rb"
 
 #-----------------------------------------------------------------------------
+# OneFlow files
+#-----------------------------------------------------------------------------
+
+
+ONEFLOW_FILES="src/flow/oneflow-server.rb \
+                src/flow/config.ru"
+
+ONEFLOW_BIN_FILES="src/flow/bin/oneflow-server"
+
+ONEFLOW_ETC_FILES="src/flow/etc/oneflow-server.conf"
+
+ONEFLOW_LIB_FILES="src/flow/lib/grammar.rb \
+                    src/flow/lib/grammar.treetop \
+                    src/flow/lib/LifeCycleManager.rb \
+                    src/flow/lib/log.rb \
+                    src/flow/lib/models.rb \
+                    src/flow/lib/strategy.rb \
+                    src/flow/lib/validator.rb"
+
+ONEFLOW_LIB_STRATEGY_FILES="src/flow/lib/strategy/straight.rb"
+
+ONEFLOW_LIB_MODELS_FILES="src/flow/lib/models/role.rb \
+                          src/flow/lib/models/service_pool.rb \
+                          src/flow/lib/models/service.rb \
+                          src/flow/lib/models/service_template_pool.rb \
+                          src/flow/lib/models/service_template.rb"
+
+
+#-----------------------------------------------------------------------------
 # MAN files
 #-----------------------------------------------------------------------------
 
@@ -1856,6 +2001,8 @@ MAN_FILES="share/man/oneauth.1.gz \
         share/man/onedb.1.gz \
         share/man/onedatastore.1.gz \
         share/man/onecluster.1.gz \
+        share/man/oneflow.1.gz \
+        share/man/oneflow-template.1.gz \
         share/man/econe-allocate-address.1.gz \
         share/man/econe-associate-address.1.gz \
         share/man/econe-attach-volume.1.gz \
@@ -1883,6 +2030,54 @@ MAN_FILES="share/man/oneauth.1.gz \
         share/man/occi-storage.1.gz \
         share/man/onezone.1.gz \
         share/man/onevdc.1.gz"
+
+#-----------------------------------------------------------------------------
+# Ruby VENDOR files
+#-----------------------------------------------------------------------------
+
+RBVMOMI_VENDOR_RUBY_FILES="share/vendor/ruby/gems/rbvmomi/LICENSE \
+share/vendor/ruby/gems/rbvmomi/README.rdoc \
+share/vendor/ruby/gems/rbvmomi/VERSION \
+share/vendor/ruby/gems/rbvmomi/vmodl.db"
+
+RBVMOMI_VENDOR_RUBY_LIB_FILES="share/vendor/ruby/gems/rbvmomi/lib/rbvmomi.rb"
+
+RBVMOMI_VENDOR_RUBY_LIB_RBVMOMI_FILES="share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/basic_types.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/connection.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/deserialization.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/fault.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/pbm.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/trivial_soap.rb
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/trollop.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/type_loader.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim.rb"
+
+RBVMOMI_VENDOR_RUBY_LIB_RBVMOMI_UTILS_FILES="share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/utils/admission_control.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/utils/deploy.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/utils/leases.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/utils/perfdump.rb"
+
+RBVMOMI_VENDOR_RUBY_LIB_RBVMOMI_VIM_FILES="share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ComputeResource.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/Datacenter.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/Datastore.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/DynamicTypeMgrAllTypeInfo.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/DynamicTypeMgrDataTypeInfo.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/DynamicTypeMgrManagedTypeInfo.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/Folder.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/HostSystem.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ManagedEntity.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ManagedObject.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ObjectContent.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ObjectUpdate.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/OvfManager.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/PerfCounterInfo.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/PerformanceManager.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/PropertyCollector.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ReflectManagedMethodExecuter.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ResourcePool.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/ServiceInstance.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/Task.rb \
+share/vendor/ruby/gems/rbvmomi/lib/rbvmomi/vim/VirtualMachine.rb"
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -1915,13 +2110,18 @@ do_file() {
 
 if [ "$CLIENT" = "yes" ]; then
     INSTALL_SET=${INSTALL_CLIENT_FILES[@]}
+elif [ "$ONEGATE" = "yes" ]; then
+    INSTALL_SET="${INSTALL_ONEGATE_FILES[@]}"
 elif [ "$SUNSTONE" = "yes" ]; then
     INSTALL_SET="${INSTALL_SUNSTONE_RUBY_FILES[@]} ${INSTALL_SUNSTONE_FILES[@]}"
 elif [ "$OZONES" = "yes" ]; then
     INSTALL_SET="${INSTALL_OZONES_RUBY_FILES[@]} ${INSTALL_OZONES_FILES[@]}"
+elif [ "$ONEFLOW" = "yes" ]; then
+    INSTALL_SET="${INSTALL_ONEFLOW_FILES[@]}"
 else
     INSTALL_SET="${INSTALL_FILES[@]} ${INSTALL_OZONES_FILES[@]} \
-                 ${INSTALL_SUNSTONE_FILES[@]}"
+                 ${INSTALL_SUNSTONE_FILES[@]} ${INSTALL_ONEGATE_FILES[@]} \
+                 ${INSTALL_ONEFLOW_FILES[@]}"
 fi
 
 for i in ${INSTALL_SET[@]}; do
@@ -1938,12 +2138,18 @@ done
 if [ "$INSTALL_ETC" = "yes" ] ; then
     if [ "$SUNSTONE" = "yes" ]; then
         INSTALL_ETC_SET="${INSTALL_SUNSTONE_ETC_FILES[@]}"
+    elif [ "$ONEGATE" = "yes" ]; then
+        INSTALL_ETC_SET="${INSTALL_ONEGATE_ETC_FILES[@]}"
     elif [ "$OZONES" = "yes" ]; then
         INSTALL_ETC_SET="${INSTALL_OZONES_ETC_FILES[@]}"
+    elif [ "$ONEFLOW" = "yes" ]; then
+        INSTALL_ETC_SET="${INSTALL_ONEFLOW_ETC_FILES[@]}"
     else
         INSTALL_ETC_SET="${INSTALL_ETC_FILES[@]} \
                          ${INSTALL_SUNSTONE_ETC_FILES[@]} \
-                         ${INSTALL_OZONES_ETC_FILES[@]}"
+                         ${INSTALL_OZONES_ETC_FILES[@]} \
+                         ${INSTALL_ONEGATE_ETC_FILES[@]} \
+                         ${INSTALL_ONEFLOW_ETC_FILES[@]}"
     fi
 
     for i in ${INSTALL_ETC_SET[@]}; do

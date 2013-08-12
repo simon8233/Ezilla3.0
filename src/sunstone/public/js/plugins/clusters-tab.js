@@ -61,11 +61,12 @@ var datastore_datatable_table_tmpl='<thead>\
         <th>'+tr("Owner")+'</th>\
         <th>'+tr("Group")+'</th>\
         <th>'+tr("Name")+'</th>\
+        <th>'+tr("Capacity")+'</th>\
         <th>'+tr("Cluster")+'</th>\
         <th>'+tr("Basepath")+'</th>\
         <th>'+tr("TM MAD")+'</th>\
         <th>'+tr("DS MAD")+'</th>\
-        <th>'+tr("System")+'</th>\
+        <th>'+tr("Type")+'</th>\
       </tr>\
     </thead>\
     <tbody id="tbodydatastores">\
@@ -193,7 +194,7 @@ function setupCreateClusterDialog(){
         },
         "aoColumnDefs": [
             { "sWidth": "35px", "aTargets": [1] },
-            { "bVisible": false, "aTargets": [0,5,6,7,8,10,11,12]} // 3 = cluster
+            { "bVisible": false, "aTargets": [0,5,7,10,11,12]} // 3 = cluster
         ],
         "oLanguage": (datatable_lang != "") ?
             {
@@ -232,7 +233,7 @@ function setupCreateClusterDialog(){
         },
         "aoColumnDefs": [
             { "sWidth": "35px", "aTargets": [1] },
-            { "bVisible": false, "aTargets": [0,6,7,8,9] } // 5 = cluster
+            { "bVisible": false, "aTargets": [0,6,7,8,9,10] } // 5 = cluster
         ],
         "oLanguage": (datatable_lang != "") ?
             {
@@ -809,7 +810,7 @@ var cluster_datastore_actions = {
         call: OpenNebula.Datastore.list,
         callback: function(request,ds_list){
           updateClusterDatastoresView(request,ds_list);
-          dataTable_cluster_datastores.fnFilter( filter_expr, 5, true);
+          dataTable_cluster_datastores.fnFilter( filter_expr, 6, true);
           if(filter_expr!="-")
             Sunstone.runAction("Cluster.show_to_update", cluster_id);
         },
@@ -1313,7 +1314,7 @@ function updateClusterInfo(request,cluster){
         "aoColumnDefs": [
             { "sWidth": "35px", "aTargets": [1] },
             { "sWidth": "35px", "aTargets": [9] },
-            { "bVisible": false, "aTargets": [0,3,5,6,7,8,10,11,12]}
+            { "bVisible": false, "aTargets": [0,5,7,10,11,12]}
         ],
         "oLanguage": (datatable_lang != "") ?
             {
@@ -1348,7 +1349,7 @@ function updateClusterInfo(request,cluster){
         },
         "aoColumnDefs": [
             { "sWidth": "35px", "aTargets": [1] },
-            { "bVisible": false, "aTargets": [0,5,6,7,8,9] }
+            { "bVisible": false, "aTargets": [0,6,7,8,9,10] }
         ],
         "oLanguage": (datatable_lang != "") ?
             {
@@ -1375,7 +1376,7 @@ function clusterResourceViewListeners(){
             dataTable_hosts.fnFilter(getClusterName(filter_id),3,false,true,false,true);
             break;
         case 'datastores_tab':
-            dataTable_datastores.fnFilter(getClusterName(filter_id),5,false,true,false,true);
+            dataTable_datastores.fnFilter(getClusterName(filter_id),6,false,true,false,true);
             break;
         case 'vnets_tab':
             dataTable_vNetworks.fnFilter(getClusterName(filter_id),5,false,true,false,true);
@@ -1407,32 +1408,34 @@ function clusters_sel() {
 $(document).ready(function(){
     var tab_name = "clusters-tab"
 
-    //prepare host datatable
-    dataTable_clusters = $("#datatable_clusters",main_tabs_context).dataTable({
-        "aoColumnDefs": [
-            { "bSortable": false, "aTargets": ["check"] },
-            { "sWidth": "35px", "aTargets": [0] },
-            { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
-            { "bVisible": false, "aTargets": ['_all']}
-        ]
-    });
+    if (Config.isTabEnabled(tab_name)) {
+      //prepare host datatabl
+      dataTable_clusters = $("#datatable_clusters",main_tabs_context).dataTable({
+          "aoColumnDefs": [
+              { "bSortable": false, "aTargets": ["check"] },
+              { "sWidth": "35px", "aTargets": [0] },
+              { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
+              { "bVisible": false, "aTargets": ['_all']}
+          ]
+      });
 
-    $('#cluster_search').keyup(function(){
-      dataTable_clusters.fnFilter( $(this).val() );
-    })
+      $('#cluster_search').keyup(function(){
+        dataTable_clusters.fnFilter( $(this).val() );
+      })
 
-    dataTable_clusters.on('draw', function(){
-      recountCheckboxes(dataTable_clusters);
-    })
+      dataTable_clusters.on('draw', function(){
+        recountCheckboxes(dataTable_clusters);
+      })
 
-    Sunstone.runAction("Cluster.list");
+      Sunstone.runAction("Cluster.list");
 
-    dialogs_context.append('<div title=\"'+tr("Create cluster")+'\" id="create_cluster_dialog"></div>');
+      dialogs_context.append('<div title=\"'+tr("Create cluster")+'\" id="create_cluster_dialog"></div>');
 
-    setClusterAutorefresh();
-    clusterResourceViewListeners();
+      setClusterAutorefresh();
+      clusterResourceViewListeners();
 
-    initCheckAllBoxes(dataTable_clusters);
-    tableCheckboxesListener(dataTable_clusters);
-    infoListener(dataTable_clusters, "Cluster.showinfo");
+      initCheckAllBoxes(dataTable_clusters);
+      tableCheckboxesListener(dataTable_clusters);
+      infoListener(dataTable_clusters, "Cluster.showinfo");
+    }
 });
