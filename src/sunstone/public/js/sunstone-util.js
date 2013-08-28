@@ -54,32 +54,32 @@ function pretty_vmstate(state)
         var str = state;
 
         switch (state){
-        case "RUNNING":
-            str = "<span style='color:green'><i class='icon-ok'></i>&nbsp;RUNNING</span>";
+        case tr("RUNNING"):
+            str = "<span style='color:green'><i class='icon-ok'></i>&nbsp;" + tr("RUNNING") + "</span>";
             break;
-        case "POWEROFF":
-            str = "<span style='color:grey'><i class='icon-off'></i>&nbsp;POWEROFF</span>";
+        case tr("POWEROFF"):
+            str = "<span style='color:grey'><i class='icon-off'></i>&nbsp;" + tr("POWEROFF") + "</span>";
             break;
-        case "SUSPENDED":
-            str = "<span style='color:orange'><i class='icon-pause'></i>&nbsp;SUSPENDED</span>";
+        case tr("SUSPENDED"):
+            str = "<span style='color:orange'><i class='icon-pause'></i>&nbsp;" + tr("SUSPENDED") + "</span>";
             break;
-        case "STOPPED":
-            str = "<span style='color:grey'><i class='icon-stop'></i>&nbsp;STOPPED</span>";
+        case tr("STOPPED"):
+            str = "<span style='color:grey'><i class='icon-stop'></i>&nbsp;" + tr("STOPPED") + "</span>";
             break;
-        case "DONE":
-            str = "<span style='color:green'><i class='icon-circle-blank'></i>&nbsp;DONE</span>";
+        case tr("DONE"):
+            str = "<span style='color:green'><i class='icon-circle-blank'></i>&nbsp;" + tr("DONE") + "</span>";
             break;
-        case "UNDEPLOYED":
-            str = "<span style='color:grey'><i class='icon-cloud-upload'></i>&nbsp;UNDEPLOYED</span>";
+        case tr("UNDEPLOYED"):
+            str = "<span style='color:grey'><i class='icon-cloud-upload'></i>&nbsp;" + tr("UNDEPLOYED") + "</span>";
             break;
-        case "FAILURE":
-            str = "<span style='color:red'><i class='icon-remove'></i>&nbsp;FAILURE</span>";
+        case tr("FAILURE"):
+            str = "<span style='color:red'><i class='icon-remove'></i>&nbsp;" + tr("FAILURE") + "</span>";
             break;
-        case "UNKNOWN":
-            str = "<span style='color:red'><i class='icon-question'></i>&nbsp;UNKNOWN</span>";
+        case tr("UNKNOWN"):
+            str = "<span style='color:red'><i class='icon-question'></i>&nbsp;" + tr("UNKNOWN") + "</span>";
             break;
-        case "HOLD":
-            str = "<span style='color:orange'><i class='icon-pushpin'></i>&nbsp;HOLD</span>";
+        case tr("HOLD"):
+            str = "<span style='color:orange'><i class='icon-pushpin'></i>&nbsp;" + tr("HOLD") +"</span>";
             break;
         default:
             str = "<i class='icon-spinner icon-spin'></i>&nbsp;" + state;
