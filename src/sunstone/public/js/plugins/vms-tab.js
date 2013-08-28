@@ -91,7 +91,7 @@ var vms_tab_content = '\
       <th>'+tr("IPs")+'</th>\
       <th>'+tr("Start Time")+'</th>\
       <th>'+tr("VNC")+'</th>\
-      <th>'+tr("Remote")+'</th>\
+      <th>'+tr("Endpoint")+'</th>\
     </tr>\
   </thead>\
   <tbody id="tbodyvmachines">\
@@ -183,7 +183,7 @@ var create_vm_tmpl ='\
         </div>\
 <!--- Ezilla - Passwd - Start -->\
         <div class="show_hide" id="vmpasswd_capacity">\
-             <h4><small><i class=" icon-caret-down"/> '+tr("Password for the User in VM")+'<a id="add_os_boot_opts" class="icon_left" href="#"></a></small></h4>\
+             <h4><small><i class=" icon-caret-down"/> '+tr(" Add Password contextualization")+'<a id="add_os_boot_opts" class="icon_left" href="#"></a></small></h4>\
         </div>\
         <div class="vmpasswd">\
              <div class="seven columns">\
@@ -3167,7 +3167,7 @@ function setupCreateVMDialog(include_select_image){
         	};
 
         	if (user_passwd.length < 6){
-            		notifyError(tr("password must be at least 6 characters"));
+            		notifyError(tr("Password must be at least 6 characters"));
             		return false;
         	};
 
@@ -3405,13 +3405,13 @@ function setupRedirectPort(){
 
 
     //Append to DOM
-    dialogs_context.append('<div id="redir_dialog" title=\"'+tr("Redirect Port Information")+'\"></div>');
+    dialogs_context.append('<div id="redir_dialog" title=\"'+tr("Endpoint Information")+'\"></div>');
     $redir_dialog = $('#redir_dialog',dialogs_context);
     var dialog = $redir_dialog;
     dialog.html('\
         <div class="panel">\
             <h3>\
-                <small id="RedirectPort_Info">'+tr("Redirect Port Information")+' \
+                <small id="RedirectPort_Info">'+tr("Endpoint Information")+' \
                 </small>\
            </h3>\
             <div class="reveal-body" >\
@@ -3469,22 +3469,22 @@ function RedirectPortCallback(request,response){
     var connecting_tool_image ='<a class="connecting_info">';
     var connecting_tool;
     if ( port == "3389" ){
-        connecting_tool = tr("To connect to the Virtual Machine , you can use RDP tools to connect. copy above connect information,and paste to your RDP tools");
+        connecting_tool = tr("You can use the connect information to connect to the virtual machine via RDP client.");
         connecting_tool_image += '<img src="images/rdp_icon_big.png" /></a>';
     }
     else{
         if ( port == "22" ){
-            connecting_tool = tr("To connect to the Virtual Machine , you can use SSH tools to connect. copy above connect information,and paste to your SSH tools");
+            connecting_tool = tr("You can use the connect information to connect to the virtual machine via SSH client.");
             connecting_tool_image += '<img src="images/ssh_icon_big.png"/></a>';
         }
         else{
             connecting_tool = tr("SPICE protocol password")+"<input type=text readonly=false id=\'spice_protocol_password\' value="+spice_password+" style=\'width:250px;height:15px;\'/>"; 
-            connecting_tool += tr("To connect to the Virtual Machine , you can use SPICE tools to connect. copy above connect information,and paste to your SPICE tools");
+            connecting_tool += tr("You can use the connect information to connect to the virtual machine via SPICE client");
             connecting_tool_image += '<img src="images/spice_icon_big.png" /></a>';
         }
     }
     $('#RedirectPort_Info_image').html(connecting_tool_image);
-    $('#RedirectPort_Info_output').html(tr("Connecting information")+'<input type=text readonly=false id=\'connecting_textarea\' value=\"\" style=\'width:250px;height:15px;\'/>'+connecting_tool);
+    $('#RedirectPort_Info_output').html(tr("Endpoint Information")+'<input type=text readonly=false id=\'connecting_textarea\' value=\"\" style=\'width:250px;height:15px;\'/>'+connecting_tool);
     
 
 
