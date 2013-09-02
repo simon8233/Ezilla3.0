@@ -225,7 +225,9 @@ fi
 
 SHARE_DIRS="$SHARE_LOCATION/examples \
             $SHARE_LOCATION/tgt \
-            $SHARE_LOCATION/websockify"
+            $SHARE_LOCATION/websockify \
+            $SHARE_LOCATION/redir \
+            $SHARE_LOCATION/script"
 
 ETC_DIRS="$ETC_LOCATION/im_ec2 \
           $ETC_LOCATION/vmm_ec2 \
@@ -490,6 +492,8 @@ INSTALL_FILES=(
     EXAMPLE_SHARE_FILES:$SHARE_LOCATION/examples
     TGT_SHARE_FILES:$SHARE_LOCATION/tgt
     WEBSOCKIFY_SHARE_FILES:$SHARE_LOCATION/websockify
+    REDIR_SHARE_FILES:$SHARE_LOCATION/redir
+    INITIAL_SHARE_FILES:$SHARE_LOCATION/script
     INSTALL_GEMS_SHARE_FILE:$SHARE_LOCATION
     HOOK_FT_FILES:$VAR_LOCATION/remotes/hooks/ft
     COMMON_CLOUD_LIB_FILES:$LIB_LOCATION/ruby/cloud
@@ -1207,6 +1211,18 @@ TGT_SHARE_FILES="share/scripts/tgt/tgt-setup-lun-one"
 WEBSOCKIFY_SHARE_FILES="share/websockify/websocketproxy.py \
                         share/websockify/websocket.py \
                         share/websockify/websockify"
+#------------------------------------------------------------------------------
+# Redir files, to be installed under $SHARE_LOCATION/redir
+#------------------------------------------------------------------------------
+
+REDIR_SHARE_FILES="share/redir/redir"
+
+#-------------------------------------------------------------------------------
+# VM initial script. when vm booting will execute.
+#-------------------------------------------------------------------------------
+
+INITIAL_SHARE_FILES="share/script/init.sh \
+                     share/script/init.ps1"
 
 #-------------------------------------------------------------------------------
 # HOOK scripts, to be installed under $VAR_LOCATION/remotes/hooks
@@ -1689,6 +1705,9 @@ SUNSTONE_PUBLIC_IMAGES_FILES="src/sunstone/public/images/ajax-loader.gif \
                         src/sunstone/public/images/green_bullet.png \
                         src/sunstone/public/images/vnc_off.png \
                         src/sunstone/public/images/vnc_on.png \
+                        src/sunstone/public/images/rdp_icon_big.png \
+                        src/sunstone/public/images/ssh_icon_big.png \
+                        src/sunstone/public/images/spice_icon_big.png \
                         src/sunstone/public/images/network_icon.png \
                         src/sunstone/public/images/system_icon.png \
                         src/sunstone/public/images/server_icon.png  \
