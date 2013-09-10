@@ -677,23 +677,6 @@ function generate_capacity_tab_content() {
     '</div>'+
     '<div class="row">'+
         '<div class="two columns">'+
-            '<label class="right inline" for="template_ostype">'+tr("OS TYPE")+':</label>'+
-        '</div>'+
-        '<div class="seven columns">'+
-            '<select name="template_ostype" id="template_ostype">'+
-            '<option value="WINDOWS">'+tr("Windows")+'</option>'+
-            '<option value="CENTOS">'+tr("Linux CentOS/Redhat")+'</option>'+
-            '<option value="UBUNTU">'+tr("Linux Ubuntu/Mint")+'</option>'+
-            '<option value="FEDORA">'+tr("Linux Fedora")+'</option>'+
-            '<option value="OPENSUSE">'+tr("Linux openSUSE")+'</option>'+
-            '</select>'+
-        '</div>'+
-        '<div class="one columns">'+
-            '<div class="tip">'+tr("choose your OS Type, when creating os type disk.")+'</div>'+
-        '</div>'+
-    '</div>'+
-    '<div class="row">'+
-        '<div class="two columns">'+
           '<label class="inline right" for="CPU">'+tr("CPU")+':</label>'+
         '</div>'+
         '<div id="cpu_slider" class="seven columns">'+
@@ -951,6 +934,7 @@ function generate_disk_tab_content(str_disk_tab_id, str_datatable_id){
                 '<th>'+tr("Datastore")+'</th>'+
                 '<th>'+tr("Size")+'</th>'+
                 '<th>'+tr("Type")+'</th>'+
+                '<th>'+tr("OS Type")+'</th>'+
                 '<th>'+tr("Registration time")+'</th>'+
                 '<th>'+tr("Persistent")+'</th>'+
                 '<th>'+tr("Status")+'</th>'+
@@ -981,6 +965,7 @@ function generate_disk_tab_content(str_disk_tab_id, str_datatable_id){
                 '</div>'+
                 '<div class="six columns">'+
                   '<input type="text" id="IMAGE_ID" name="IMAGE_ID"/>'+
+                  '<input type="text" id="IMAGE_OSTYPE" name="IMAGE_OSTYPE" style="display:none";/>'+
                 '</div>'+
                 '<div class="two columns">'+
                   '<div class="tip">'+
@@ -1601,7 +1586,7 @@ function setup_disk_tab_content(disk_section, str_disk_tab_id, str_datatable_id)
         "sDom" : '<"H">t<"F"p>',
         "aoColumnDefs": [
             { "sWidth": "35px", "aTargets": [0,1] },
-            { "bVisible": false, "aTargets": [2,3,6,9,8,12]}
+            { "bVisible": false, "aTargets": [2,3,6,9,12]}
         ],
           "fnDrawCallback": function(oSettings) {
             var nodes = this.fnGetNodes();
@@ -1636,6 +1621,7 @@ function setup_disk_tab_content(disk_section, str_disk_tab_id, str_datatable_id)
 
         $('#IMAGE_NAME', disk_section).text(aData[4]);
         $('#IMAGE_ID', disk_section).val(aData[1]);
+        $('#IMAGE_OSTYPE',disk_section).val(aData[8]);
         $('#IMAGE', disk_section).val("");
         $('#IMAGE_UNAME', disk_section).val("");
         $('#IMAGE_UID', disk_section).val("");
@@ -3839,7 +3825,11 @@ function setupCreateTemplateDialog(){
         $('.disk div#disk_type.vm_param ',dialog).each(function(){
           var hash  = {};
           addSectionJSON(hash, this);
-          vm_json["DISK"].push(hash);
+          
+        // original version , add disk to template anytime.
+        // Ezilla version , must check template_disk have a disk option.
+        if(!$.isEmptyObject(hash)) 
+              vm_json["DISK"].push(hash);
         });
 
         //
@@ -3902,8 +3892,6 @@ function setupCreateTemplateDialog(){
             vm_json["CONTEXT"][$('#KEY', $(this)).val()] = $('#VALUE', $(this)).val()
           }
         });
-        var ostype = $('#template_ostype',$('li#capacityTab',dialog)).val();
-        vm_json["CONTEXT"]["OSTYPE"] = ostype; 
 
         if ($("#ssh_context", $('li#contextTab')).is(":checked")) {
           var public_key = $("#ssh_puclic_key", $('li#contextTab')).val();
@@ -3922,7 +3910,18 @@ function setupCreateTemplateDialog(){
         if ($("#token_context", $('li#contextTab')).is(":checked")) {
           vm_json["CONTEXT"]["TOKEN"] = "YES";
         };
-    
+        // Ezilla automatically grep images ostype field.
+        // fill OSTYPE to template.
+        if ( $.isArray(vm_json["DISK"]) && vm_json["DISK"].length > 0 ){ // have anyone disk.
+            $.each(vm_json["DISK"],function(){
+                if ( this["IMAGE_OSTYPE"].toString() != "--" ){
+                // ostype is not exist everydisk. datablock will have '--'
+                   ostype = this["IMAGE_OSTYPE"]; 
+                   vm_json["CONTEXT"]["OSTYPE"] = ostype;
+                   return false;
+                }
+            }) 
+        }
         addSectionJSON(vm_json["CONTEXT"],$('li#contextTab',dialog));
 
         //
@@ -4108,7 +4107,7 @@ function fillTemplatePopUp(request, response){
 
 
     //
-    // DISKS
+    // DISKS // fill disk info from original template  
     //
 
     var number_of_disks = 0;
@@ -4138,6 +4137,7 @@ function fillTemplatePopUp(request, response){
                             $('#select_image', disk_section).hide();
                             $('#IMAGE_NAME', disk_section).text(this[4]);
                             $('#IMAGE_ID', disk_section).val(this[1]);
+                            $('#IMAGE_OSTYPE', disk_section).val(this[8]);
                         }
                     })
 

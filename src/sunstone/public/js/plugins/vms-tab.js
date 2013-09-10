@@ -297,6 +297,7 @@ var create_vm_tmpl ='\
               <th>'+tr("Datastore")+'</th>\
               <th>'+tr("Size")+'</th>\
               <th>'+tr("Type")+'</th>\
+              <th>'+tr("OS TYPE")+'</th>\
               <th>'+tr("Registration time")+'</th>\
               <th>'+tr("Persistent")+'</th>\
               <th>'+tr("Status")+'</th>\
@@ -313,6 +314,7 @@ var create_vm_tmpl ='\
           </div>\
           <div class="six columns">\
             <input type="text" id="IMAGE_ID" name="IMAGE_ID"/>\
+            <input type="text" id="IMAGE_OSTYPE" name="IMAGE_OSTYPE"/>\
           </div>\
           <div class="two columns">\
             <div class="tip">\
@@ -364,15 +366,24 @@ var vm_actions = {
 		var tmp_template = template_info.TEMPLATE;
 		var vm_name = $('#vm_name',$create_vm_dialog).val();
 		var user_passwd = $('#user_passwd',$create_vm_dialog).val();
-        	var n_times = $('#vm_n_times',$create_vm_dialog).val();
-        	var n_times_int=1;
+        var n_times = $('#vm_n_times',$create_vm_dialog).val();
+        var n_times_int=1;
 	    var password_length = 8;	
         var username_array=username.split('%');
-		tmp_template.CONTEXT["USERNAME"]=username_array[0];
-		tmp_template.CONTEXT["USER_PASSWD"]=user_passwd;
-		tmp_template.CONTEXT["ROOT_PASSWD"]=user_passwd;
-        
-        if (typeof(tmp_template.CONTEXT.OSTYPE) != "undefined"){
+        var image_id = $("#IMAGE_ID",$create_vm_dialog).val();
+        if ( $.isNumeric(image_id) ){
+            ostype = $("#IMAGE_OSTYPE",$create_vm_dialog).val();
+            // fill image_id to template.
+            tmp_template["DISK"]= {"IMAGE_ID" : image_id , "IMAGE_OSTYPE" : ostype };
+            // fill image_ostype to template.
+            tmp_template.CONTEXT["OSTYPE"] = ostype;
+        }
+        if (!$('#user_passwd',$create_vm_dialog).is(":hidden")){ // inloop vm need password initialization.
+    		tmp_template.CONTEXT["USERNAME"] = username_array[0];
+	    	tmp_template.CONTEXT["USER_PASSWD"] = user_passwd;
+    		tmp_template.CONTEXT["ROOT_PASSWD"] = user_passwd;
+        }
+        if (typeof(tmp_template.CONTEXT.OSTYPE) != "undefined"){ // inloop select vm specific OS initialization 
             if (tmp_template.CONTEXT["OSTYPE"] == "WINDOWS") {
                 tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.ps1";
             }
@@ -3109,7 +3120,7 @@ function setupCreateVMDialog(include_select_image){
           "sDom" : '<"H">t<"F"p>',
           "aoColumnDefs": [
               { "sWidth": "35px", "aTargets": [0,1] },
-              { "bVisible": false, "aTargets": [2,3,7,8,5,9,12]}
+              { "bVisible": false, "aTargets": [2,3,7,5,8,9,13]} // if you want hideen any column , write here.
           ],
             "fnDrawCallback": function(oSettings) {
               var nodes = this.fnGetNodes();
@@ -3144,6 +3155,7 @@ function setupCreateVMDialog(include_select_image){
 
           $('#IMAGE_NAME', dialog).text(aData[4]);
           $('#IMAGE_ID', dialog).val(aData[1]);
+          $('#IMAGE_OSTYPE', dialog).val(aData[8]);
           return true;
       });
 
@@ -3211,12 +3223,14 @@ function setupCreateVMDialog(include_select_image){
           image_id = $("#IMAGE_ID", this).val();
           extra_info['template'] = {
             'disk': {
-              'image_id': image_id
+              'image_id': image_id,
             }
-          }
-        } 
+          } 
+        }
+
 
 //Ezilla - Create VM - Start
+/*
         if ($('#user_passwd',this).is(":hidden")){
           if (!vm_name.length){ //empty name use OpenNebula core default
               for (var i=0; i< n_times_int; i++){
@@ -3239,8 +3253,10 @@ function setupCreateVMDialog(include_select_image){
             };
           }
        } else {
-          Sunstone.runAction("VM.Template_submit", template_id);
+          Sunstone.runAction("VM.Template_submit", template_id );
        }
+*/
+        Sunstone.runAction("VM.Template_submit", template_id );
 //Ezilla - Create VM - End
 
         setTimeout(function(){
