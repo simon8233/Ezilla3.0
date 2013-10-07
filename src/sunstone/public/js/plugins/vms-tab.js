@@ -1,18 +1,28 @@
-/* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
-/*                                                                            */
-/* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
-/* not use this file except in compliance with the License. You may obtain    */
-/* a copy of the License at                                                   */
-/*                                                                            */
-/* http://www.apache.org/licenses/LICENSE-2.0                                 */
-/*                                                                            */
-/* Unless required by applicable law or agreed to in writing, software        */
-/* distributed under the License is distributed on an "AS IS" BASIS,          */
-/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   */
-/* See the License for the specific language governing permissions and        */
-/* limitations under the License.                                             */
-/* -------------------------------------------------------------------------- */
+/*-------------------------------------------------------------------------------*/
+/* Copyright (C) 2013                                                            */
+/*                                                                               */
+/* This file is part of ezilla.                                                  */
+/*                                                                               */
+/* This program is free software: you can redistribute it and/or modify it       */
+/* under the terms of the GNU General Public License as published by             */
+/* the Free Software Foundation, either version 3 of the License, or             */
+/* (at your option) any later version.                                           */
+/*                                                                               */
+/* This program is distributed in the hope that it will be useful, but WITHOUT   */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS */
+/* FOR A PARTICULAR PURPOSE. See the GNU General Public License                  */
+/* for more details.                                                             */
+/*                                                                               */
+/* You should have received a copy of the GNU General Public License along with  */
+/* this program. If not, see <http://www.gnu.org/licenses/>                      */
+/*                                                                               */
+/* Author: Chang-Hsing Wu <hsing _at_ nchc narl org tw>                          */
+/*         Serena Yi-Lun Pan <serenapan _at_ nchc narl org tw>                   */
+/*         Hsi-En Yu <yun _at_  nchc narl org tw>                                */
+/*         Hui-Shan Chen  <chwhs _at_ nchc narl org tw>                          */
+/*         Kuo-Yang Cheng  <kycheng _at_ nchc narl org tw>                       */
+/*         CHI-MING Chen <jonchen _at_ nchc narl org tw>                         */
+/*-------------------------------------------------------------------------------*/
 
 /*Virtual Machines tab plugin*/
 var INCLUDE_URI = "vendor/noVNC/";
@@ -3322,7 +3332,7 @@ function updateVNCState(rfb, state, oldstate, msg) {
 function setupVNC(){
 
     //Append to DOM
-    dialogs_context.append('<div id="vnc_dialog" style="width:auto; max-width:100%" title=\"'+tr("VNC connection")+'\"></div>');
+    dialogs_context.append('<div id="vnc_dialog" style="margin-left:0px; left:0px; top:0px; height:100%; max-height:100%; width:100%; max-width:100%" title=\"'+tr("VNC connection")+'\"></div>');
     $vnc_dialog = $('#vnc_dialog',dialogs_context);
     var dialog = $vnc_dialog;
 
@@ -3350,14 +3360,6 @@ function setupVNC(){
   <a class="close-reveal-modal">&#215;</a>\
 ');
 
-    //dialog.dialog({
-    //    autoOpen:false,
-    //    width:750,
-    //    modal:true,
-    //    height:500,
-    //    resizable:true,
-    //    closeOnEscape: false
-    //});
     dialog.addClass("reveal-modal vncscreencss  max-height");
 
     $('#sendCtrlAltDelButton',dialog).click(function(){
