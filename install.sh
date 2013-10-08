@@ -1689,6 +1689,8 @@ SUNSTONE_PUBLIC_NEW_VENDOR_DATETIMEPICKER="\
                 src/sunstone/public/vendor/4.0/datetimepicker/simple-dtpicker.jquery.json"
 
 SUNSTONE_PUBLIC_IMAGES_FILES="src/sunstone/public/images/ajax-loader.gif \
+                        src/sunstone/public/images/Ezilla_logo_all_big.png \
+                        src/sunstone/public/images/Ezilla_logo_all_small.png \
                         src/sunstone/public/images/favicon.ico \
                         src/sunstone/public/images/login_over.png \
                         src/sunstone/public/images/login.png \
