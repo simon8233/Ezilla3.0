@@ -33,10 +33,11 @@ ONE_LOCATION = ENV["ONE_LOCATION"]
 if !ONE_LOCATION
     LOG_LOCATION = "/var/log/one"
     VAR_LOCATION = "/var/lib/one"
+    USR_LOCATION = "/usr/lib/one"
     ETC_LOCATION = "/etc/one"
     SHARE_LOCATION = "/usr/share/one"
     RUBY_LIB_LOCATION = "/usr/lib/one/ruby"
-    PREVIEW_LOCATION = VAR_LOCATION + "/sunstone/public/images/vncsnapshot"
+    PREVIEW_LOCATION = USR_LOCATION + "/sunstone/public/images/vncsnapshot"
 else
     VAR_LOCATION = ONE_LOCATION + "/var"
     LOG_LOCATION = ONE_LOCATION + "/var"

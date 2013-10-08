@@ -338,6 +338,12 @@ class SunstoneServer < CloudServer
 
             cmd = PREVIEW_LOCATION + "/vncpwd.sh " + PREVIEW_LOCATION + " #{vnc_host} #{vnc_port} " + PREVIEW_LOCATION + "/#{id}.jpg #{vnc_pw}"
             cmd_output = `#{cmd} &`
+            #debug---start
+            #file_preview_info_info = nil
+	    #file_preview_info = File.open("/tmp/preview.debug",'w+')
+	    #file_preview_info.write(cmd)
+            #file_preview_info.close
+	    #debug---end
             return cmd_output
         end
     end
