@@ -52,6 +52,7 @@ int LibVirtDriver::deployment_description_kvm(
 
     string  type       = "";
     string  target     = "";
+    string  ostype     = "";
     string  bus        = "";
     string  ro         = "";
     string  driver     = "";
@@ -437,6 +438,7 @@ int LibVirtDriver::deployment_description_kvm(
         context = dynamic_cast<const VectorAttribute *>(attrs[0]);
         target  = context->vector_value("TARGET");
         driver  = context->vector_value("DRIVER");
+        ostype  = context->vector_value("OSTYPE");
 
         context->vector_value_str("DISK_ID", disk_id);
 
@@ -459,6 +461,15 @@ int LibVirtDriver::deployment_description_kvm(
             vm->log("VMM", Log::WARNING, "Could not find target device to"
                 " attach context, will continue without it.");
         }
+
+        if ( !ostype.empty() )
+	{
+	    //if ( ostype == "" )
+	    //{
+		
+            //}
+            file << "\t\t<sound model=\'ac97\'/>" << endl;
+	}
     }
 
     attrs.clear();
@@ -605,7 +616,52 @@ int LibVirtDriver::deployment_description_kvm(
                     file << " keymap='" << keymap << "'";
                 }
 
-                file << "/>" << endl;
+                if ( type == "spice" )
+		{
+                    file << ">" << endl;
+                    // for clipboard and stream compression
+                    file << "\t\t\t<image compression=\'auto_glz\'></image>" << endl;
+                    file << "\t\t\t<streaming mode=\'filter\'></streaming>" << endl;
+                    file << "\t\t\t<mouse mode='client'></mouse>" << endl;
+                    file << "\t\t\t<clipboard copypaste='yes'></clipboard>" << endl;
+                    file << "\t\t</graphics>"  << endl;
+                    // for USB Redirect
+                    /*file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-ehci1\'>" << endl;
+                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x7\'/>" << endl;
+                    file << "\t\t</controller>" << endl;
+                    file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-uhci1\'>" << endl;
+                    file << "\t\t\t<master startport=\'0\'/>" << endl;
+                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x0\' multifunction=\'on\'/>" << endl;
+                    file << "\t\t</controller>" << endl;
+                    file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-uhci2\'>" << endl;
+                    file << "\t\t\t<master startport=\'2\'/>" << endl;
+                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x1\'/>" << endl;
+                    file << "\t\t</controller>" << endl;
+                    file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-uhci3\'>" << endl;
+                    file << "\t\t\t<master startport=\'4\'/>" << endl;
+                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x2\'/>" << endl;
+                    file << "\t\t</controller>" << endl;
+                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
+                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'3\'/>" << endl;
+                    file << "\t\t</redirdev>" << endl;
+                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
+                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'4\'/>" << endl;
+                    file << "\t\t</redirdev>" << endl;
+                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
+                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'5\'/>" << endl;
+                    file << "\t\t</redirdev>" << endl;
+                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
+                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'6\'/>" << endl;
+                    file << "\t\t</redirdev>" << endl;*/
+                    //for spice video
+                    file << "\t\t<video>" << endl;
+                    file << "\t\t\t<model type=\'qxl\' vram=\'65536\' heads=\'1\'>" << endl;
+                    file << "\t\t\t\t<acceleration accel3d=\'yes\' accel2d=\'yes\'></acceleration>" << endl;
+                    file << "\t\t\t</model>" << endl;
+                    file << "\t\t</video>" << endl;
+		}else{
+                    file << "/>" << endl;
+                }
             }
             else
             {
