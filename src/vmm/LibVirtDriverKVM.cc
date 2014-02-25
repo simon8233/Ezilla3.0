@@ -653,6 +653,8 @@ int LibVirtDriver::deployment_description_kvm(
                     file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
                     file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'6\'/>" << endl;
                     file << "\t\t</redirdev>" << endl;*/
+                    //for clipboard
+                    file << "\t\t<channel type=\'spicevmc\'><target type=\'virtio\' name=\'com.redhat.spice.0\'/></channel>" << endl;
                     //for spice video
                     file << "\t\t<video>" << endl;
                     file << "\t\t\t<model type=\'qxl\' vram=\'65536\' heads=\'1\'>" << endl;
