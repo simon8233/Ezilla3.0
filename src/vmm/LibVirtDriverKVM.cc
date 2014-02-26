@@ -52,7 +52,6 @@ int LibVirtDriver::deployment_description_kvm(
 
     string  type       = "";
     string  target     = "";
-    string  ostype     = "";
     string  bus        = "";
     string  ro         = "";
     string  driver     = "";
@@ -438,7 +437,6 @@ int LibVirtDriver::deployment_description_kvm(
         context = dynamic_cast<const VectorAttribute *>(attrs[0]);
         target  = context->vector_value("TARGET");
         driver  = context->vector_value("DRIVER");
-        ostype  = context->vector_value("OSTYPE");
 
         context->vector_value_str("DISK_ID", disk_id);
 
@@ -462,14 +460,6 @@ int LibVirtDriver::deployment_description_kvm(
                 " attach context, will continue without it.");
         }
 
-        if ( !ostype.empty() )
-	{
-	    //if ( ostype == "" )
-	    //{
-		
-            //}
-            file << "\t\t<sound model=\'ac97\'/>" << endl;
-	}
     }
 
     attrs.clear();
