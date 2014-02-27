@@ -240,7 +240,9 @@ class SunstoneServer < CloudServer
             action_hash = parse_json(action_json,'action')
             perform_action = action_hash['perform'] # get "VM action information." 
 
-            if perform_action.eql? "shutdown" or perform_action.eql? "cancel" # VM lifecycle will go done status.
+            if perform_action.eql? "shutdown" or perform_action.eql? "cancel" \
+                or perform_action.eql? "undeploy" or perform_action.eql? "stop" \
+                or perform_action.eql? "livemigrate" or perform_action.eql? "migrate" # VM lifecycle will go done status.
                 
         # clean spice redirect function process
                 graphics = resource["TEMPLATE/GRAPHICS/TYPE"]

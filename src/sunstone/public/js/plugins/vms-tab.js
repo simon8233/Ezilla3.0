@@ -112,7 +112,7 @@ var vms_tab_content = '\
       <th>'+tr("Host")+'</th>\
       <th>'+tr("IPs")+'</th>\
       <th>'+tr("Start Time")+'</th>\
-      <th>'+tr("VNC")+'</th>\
+      <th>'+tr("View")+'</th>\
       <th>'+tr("Endpoint")+'</th>\
     </tr>\
   </thead>\
@@ -241,8 +241,12 @@ var create_vm_tmpl ='\
       <fieldset>\
         <legend>'+tr("Step 2: Select a template")+'</legend>\
         <div class="row collapse">\
-          <div class="seven columns">\
-             <button id="refresh_template_templates_table_button_class" type="button" class="button small radius secondary"><i class="icon-refresh" /></button>\
+          <div class="columns" style="padding-right:14px">\
+          <button id="refresh_template_templates_table_button_class" type="button" class="button small radius secondary"><i class="icon-refresh" /></button>\
+          </div>\
+          <div class="columns">\
+            <i class="icon-info-sign" style="color:#2795b6"/>\
+            <a target="_blank" style="font-weight:bold; text-decoration:underline;"href="http://easycloud.nchc.org.tw/user_doc/Login/EzView/#h.8icrolwt9fp">'+tr("What\'s SPICE")+'</a>\
           </div>\
           <div class="five columns">\
             <input id="template_templates_table_search" type="text" placeholder="'+tr("Search")+'"/>\
@@ -3510,6 +3514,14 @@ function RedirectPortCallback(request,response){
         else{
             connecting_tool = tr("SPICE protocol password")+"<input type=text readonly=false id=\'spice_protocol_password\' value="+spice_password+" style=\'width:250px;height:15px;\'/>"; 
             connecting_tool += tr("You can use the connect information to connect to the virtual machine via SPICE client");
+            connecting_tool += '<hr style=margin:5px;width=100%>';
+            connecting_tool += '<h6 style=margin-top:0px>'+tr("EzView")+'</h6>';
+            connecting_tool += '<a target="_blank" style=margin-right:5px href="http://ezilla.info/index.php/EzillaTW/Download#EzView">'+tr("Download")+'</a>'
+//            connecting_tool += '<hr style=margin:5px;width=100%>';
+            //connecting_tool += '<h6 style=margin-top:0px>'+tr("How To use SPICE client?")+'</h6>';
+//            connecting_tool += tr("choose your operating system and follow behind tutorial, please.")+'</br></br>';
+            connecting_tool += '<a target="_blank" href="http://easycloud.nchc.org.tw/user_doc/Login/EzView/#h.5cppqt4nzlj">'+tr("Tutorial")+'</a>'
+
             connecting_tool_image += '<img src="images/spice_icon_big.png" /></a>';
         }
     }

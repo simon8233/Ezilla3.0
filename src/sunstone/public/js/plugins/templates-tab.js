@@ -3021,6 +3021,41 @@ function setupCreateTemplateDialog(){
               '</div>'+
             '</fieldset>'+
           '</div>'+
+          '<div class="six columns sound">'+
+            '<fieldset>'+
+              '<legend>'+tr("Sound")+'</legend>'+
+              '<div class="row">'+
+                '<div class="five columns">'+
+                  '<select id="sound_type" name="sound_type">'+
+                      '<option id="no_type" name="no_type" value=""></option>'+
+                        '<option value="ac97">'+tr("AC97")+'</option>'+
+                        '<option value="ich6">'+tr("ICH6")+'</option>'+
+                  '</select>'+
+                '</div>'+
+                '<div class="two columns">'+
+                  '<div class="tip">'+tr("Recommend using AC97 chip, but Windows x64-serial MUST use ICH6 chip")+'</div>'+
+                '</div>'+
+                '<div class="three columns">'+
+                    '<button type="button" class="button tiny radius" id="add_sound">'+tr("Add")+'</button>'+
+                '</div>'+
+              '</div>'+
+              '<hr>'+
+              '<div class="">'+
+              '<table id="sound_table" class="twelve policies_table">'+
+                 '<thead>'+
+                   '<tr>'+
+                     '<th>'+tr("Sound Card")+'</th>'+
+                   '</tr>'+
+                 '</thead>'+
+                 '<tbody id="tbodyinput">'+
+                   '<tr>'+
+                   '</tr>'+
+                 '</tbody>'+
+              '</table>'+
+              '<br>'+
+              '</div>'+
+            '</fieldset>'+
+          '</div>'+
           '</div>'+
         '</form>'+
       '</li>'
@@ -3028,12 +3063,11 @@ function setupCreateTemplateDialog(){
 
         $("<dd><a href='#io'>Input/Output</a></dd>").appendTo($("dl#template_create_tabs"));
         $(html_tab_content).appendTo($("ul#template_create_tabs_content"));
-
-      $("input[name='graphics_type']").change(function(){
+// INPUT IO
+        $("input[name='graphics_type']").change(function(){
         $("#TYPE", $('li#ioTab .graphics')).val($(this).attr("value"))
         $("#LISTEN", $('li#ioTab')).val("0.0.0.0")
       });
-
       $('#add_input', $('li#ioTab')).click(function() {
           var table = $('#input_table', $('li#ioTab'))[0];
           var rowCount = table.rows.length;
@@ -3047,13 +3081,13 @@ function setupCreateTemplateDialog(){
           element1.value = $('select#TYPE', $('li#ioTab')).val()
           cell1.appendChild(element1);
 
+
           var cell2 = row.insertCell(1);
           var element2 = document.createElement("input");
           element2.id = "BUS"
           element2.type = "text";
           element2.value = $('select#BUS', $('li#ioTab')).val()
           cell2.appendChild(element2);
-
 
           var cell3 = row.insertCell(2);
           cell3.innerHTML = "<i class='icon-remove-sign icon-large remove-tab'></i>";
@@ -3062,6 +3096,29 @@ function setupCreateTemplateDialog(){
       $( "#ioTab i.remove-tab" ).live( "click", function() {
           $(this).closest("tr").remove()
       });
+//SOUND field  (only select SPICE)
+
+      $('#add_sound', $('li#ioTab')).click(function() {
+          var table = $('#sound_table', $('li#ioTab'))[0];
+          var rowCount = table.rows.length;
+          var row = table.insertRow(-1);
+          $(row).addClass("vm_param");
+
+          var cell1 = row.insertCell(0);
+          var element1 = document.createElement("input");
+          element1.id = "sound_type"
+          element1.type = "text";
+          element1.value = $('select#sound_type', $('li#ioTab')).val()
+          cell1.appendChild(element1);
+
+          var cell3 = row.insertCell(1);
+          cell3.innerHTML = "<i class='icon-remove-sign icon-large remove-tab'></i>";
+      });
+
+      $( "#ioTab i.remove-tab" ).live( "click", function() {
+          $(this).closest("tr").remove()
+      });
+
     }
 
     /**************************************************************************
@@ -3933,6 +3990,22 @@ function setupCreateTemplateDialog(){
             }) 
         }
         addSectionJSON(vm_json["CONTEXT"],$('li#contextTab',dialog));
+
+
+        //
+        // RAW
+        //
+
+        vm_json["RAW"] = [];
+        $('#sound_table tr', $('li#ioTab')).each(function(){
+          var hash  = {};
+          if ($('#sound_type', $(this)).val()) {
+            var sound_card = $('#sound_type',$(this)).val();
+            hash['DATA']="<devices><sound model='"+sound_card+"'/></devices>";
+            hash['TYPE']='kvm';
+            vm_json["RAW"].push(hash);
+          }
+        });
 
         //
         // PLACEMENT
