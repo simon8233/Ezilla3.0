@@ -112,8 +112,22 @@ function unarchive
             echo "Error uncompressing archive" >&2
             exit -1
         fi
+        FileNUM=`ls -1 $OUT | wc -l`
+        FileNAME=""
+        echo "$FileNUM" > /tmp/cmd.log
+        if [ $FileNUM == "1" ]; then
+            FileNAME=`ls -1 $OUT`
+            mv "$OUT" "$OUT-tmp"
+            mv "$OUT-tmp/$FileNAME" "$OUT"
+            rm "$IN"
+            rm -rf "$OUT-tmp"
+        else
+            echo "Error uncompressing archive" >&2
+            rm "$IN"
+            rm -rf "$OUT"
+            exit -1
+        fi
 
-        rm "$IN"
     fi
 }
 
