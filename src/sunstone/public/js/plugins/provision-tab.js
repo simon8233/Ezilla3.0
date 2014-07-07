@@ -1878,7 +1878,7 @@ $(document).ready(function(){
       "fnRowCallback": function( nRow, aData, iDisplayIndex, iDisplayIndexFull ) {
         var data = aData.VMTEMPLATE;
         $("#provision_saved_templates_ul").append('<li>'+
-            '<ul class="provision-pricing-table hoverable only-one" opennebula_id="'+data.ID+'">'+
+            '<ul class="provision-pricing-table hoverable only-one" opennebula_ostype="'+data.TEMPLATE.CONTEXT.OSTYPE+'"  opennebula_id="'+data.ID+'">'+
               '<li class="provision-title" title="'+data.NAME+'">'+
                 data.NAME+
               '</li>'+
@@ -2151,9 +2151,9 @@ $(document).ready(function(){
          var context_json = [];
          var FILEPATH = "";
          if ( opennebula_ostype == "WINDOWS" ){
-             FILEPATH = "/srv/one/share/script/init.ps1"
+             FILEPATH = "/usr/share/one/script/init.ps1"
          }else{
-             FILEPATH = "/srv/one/share/script/init.sh"
+             FILEPATH = "/usr/share/one/script/init.sh"
          }
          context_json.push({
              'USERNAME': username_array[0],

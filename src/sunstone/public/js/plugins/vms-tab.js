@@ -487,10 +487,10 @@ var vm_actions = {
         }
         if (typeof(tmp_template.CONTEXT.OSTYPE) != "undefined"){ // inloop select vm specific OS initialization 
             if (tmp_template.CONTEXT["OSTYPE"] == "WINDOWS") {
-                tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.ps1";
+                tmp_template.CONTEXT["FILES"]="/usr/share/one/script/init.ps1";
             }
             else{
-                tmp_template.CONTEXT["FILES"]="/srv/one/share/script/init.sh";
+                tmp_template.CONTEXT["FILES"]="/usr/share/one/script/init.sh";
             }
         }
                 tmp_template.GRAPHICS["PASSWD"]= generatepass(password_length);

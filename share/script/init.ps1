@@ -11,6 +11,7 @@ foreach ($line in $content)
         {
             #remove the " " of variables
             $var[1] = $var[1] -replace '^"|"$',""
+            $var[1] = $var[1] -replace "^'|'$",""
             $context.Set_Item($var[0], $var[1])
         }
     }
