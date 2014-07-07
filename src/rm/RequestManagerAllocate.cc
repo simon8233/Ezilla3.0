@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -34,14 +34,14 @@ bool RequestManagerAllocate::allocate_authorization(
 
     string tmpl_str = "";
 
-    AuthRequest ar(att.uid, att.gid);
+    AuthRequest ar(att.uid, att.group_ids);
 
     if ( tmpl != 0 )
     {
         tmpl->to_xml(tmpl_str);
     }
 
-    ar.add_create_auth(auth_object, tmpl_str);
+    ar.add_create_auth(att.uid, att.gid, auth_object, tmpl_str);
 
     if ( cluster_perms->oid != ClusterPool::NONE_CLUSTER_ID )
     {
@@ -73,7 +73,7 @@ bool VirtualMachineAllocate::allocate_authorization(
         return true;
     }
 
-    AuthRequest ar(att.uid, att.gid);
+    AuthRequest ar(att.uid, att.group_ids);
     string      t64;
     string      aname;
 
@@ -99,7 +99,7 @@ bool VirtualMachineAllocate::allocate_authorization(
 
     // ------------------ Authorize VM create operation ------------------------
 
-    ar.add_create_auth(auth_object, tmpl->to_xml(t64));
+    ar.add_create_auth(att.uid, att.gid, auth_object, tmpl->to_xml(t64));
 
     VirtualMachine::set_auth_request(att.uid, ar, ttmpl);
 
@@ -178,7 +178,7 @@ void RequestManagerAllocate::request_execute(xmlrpc_c::paramList const& params,
     if ( cluster_id != ClusterPool::NONE_CLUSTER_ID )
     {
         rc = get_info(clpool, cluster_id, PoolObjectSQL::CLUSTER, att,
-                cluster_perms, cluster_name);
+                cluster_perms, cluster_name, true);
 
         if ( rc != 0 )
         {
@@ -313,7 +313,7 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
     string error_str;
     string size_str;
 
-    int           size_mb;
+    long long     size_mb;
     istringstream iss;
 
     string ds_name;
@@ -342,7 +342,7 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
     Datastore *     ds;
     Image::DiskType ds_disk_type;
 
-    unsigned int    avail;
+    long long       avail;
 
     int  umask;
     bool ds_check;
@@ -441,7 +441,7 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
         return;
     }
 
-    if (ds_check && ((unsigned int) size_mb > avail))
+    if (ds_check && (size_mb > avail))
     {
         failure_response(ACTION, "Not enough space in datastore", att);
 
@@ -459,7 +459,7 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
 
     if ( att.uid != 0 )
     {
-        AuthRequest ar(att.uid, att.gid);
+        AuthRequest ar(att.uid, att.group_ids);
         string  tmpl_str;
         string  aname;
 
@@ -485,7 +485,7 @@ void ImageAllocate::request_execute(xmlrpc_c::paramList const& params,
         // ------------------ Check permissions and ACLs  ----------------------
         tmpl->to_xml(tmpl_str);
 
-        ar.add_create_auth(auth_object, tmpl_str); // CREATE IMAGE
+        ar.add_create_auth(att.uid, att.gid, auth_object, tmpl_str); // CREATE IMAGE
 
         ar.add_auth(AuthRequest::USE, ds_perms); // USE DATASTORE
 
@@ -673,24 +673,8 @@ int DatastoreAllocate::pool_allocate(
     DatastorePool * dspool      = static_cast<DatastorePool *>(pool);
     DatastoreTemplate * ds_tmpl = static_cast<DatastoreTemplate *>(tmpl);
 
-    Nebula&   nd          = Nebula::instance();
-    string    ds_location = nd.get_ds_location();
-
-    if ( cluster_id != ClusterPool::NONE_CLUSTER_ID )
-    {
-        ClusterPool * cpool = nd.get_clpool();
-        Cluster *   cluster = cpool->get(cluster_id, true);
-
-        if (cluster != 0)
-        {
-            ds_location = cluster->get_ds_location(ds_location);
-
-            cluster->unlock();
-        }
-    }
-
     return dspool->allocate(att.uid, att.gid, att.uname, att.gname, umask,
-            ds_tmpl, &id, cluster_id, cluster_name, ds_location, error_str);
+            ds_tmpl, &id, cluster_id, cluster_name, error_str);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -728,4 +712,39 @@ int DocumentAllocate::pool_allocate(
 
     return docpool->allocate(att.uid, att.gid, att.uname, att.gname, umask,
             type, tmpl, &id, error_str);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+void ZoneAllocate::request_execute(xmlrpc_c::paramList const& params,
+                                             RequestAttributes& att)
+{
+    if(!Nebula::instance().is_federation_master())
+    {
+        failure_response(INTERNAL, allocate_error(
+                "New Zones can only be created if OpenNebula "
+                "is configured as a Federation Master."), att);
+        return;
+    }
+
+    RequestManagerAllocate::request_execute(params, att);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int ZoneAllocate::pool_allocate(
+        xmlrpc_c::paramList const&  paramList,
+        Template *                  tmpl,
+        int&                        id,
+        string&                     error_str,
+        RequestAttributes&          att,
+        int                         umask)
+{
+    string name = xmlrpc_c::value_string(paramList.getString(1));
+
+    ZonePool * zonepool = static_cast<ZonePool *>(pool);
+
+    return zonepool->allocate(tmpl, &id, error_str);
 }

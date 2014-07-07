@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -15,9 +15,36 @@
 #--------------------------------------------------------------------------- #
 
 require 'xmlrpc/client'
+require 'bigdecimal'
+require 'stringio'
+
 
 module OpenNebula
-    if OpenNebula::NOKOGIRI
+    def self.pool_page_size
+        @@pool_page_size
+    end
+
+    if OpenNebula::OX
+        class OxStreamParser < XMLRPC::XMLParser::AbstractStreamParser
+            def initialize
+                @parser_class = OxParser
+            end
+
+            class OxParser < Ox::Sax
+                include XMLRPC::XMLParser::StreamParserMixin
+
+                alias :text :character
+                alias :end_element :endElement
+                alias :start_element :startElement
+
+                def parse(str)
+                    Ox.sax_parse(self, StringIO.new(str),
+                        :symbolize => false,
+                        :convert_special => true)
+                end
+            end
+        end
+    elsif OpenNebula::NOKOGIRI
         class NokogiriStreamParser < XMLRPC::XMLParser::AbstractStreamParser
             def initialize
                 @parser_class = NokogiriParser
@@ -39,10 +66,24 @@ module OpenNebula
         end
     end
 
+    DEFAULT_POOL_PAGE_SIZE = 2000
+
+    if size=ENV['ONE_POOL_PAGE_SIZE']
+        if size.strip.match(/^\d+$/) && size.to_i >= 2
+            @@pool_page_size = size.to_i
+        else
+            @@pool_page_size = nil
+        end
+    else
+        @@pool_page_size = DEFAULT_POOL_PAGE_SIZE
+    end
+
+
     # The client class, represents the connection with the core and handles the
     # xml-rpc calls.
     class Client
         attr_accessor :one_auth
+        attr_reader   :one_endpoint
 
         begin
             require 'xmlparser'
@@ -62,6 +103,8 @@ module OpenNebula
         # @param [Hash] options
         # @option params [Integer] :timeout connection timeout in seconds,
         #   defaults to 30
+        # @option params [String] :http_proxy HTTP proxy string used for
+        #  connecting to the endpoint; defaults to no proxy
         #
         # @return [OpenNebula::Client]
         def initialize(secret=nil, endpoint=nil, options={})
@@ -82,6 +125,8 @@ module OpenNebula
                 @one_endpoint = endpoint
             elsif ENV["ONE_XMLRPC"]
                 @one_endpoint = ENV["ONE_XMLRPC"]
+            elsif File.exists?(ENV['HOME']+"/.one/one_endpoint")
+                @one_endpoint = File.read(ENV['HOME']+"/.one/one_endpoint")
             else
                 @one_endpoint = "http://localhost:2633/RPC2"
             end
@@ -89,9 +134,14 @@ module OpenNebula
             timeout=nil
             timeout=options[:timeout] if options[:timeout]
 
-            @server = XMLRPC::Client.new2(@one_endpoint, nil, timeout)
+            http_proxy=nil
+            http_proxy=options[:http_proxy] if options[:http_proxy]
 
-            if OpenNebula::NOKOGIRI
+            @server = XMLRPC::Client.new2(@one_endpoint, http_proxy, timeout)
+
+            if defined?(OxStreamParser)
+                @server.set_parser(OxStreamParser.new)
+            elsif OpenNebula::NOKOGIRI
                 @server.set_parser(NokogiriStreamParser.new)
             elsif XMLPARSER
                 @server.set_parser(XMLRPC::XMLParser::XMLStreamParser.new)

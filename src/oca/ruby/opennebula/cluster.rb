@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -34,6 +34,7 @@ module OpenNebula
             :addvnet        => "cluster.addvnet",
             :delvnet        => "cluster.delvnet",
             :update         => "cluster.update",
+            :rename         => "cluster.rename"
         }
 
         # Creates a Cluster description with just its identifier
@@ -169,6 +170,16 @@ module OpenNebula
         #   otherwise
         def update(new_template, append=false)
             super(CLUSTER_METHODS[:update], new_template, append ? 1 : 0)
+        end
+
+        # Renames this Cluster
+        #
+        # @param name [String] New name for the Cluster.
+        #
+        # @return [nil, OpenNebula::Error] nil in case of success, Error
+        #   otherwise
+        def rename(name)
+            return call(CLUSTER_METHODS[:rename], @pe_id, name)
         end
 
         # ---------------------------------------------------------------------

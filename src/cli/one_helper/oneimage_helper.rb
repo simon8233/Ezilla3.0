@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -124,12 +124,9 @@ class OneImageHelper < OpenNebulaHelper::OneHelper
         {
             :name => "size",
             :large => "--size size",
-            :description => "Size in MB. Used for DATABLOCK type",
+            :description => "Size in MB. Used for DATABLOCK type or SOURCE based images.",
             :format => String,
             :proc => lambda do |o, options|
-                if !options[:type] || !(options[:type].upcase=='DATABLOCK')
-                    next [-1, "Size is only used for DATABLOCK type images"]
-                end
 
                 m=o.strip.match(/^(\d+(?:\.\d+)?)(m|mb|g|gb)?$/i)
 

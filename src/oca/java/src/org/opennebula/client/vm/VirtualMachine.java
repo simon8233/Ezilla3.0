@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs
+ * Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -365,12 +365,16 @@ public class VirtualMachine extends PoolElement{
      * the default type
      * @param hot True to save the disk immediately, false will perform
      * the operation when the VM shuts down
+     * @param doTemplate True to clone also the VM originating template
+     * and replace the disk with the saved image
      * @return If an error occurs the error message contains the reason.
      */
     public static OneResponse diskSnapshot(Client client, int id,
-        int diskId, String imageName, String imageType, boolean hot)
+        int diskId, String imageName, String imageType,
+        boolean hot, boolean doTemplate)
     {
-        return client.call(SAVEDISK, id ,diskId, imageName, imageType, hot);
+        return client.call(SAVEDISK, id ,diskId, imageName, imageType,
+                            hot, doTemplate);
     }
 
     /**
@@ -491,11 +495,13 @@ public class VirtualMachine extends PoolElement{
      * @param enforce If it is set to true, the host capacity
      * will be checked, and the deployment will fail if the host is
      * overcommited. Defaults to false
+     * @param dsId The System Datastore where to deploy the VM. To use the
+     * default, set it to -1
      * @return If an error occurs the error message contains the reason.
      */
-    public OneResponse deploy(int hostId, boolean enforce)
+    public OneResponse deploy(int hostId, boolean enforce, int dsId)
     {
-        return client.call(DEPLOY, id, hostId, enforce);
+        return client.call(DEPLOY, id, hostId, enforce, dsId);
     }
 
     /**
@@ -507,7 +513,7 @@ public class VirtualMachine extends PoolElement{
      */
     public OneResponse deploy(int hostId)
     {
-        return deploy(hostId, false);
+        return deploy(hostId, false, -1);
     }
 
     /**
@@ -705,12 +711,15 @@ public class VirtualMachine extends PoolElement{
      * the default type
      * @param hot True to save the disk immediately, false will perform
      * the operation when the VM shuts down
+     * @param doTemplate True to clone also the VM originating template
+     * and replace the disk with the saved image
      * @return If an error occurs the error message contains the reason.
      */
     public OneResponse diskSnapshot(int diskId, String imageName,
-        String imageType, boolean hot)
+        String imageType, boolean hot, boolean doTemplate)
     {
-        return diskSnapshot(client, id, diskId, imageName, imageType, hot);
+        return diskSnapshot(client, id, diskId, imageName, imageType,
+                            hot, doTemplate);
     }
 
     /**
@@ -723,7 +732,7 @@ public class VirtualMachine extends PoolElement{
      */
     public OneResponse diskSnapshot(int diskId, String imageName)
     {
-        return diskSnapshot(diskId, imageName, "", false);
+        return diskSnapshot(diskId, imageName, "", false, false);
     }
 
     /**
@@ -737,7 +746,7 @@ public class VirtualMachine extends PoolElement{
      */
     public OneResponse diskSnapshot(int diskId, String imageName, boolean hot)
     {
-        return diskSnapshot(diskId, imageName, "", hot);
+        return diskSnapshot(diskId, imageName, "", hot, false);
     }
 
     /**
@@ -1134,11 +1143,11 @@ public class VirtualMachine extends PoolElement{
     }
 
     /**
-     * @deprecated  Replaced by {@link #diskSnapshot(int,String,String,boolean)}
+     * @deprecated  Replaced by {@link #diskSnapshot(int,String,String,boolean,boolean)}
      */
     public OneResponse savedisk(int diskId, String imageName, String imageType)
     {
-        return diskSnapshot(diskId, imageName, imageType, false);
+        return diskSnapshot(diskId, imageName, imageType, false, false);
     }
 
     /**

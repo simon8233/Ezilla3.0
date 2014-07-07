@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -25,7 +25,8 @@
 /*-------------------------------------------------------------------------------*/
 
 var vres_tab = {
-    title: '<i class="icon-cloud"></i>'+tr("Virtual Resources")
+    title: '<i class="fa fa-lg fa-fw fa-cloud"></i>&emsp;'+tr("Virtual Resources"),
+    no_content: true
 }
 
 Sunstone.addMainTab('vresources-tab',vres_tab);

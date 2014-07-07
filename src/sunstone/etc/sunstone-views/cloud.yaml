@@ -1,14 +1,14 @@
 small_logo: images/Ezilla_logo_all_small.png
 enabled_tabs:
-    dashboard-tab: true
+    dashboard-tab: false
     system-tab: false
     users-tab: false
     groups-tab: false
     acls-tab: false
     vresources-tab: false
-    vms-tab: true
+    vms-tab: false
     templates-tab: false
-    images-tab: true
+    images-tab: false
     files-tab: false
     infra-tab: false
     clusters-tab: false
@@ -19,6 +19,8 @@ enabled_tabs:
     oneflow-dashboard: false
     oneflow-services: false
     oneflow-templates: false
+    provision-tab: true
+autorefresh: false
 tabs:
     dashboard-tab:
         panel_tabs:
@@ -26,12 +28,14 @@ tabs:
         widgets_three_per_row:
             #- users
         widgets_two_per_row:
+#            - user_quotas
+#            - group_quotas
             #- network
             #- storage
             #- hosts
             #- vms
         widgets_one_per_row:
-            - vms
+#            - vms
     system-tab:
         panel_tabs:
         actions:
@@ -55,6 +59,8 @@ tabs:
             User.update_password: true
             User.quotas_dialog: true
             User.chgrp: true
+            User.addgroup: true
+            User.delgroup: true
             User.chauth: true
             User.delete: true
     groups-tab:
@@ -82,7 +88,8 @@ tabs:
             - 3         # Affected resources
             - 4         # Resource ID / Owned by
             - 5         # Allowed operations
-            #- 6         # ACL String
+            - 6         # Zone
+            #- 7         # ACL String
         actions:
             Acl.refresh: true
             Acl.create_dialog: true
@@ -184,6 +191,7 @@ tabs:
             input_output: true
             context: true
             scheduling: false
+            other: false
     images-tab:
         panel_tabs:
             image_info_panel: true
@@ -429,3 +437,6 @@ tabs:
             ServiceTemplate.chgrp: false
             ServiceTemplate.chmod: true
             ServiceTemplate.delete: true
+    provision-tab:
+        panel_tabs:
+        actions:

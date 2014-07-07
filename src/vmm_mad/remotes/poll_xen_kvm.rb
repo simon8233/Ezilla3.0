@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -67,15 +67,17 @@ module KVM
         if names.length!=0
             names.each do |vm|
                 dominfo=dom_info(vm)
-                psinfo=process_info(dominfo['UUID'])
+                if dominfo
+                    psinfo=process_info(dominfo['UUID'])
 
-                info={}
-                info[:dominfo]=dominfo
-                info[:psinfo]=psinfo
-                info[:name]=vm
-                info[:pid]=psinfo[1]
+                    info={}
+                    info[:dominfo]=dominfo
+                    info[:psinfo]=psinfo
+                    info[:name]=vm
+                    info[:pid]=psinfo[1]
 
-                vms[vm]=info
+                    vms[vm]=info
+                end
             end
 
             cpu=get_cpu_info(vms)

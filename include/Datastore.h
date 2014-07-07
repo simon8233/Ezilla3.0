@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------ */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs      */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs      */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may  */
 /* not use this file except in compliance with the License. You may obtain  */
@@ -98,6 +98,14 @@ public:
     };
 
     /**
+     *  Returns a copy of the Image IDs set
+     */
+    set<int> get_image_ids()
+    {
+        return get_collection_copy();
+    }
+
+    /**
      *  Retrieves TM mad name
      *    @return string tm mad name
      */
@@ -138,9 +146,14 @@ public:
      * attributes
      *
      * @param disk
+     * @param inherit_attrs Attributes to be inherited from the DS template
+     *   into the disk
      * @return 0 on success
      */
-    int disk_attribute(VectorAttribute * disk);
+    int disk_attribute(
+            VectorAttribute *       disk,
+            const vector<string>&   inherit_attrs);
+
 
     /**
      *  Replace template for this object. Object should be updated
@@ -155,7 +168,7 @@ public:
      *    @param free_mb
      *    @param used_mb
      */
-    void update_monitor(unsigned int total, unsigned int free, unsigned int used)
+    void update_monitor(long long total, long long free, long long used)
     {
         total_mb = total;
         free_mb  = free;
@@ -168,7 +181,23 @@ public:
      *    @return true if the datastore is configured to enforce capacity
      *    checkings
      */
-    bool get_avail_mb(unsigned int &avail);
+    bool get_avail_mb(long long &avail);
+
+    /**
+     * Returns true if the DS contains the SHARED = YES attribute
+     * @return true if the DS is shared
+     */
+    bool is_shared()
+    {
+        bool shared;
+
+        if (!get_template_attribute("SHARED", shared))
+        {
+            shared = true;
+        }
+
+        return shared;
+    };
 
 private:
 
@@ -210,17 +239,17 @@ private:
     /**
      * Total datastore capacity in MB
      */
-     unsigned int total_mb;
+     long long total_mb;
 
     /**
      * Available datastore capacity in MB
      */
-     unsigned int free_mb;
+     long long free_mb;
 
     /**
      * Used datastore capacity in MB
      */
-     unsigned int used_mb;
+     long long used_mb;
 
     // *************************************************************************
     // Constructor
@@ -234,8 +263,7 @@ private:
             int                 umask,
             DatastoreTemplate*  ds_template,
             int                 cluster_id,
-            const string&       cluster_name,
-            const string&       ds_location);
+            const string&       cluster_name);
 
     virtual ~Datastore(){};
 
@@ -294,6 +322,8 @@ private:
     {
         return new DatastoreTemplate;
     }
+
+    int set_tm_mad(string &tm_mad, string &error_str);
 };
 
 #endif /*DATASTORE_H_*/

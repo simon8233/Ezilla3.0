@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -38,10 +38,14 @@ require 'one_vnm'
 require 'one_tm'
 require 'getoptlong'
 require 'ssh_stream'
+require 'rexml/document'
 
 require 'pp'
 
 class VmmAction
+    # List of xpaths required by the VNM driver actions
+    XPATH_LIST = %w(ID DEPLOY_ID TEMPLATE/NIC HISTORY_RECORDS/HISTORY/HOSTNAME)
+
     attr_reader :data
 
     # Initialize a VmmAction object
@@ -76,20 +80,31 @@ class VmmAction
         get_data(:tm_command)
 
         # VM template
-        @data[:vm] = Base64.encode64(@xml_data.elements['VM'].to_s).delete("\n")
+        vm_template = @xml_data.elements['VM'].to_s
+        @data[:vm]  = Base64.encode64(vm_template).delete("\n")
+
+        # VM data for VNM
+        vm_template_xml = REXML::Document.new(vm_template).root
+        vm_vnm_xml = REXML::Document.new('<VM></VM>').root
+
+        XPATH_LIST.each do |xpath|
+            elements = vm_template_xml.elements.each(xpath) do |element|
+                add_element_to_path(vm_vnm_xml, element, xpath)
+            end
+        end
 
         # Initialize streams and vnm
         @ssh_src = @vmm.get_ssh_stream(action, @data[:host], @id)
         @vnm_src = VirtualNetworkDriver.new(@data[:net_drv],
                             :local_actions  => @vmm.options[:local_actions],
-                            :message        => @xml_data,
+                            :message        => vm_vnm_xml.to_s,
                             :ssh_stream     => @ssh_src)
 
         if @data[:dest_host] and !@data[:dest_host].empty?
             @ssh_dst = @vmm.get_ssh_stream(action, @data[:dest_host], @id)
             @vnm_dst = VirtualNetworkDriver.new(@data[:dest_driver],
                             :local_actions  => @vmm.options[:local_actions],
-                            :message        => @xml_data,
+                            :message        => vm_vnm_xml.to_s,
                             :ssh_stream     => @ssh_dst)
         end
 
@@ -230,6 +245,21 @@ class VmmAction
         if (elem = @xml_data.elements[path])
             @data[name]=elem.text
         end
+    end
+
+    # Adds a REXML node to a specific xpath
+    #
+    # @param [REXML::Element] xml document to add to
+    # @param [REXML::Element] element to add
+    # @param [String] path where the element is inserted in the xml document
+    # @return [REXML::Element]
+    def add_element_to_path(xml, element, path)
+        root = xml
+        path.split('/')[0..-2].each do |path_element|
+            xml = xml.add_element(path_element) if path_element
+        end
+        xml.add_element(element)
+        root
     end
 end
 
@@ -416,7 +446,7 @@ class ExecDriver < VirtualMachineDriver
             {
                 :driver     => :vmm,
                 :action     => :restore,
-                :parameters => [:checkpoint_file, :host]
+                :parameters => [:checkpoint_file, :host, :deploy_id]
             },
             # Execute post-boot networking setup
             {
@@ -535,11 +565,14 @@ class ExecDriver < VirtualMachineDriver
         xml_data = decode(drv_message)
 
         tm_command = ensure_xpath(xml_data, id, action, 'TM_COMMAND') || return
+        tm_rollback= xml_data.elements['TM_COMMAND_ROLLBACK'].text.strip
 
         target_xpath = "VM/TEMPLATE/DISK[ATTACH='YES']/TARGET"
         target     = ensure_xpath(xml_data, id, action, target_xpath) || return
 
         target_index = target.downcase[-1..-1].unpack('c').first - 97
+
+
 
         action = VmmAction.new(self, id, :attach_disk, drv_message)
 
@@ -566,6 +599,13 @@ class ExecDriver < VirtualMachineDriver
                         target,
                         target_index,
                         drv_message
+                ],
+                :fail_actions => [
+                    {
+                        :driver     => :tm,
+                        :action     => :tm_detach,
+                        :parameters => tm_rollback.split
+                    }
                 ]
             }
         ]
@@ -762,6 +802,13 @@ class ExecDriver < VirtualMachineDriver
         model = model.strip if !model.nil?
         model = "-" if model.nil?
 
+
+        net_drv = xml_data.elements["NET_DRV"]
+
+        net_drv = net_drv.text if !net_drv.nil?
+        net_drv = net_drv.strip if !net_drv.nil?
+        net_drv = "-" if net_drv.nil?
+
         action = VmmAction.new(self, id, :attach_nic, drv_message)
 
         steps=[
@@ -774,13 +821,13 @@ class ExecDriver < VirtualMachineDriver
             {
                 :driver     => :vmm,
                 :action     => :attach_nic,
-                :parameters => [:deploy_id, mac, source, model]
+                :parameters => [:deploy_id, mac, source, model, net_drv]
             },
             # Execute post-boot networking setup
             {
                 :driver       => :vnm,
                 :action       => :post,
-                :parameters   => [:deploy_info],
+                :parameters   => [:deploy_id],
                 :fail_actions => [
                     {
                         :driver     => :vmm,

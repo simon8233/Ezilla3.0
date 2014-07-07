@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -181,7 +181,8 @@ int DispatchManager::shutdown (
     NebulaLog::log("DiM",Log::DEBUG,oss);
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING )
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&             nd  = Nebula::instance();
         LifeCycleManager *  lcm = nd.get_lcm();
@@ -228,7 +229,8 @@ int DispatchManager::undeploy(
     NebulaLog::log("DiM",Log::DEBUG,oss);
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING )
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&             nd  = Nebula::instance();
         LifeCycleManager *  lcm = nd.get_lcm();
@@ -281,7 +283,8 @@ int DispatchManager::poweroff (
     NebulaLog::log("DiM",Log::DEBUG,oss);
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING )
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&             nd  = Nebula::instance();
         LifeCycleManager *  lcm = nd.get_lcm();
@@ -470,7 +473,8 @@ int DispatchManager::cancel(
     NebulaLog::log("DiM",Log::DEBUG,oss);
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING )
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&             nd  = Nebula::instance();
         LifeCycleManager *  lcm = nd.get_lcm();
@@ -922,13 +926,13 @@ int DispatchManager::resubmit(int vid)
     {
         case VirtualMachine::POWEROFF:
             NebulaLog::log("DiM",Log::ERROR,
-                "Cannot resubmit a powered off VM. Resume it first");
+                "Cannot delete-recreate a powered off VM. Resume it first");
             rc = -2;
         break;
 
         case VirtualMachine::SUSPENDED:
             NebulaLog::log("DiM",Log::ERROR,
-                "Cannot resubmit a suspended VM. Resume it first");
+                "Cannot delete-recreate a suspended VM. Resume it first");
             rc = -2;
         break;
 
@@ -964,7 +968,7 @@ int DispatchManager::resubmit(int vid)
 
         case VirtualMachine::DONE:
             NebulaLog::log("DiM",Log::ERROR,
-                "Cannot resubmit a VM already in DONE state");
+                "Cannot delete-recreate a VM already in DONE state");
             rc = -2;
         break;
     }

@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -88,7 +88,7 @@ module Keypair
         erb_private_key = rsa_kp
         erb_public_key  = rsa_kp.public_key
 
-        erb_key_fingerprint = Digest::MD5.hexdigest(rsa_kp.to_der)
+        erb_key_fingerprint = Digest::MD5.hexdigest(rsa_kp.to_blob)
         erb_key_fingerprint.gsub!(/(.{2})(?=.)/, '\1:\2')
 
         erb_ssh_public_key  = erb_public_key.ssh_type <<

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -117,6 +117,11 @@ public:
     {
         logger->log(module,type,message.c_str());
     };
+
+    static Log::MessageType log_level()
+    {
+        return logger->get_log_level();
+    }
 
 private:
     NebulaLog(){};

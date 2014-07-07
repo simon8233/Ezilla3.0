@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -49,7 +49,8 @@ void RequestManagerCluster::add_generic(
 
     if ( cluster_id != ClusterPool::NONE_CLUSTER_ID )
     {
-        rc = get_info(clpool, cluster_id, PoolObjectSQL::CLUSTER, att, c_perms, cluster_name);
+        rc = get_info(clpool, cluster_id, PoolObjectSQL::CLUSTER, att, c_perms,
+                cluster_name, true);
 
         if ( rc == -1 )
         {
@@ -61,7 +62,7 @@ void RequestManagerCluster::add_generic(
         cluster_name = ClusterPool::NONE_CLUSTER_NAME;
     }
 
-    rc = get_info(pool, object_id, type, att, obj_perms, obj_name);
+    rc = get_info(pool, object_id, type, att, obj_perms, obj_name, true);
 
     if ( rc == -1 )
     {
@@ -70,7 +71,7 @@ void RequestManagerCluster::add_generic(
 
     if ( att.uid != 0 )
     {
-        AuthRequest ar(att.uid, att.gid);
+        AuthRequest ar(att.uid, att.group_ids);
 
         if ( cluster_id != ClusterPool::NONE_CLUSTER_ID )
         {

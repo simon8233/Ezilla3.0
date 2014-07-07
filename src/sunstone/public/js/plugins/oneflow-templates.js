@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -31,6 +31,7 @@ var ServiceTemplate = {
     "resource" : 'DOCUMENT',
     "path"     : 'service_template',
     "create": function(params){
+        params.cache_name = "SERVICE_TEMPLATE";
         OpenNebula.Action.create(params, ServiceTemplate.resource, ServiceTemplate.path);
     },
 
@@ -51,9 +52,11 @@ var ServiceTemplate = {
                                         ServiceTemplate.path);
     },
     "del": function(params){
+        params.cache_name = "SERVICE_TEMPLATE";
         OpenNebula.Action.del(params,ServiceTemplate.resource, ServiceTemplate.path);
     },
     "list" : function(params){
+        params.cache_name = "SERVICE_TEMPLATE";
         OpenNebula.Action.list(params, ServiceTemplate.resource, ServiceTemplate.path)
     },
     "show" : function(params){
@@ -75,132 +78,60 @@ var ServiceTemplate = {
     }
 }
 
-var service_template_tab_content = '\
-<form class="custom" id="template_form" action="">\
-<div class="panel">\
-<div class="row">\
-  <div class="twelve columns">\
-    <h4 class="subheader header">\
-      <span class="header-resource">\
-       <i class="icon-file-alt"></i> '+tr("OneFlow - Templates")+'\
-      </span>\
-      <span class="header-info">\
-        <span/> <small></small>&emsp;\
-      </span>\
-      <span class="user-login">\
-      </span>\
-    </h4>\
-  </div>\
-</div>\
-<div class="row">\
-  <div class="nine columns">\
-    <div class="action_blocks">\
-    </div>\
-  </div>\
-  <div class="three columns">\
-    <input id="service_templates_search" type="text" placeholder="'+tr("Search")+'" />\
-  </div>\
-  <br>\
-  <br>\
-</div>\
-</div>\
-  <div class="row">\
-    <div class="twelve columns">\
-      <table id="datatable_service_templates" class="datatable twelve">\
-        <thead>\
-          <tr>\
-            <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
-            <th>'+tr("ID")+'</th>\
-            <th>'+tr("Owner")+'</th>\
-            <th>'+tr("Group")+'</th>\
-            <th>'+tr("Name")+'</th>\
-          </tr>\
-        </thead>\
-        <tbody>\
-        </tbody>\
-      </table>\
-    </div>\
-  </div>\
-  <div class="row" id="error_message" hidden>\
-    <div class="alert-box alert">'+tr("Cannot connect to OneFlow server")+'<a href="" class="close">&times;</a></div>\
-  </div>\
-</form>';
-
 var create_service_template_tmpl = '\
-<div class="panel">\
-  <h3>\
-    <small id="create_service_template_header">'+tr("Create Service Template")+'</small>\
-    <small id="update_service_template_header" hidden>'+tr("Update Service Template")+'</small>\
-  </h3>\
+<div class="row">\
+    <div class="large-12 columns">\
+    <h3 id="create_service_template_header" class="subheader">'+tr("Create Service Template")+'</h3>\
+    <h3 id="update_service_template_header" class="subheader" hidden>'+tr("Update Service Template")+'</h3>\
+    </div>\
 </div>\
 <div class="reveal-body create_form">\
   <form id="create_service_template_form" action="">\
     <div class="row">\
-        <div class="service_template_param st_man six columns">\
-            <div class="row">\
-                <div class="five columns">\
-                    <label class="inline right" for="service_name">' + tr("Name") + ':</label>\
-                </div>\
-                <div class="six columns">\
-                    <input type="text" id="service_name" name="service_name" />\
-                </div>\
-                <div class="one columns">\
-                    <div class="tip">'+ tr("Name for this template") +'</div>\
-                </div>\
-            </div>\
+        <div class="service_template_param st_man large-6 columns">\
+            <label for="service_name">' + tr("Name") +
+                '<span class="tip">'+ tr("Name for this template") +'</span>'+
+            '</label>'+
+            '<input type="text" id="service_name" name="service_name" />\
         </div>\
-        <div class="service_template_param st_man six columns">\
-        </div>\
-    </div>\
-    <div class="row">\
-        <div class="service_template_param st_man six columns">\
+        <div class="service_template_param st_man large-6 columns">\
             <div class="row">\
-                <div class="five columns">\
-                    <label class="inline right" for="deployment">' + tr("Strategy") + ':</label>\
-                </div>\
-                <div class="six columns">\
+                <div class="service_template_param st_man large-6 columns">\
+                    <label for="deployment">' + tr("Strategy") +
+                        '<span class="tip">'+ tr("Straight strategy will instantiate each role in order: parents role will be deployed before their children. None strategy will instantiate the roles regardless of their relationships.") +'</span>'+
+                    '</label>\
                     <select name="deployment">\
                         <option value="straight">'+ tr("Straight") + '</option>\
                         <option value="none">'+ tr("None") + '</option>\
                     </select>\
                 </div>\
-                <div class="one columns">\
-                    <div class="tip">'+ tr("Straight strategy will instantiate each role in order: parents role will be deployed before their children. None strategy will instantiate the roles regardless of their relationships.") +'</div>\
-                </div>\
-            </div>\
-        </div>\
-        <div class="service_template_param st_man six columns">\
-            <div class="row">\
-                <div class="five columns">\
-                    <label class="inline right" for="vm_template">' + tr("Shutdown action") + ':</label>\
-                </div>\
-                <div class="six columns">\
+                <div class="service_template_param st_man large-6 columns">\
+                    <label for="shutdown_action_service">' + tr("Shutdown action") +
+                        '<span class="tip">'+ tr("VM shutdown action: 'shutdown' or 'shutdown-hard'.") +'</span>'+
+                    '</label>\
                     <select name="shutdown_action_service">\
                         <option value=""></option>\
                         <option value="shutdown">'+tr("Shutdown")+'</option>\
                         <option value="shutdown-hard">'+tr("Shutdown hard")+'</option>\
                     </select>\
                 </div>\
-                <div class="one columns">\
-                    <div class="tip">'+ tr("VM shutdown action: 'shutdown' or 'shutdown-hard'.") +'</div>\
-                </div>\
             </div>\
         </div>\
     </div>\
-    <div class="row" id="new_role">\
-           <dl class="tabs" id="roles_tabs">\
-            <dt><div type="button" class="button tiny radius" id="tf_btn_roles"><span class="icon-plus"></span> '+tr("Add another role")+'</div></dt>\
+    <br>\
+    <br>\
+    <div id="new_role">\
+           <dl class="tabs vertical" id="roles_tabs" data-tab>\
+            <dt class="text-center"><div type="button" class="button tiny radius" id="tf_btn_roles"><span class="fa fa-plus"></span> '+tr("Add another role")+'</div></dt>\
            </dl>\
-           <ul class="tabs-content" id="roles_tabs_content">\
-           </ul>\
+           <div class="tabs-content vertical" id="roles_tabs_content">\
+           </div>\
     </div>\
     <div class="reveal-footer">\
-      <hr>\
       <div class="form_buttons">\
           <button id="create_service_template_submit" class="button radius right success"" type="action" value="ServiceTemplate.create">' + tr("Create") + '</button>\
           <button id="update_service_template_submit" class="button radius right success"" type="action" value="ServiceTemplate.update" hidden>' + tr("Update") + '</button>\
           <button id="create_service_template_reset" class="button radius secondary" type="reset" value="reset">' + tr("Reset") + '</button>\
-          <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
       </div>\
     </div>\
     <a class="close-reveal-modal">&#215;</a>\
@@ -208,66 +139,40 @@ var create_service_template_tmpl = '\
 </div>';
 
 var role_tab_content = '\
-<div class="">\
-    <div class="service_template_param service_role st_man six columns">\
-        <div class="row">\
-            <div class="five columns">\
-              <label class="inline right" for="name">' + tr("Role Name") + ':</label>\
-            </div>\
-            <div class="six columns">\
+<div class="row">\
+    <div class="service_template_param service_role st_man large-6 columns">\
+              <label for="name">' + tr("Role Name") +
+                '<span class="tip">'+ tr("Name of the role") +'</span>'+
+              '</label>\
               <input type="text" id="role_name" name="name"/>\
-            </div>\
-            <div class="one columns">\
-              <div class="tip">'+ tr("Name of the role") +'</div>\
-            </div>\
-        </div>\
-          <div class="row">\
-            <div class="five columns">\
-                <label class="inline right" for="cardinality">' + tr("Cardinality") + ':</label>\
-            </div>\
-            <div class="two columns">\
-                <input type="text" id="cardinality" name="cardinality" value="1" />\
-            </div>\
-            <div class="one columns">\
-                <div class="tip">'+ tr("Number of VMs to instantiate with this role") +'</div>\
-            </div>\
-          </div>\
     </div>\
-    <div class="service_template_param service_role six columns">\
-        <div class="row">\
-            <div class="five columns">\
-                <label class="inline right" for="vm_template">' + tr("VM template") + ':</label>\
-            </div>\
-            <div class="six columns">\
-                <select name="vm_template">\
-                </select>\
-            </div>\
-            <div class="one columns">\
-                <div class="tip">'+ tr("Template associated to this role") +'</div>\
-            </div>\
-        </div>\
-        <div class="row">\
-            <div class="five columns">\
-                <label class="inline right" for="vm_template">' + tr("Shutdown action") + ':</label>\
-            </div>\
-            <div class="six columns">\
-                <select name="shutdown_action_role">\
-                    <option value=""></option>\
-                    <option value="shutdown">'+tr("Shutdown")+'</option>\
-                    <option value="shutdown-hard">'+tr("Shutdown hard")+'</option>\
-                </select>\
-            </div>\
-            <div class="one columns">\
-                <div class="tip">'+ tr("VM shutdown action: 'shutdown' or 'shutdown-hard'. If it is not set, the one set for the Service will be used") +'</div>\
-            </div>\
-        </div>\
+    <div class="service_template_param service_role large-6 columns">\
+                <label for="vm_template">' + tr("VM template") +
+                    '<span class="tip">'+ tr("Template associated to this role") +'</span>'+
+                '</label>\
+                <div id="vm_template">\
+                </div>\
     </div>\
 </div>\
 <div class="row">\
-    <div class="three columns">\
+    <div class="service_template_param service_role large-3 columns">\
+        <label for="cardinality">' + tr("Cardinality") +
+            '<span class="tip">'+ tr("Number of VMs to instantiate with this role") +'</span>'+
+        '</label>\
+        <input type="text" id="cardinality" name="cardinality" value="1" />\
     </div>\
-    <div class="six columns">\
-        <table id="parent_roles" class="extended_table twelve">\
+    <div class="service_template_param service_role large-3 columns">\
+        <label for="shutdown_action_role">' + tr("Shutdown action") +
+            '<span class="tip">'+ tr("VM shutdown action: 'shutdown' or 'shutdown-hard'. If it is not set, the one set for the Service will be used") +'</span>'+
+        '</label>\
+        <select name="shutdown_action_role">\
+            <option value=""></option>\
+            <option value="shutdown">'+tr("Shutdown")+'</option>\
+            <option value="shutdown-hard">'+tr("Shutdown hard")+'</option>\
+        </select>\
+    </div>\
+    <div class="service_template_param service_role large-6 columns">\
+        <table id="parent_roles" class="extended_table dataTable">\
             <thead>\
                 <tr><th colspan="2">'+tr("Parent roles")+'</th></tr>\
             </thead>\
@@ -275,157 +180,139 @@ var role_tab_content = '\
             </tbody>\
         </table>\
     </div>\
-    <div class="three columns">\
+</div>\
+<br>\
+<div class="row">\
+    <div class="large-12 columns">\
+        <h5>'+tr("Elasticity")+'</h5>\
     </div>\
 </div>\
 <div class="row">\
-    <div class="eleven columns centered">\
-        <fieldset>\
-            <legend>'+tr("Elasticity")+' - <span id="role_name_text"></span></legend>\
-            <div class="">\
-                <div class="four columns">\
-                    <div class="five columns">\
-                        <label class="inline right" for="min_vms">' + tr("Min VMs") + ':</label>\
-                    </div>\
-                    <div class="six columns">\
-                        <input type="text" id="min_vms" name="min_vms" value="" />\
-                    </div>\
-                    <div class="one columns">\
-                        <div class="tip">'+ tr("Minimum number of VMs for elasticity adjustments") +'</div>\
-                    </div>\
-                </div>\
-                <div class="four columns">\
-                    <div class="five columns">\
-                        <label class="inline right" for="max_vms">' + tr("Max VMs") + ':</label>\
-                    </div>\
-                    <div class="six columns">\
-                        <input type="text" id="max_vms" name="max_vms" value="" />\
-                    </div>\
-                    <div class="one columns">\
-                        <div class="tip">'+ tr("Maximum number of VMs for elasticity adjustments") +'</div>\
-                    </div>\
-                </div>\
-                <div class="four columns">\
-                    <div class="five columns">\
-                        <label class="inline right" for="cooldown">' + tr("Cooldown") + ':</label>\
-                    </div>\
-                    <div class="six columns">\
-                        <input type="text" id="cooldown" name="cooldown" value="" />\
-                    </div>\
-                    <div class="one columns">\
-                        <div class="tip">'+ tr("Cooldown time after an elasticity operation (secs)") +'</div>\
-                    </div>\
-                </div>\
-            </div>\
-            <div class="">\
-                <div class="twelve columns">\
-                      <br>\
-                      <table id="elasticity_policies_table" class="policies_table twelve">\
-                            <thead style="background:#dfdfdf">\
-                              <tr>\
-                                <th colspan="8">\
-                                    '+tr("Elasticty policies")+'\
-                                    <div type="button" class="button tiny radius right secondary" id="tf_btn_elas_policies"><span class="icon-plus"></span> '+tr("Add")+'</div>\
-                                </th>\
-                              </tr>\
-                            </thead>\
-                            <thead>\
-                              <tr>\
-                                <th style="width:14%">'+tr("Type")+'\
-                                    <span class="tip">'+tr("Type of adjustment.")+'<br><br>\
-                                        '+tr("CHANGE: Add/substract the given number of VMs.")+'<br>\
-                                        '+tr("CARDINALITY: Set the cardinality to the given number.")+'<br>\
-                                        '+tr("PERCENTAGE_CHANGE: Add/substract the given percentage to the current cardinality.")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:12%">'+tr("Adjust")+'\
-                                    <span class="tip">'+tr("Positive or negative adjustment. Its meaning depends on 'type'")+'<br><br>\
-                                        '+tr("CHANGE: -2, will substract 2 VMs from the role")+'<br>\
-                                        '+tr("CARDINALITY: 8, will set carditanilty to 8")+'<br>\
-                                        '+tr("PERCENTAGE_CHANGE: 20, will increment cardinality by 20%")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:9%">'+tr("Min")+'\
-                                    <span class="tip">'+tr("Optional parameter for PERCENTAGE_CHANGE adjustment type. If present, the policy will change the cardinality by at least the number of VMs set in this attribute.")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:20%">'+tr("Expression")+'\
-                                    <span class="tip">'+tr("Expression to trigger the elasticity")+'<br><br>\
-                                        '+tr("Example: ATT < 20")+'<br>\
-                                    </span>\
-                                </th>\
-                                <th style="width:15%">'+tr("# Periods")+'\
-                                    <span class="tip">'+tr("Number of periods that the expression must be true before the elasticity is triggered")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:12%">'+tr("Period")+'\
-                                    <span class="tip">'+tr("Duration, in seconds, of each period in '# Periods'")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:15%">'+tr("Cooldown")+'\
-                                    <span class="tip">'+tr("Cooldown period duration after a scale operation, in seconds")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:3%"></th>\
-                              </tr>\
-                            </thead>\
-                            <tbody id="elasticity_policies_tbody">\
-                            </tbody>\
-                      </table>\
-                </div>\
-            </div>\
-            <div class="">\
-                <div class="twelve columns">\
-                      <br>\
-                      <table id="scheduled_policies_table" class="policies_table twelve">\
-                            <thead style="background:#dfdfdf">\
-                              <tr>\
-                                <th colspan="6">\
-                                    '+tr("Scheduled policies")+'\
-                                    <div type="button" class="button tiny radius right secondary" id="tf_btn_sche_policies"><span class="icon-plus"></span> '+tr("Add")+'</div>\
-                                </th>\
-                              </tr>\
-                            </thead>\
-                            <thead>\
-                              <tr>\
-                                <th style="width:14%">'+tr("Type")+'\
-                                    <span class="tip">'+tr("Type of adjustment.")+'<br><br>\
-                                        '+tr("CHANGE: Add/substract the given number of VMs.")+'<br>\
-                                        '+tr("CARDINALITY: Set the cardinality to the given number.")+'<br>\
-                                        '+tr("PERCENTAGE_CHANGE: Add/substract the given percentage to the current cardinality.")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:12%">'+tr("Adjust")+'\
-                                    <span class="tip">'+tr("Positive or negative adjustment. Its meaning depends on 'type'")+'<br><br>\
-                                        '+tr("CHANGE: -2, will substract 2 VMs from the role")+'<br>\
-                                        '+tr("CARDINALITY: 8, will set carditanilty to 8")+'<br>\
-                                        '+tr("PERCENTAGE_CHANGE: 20, will increment cardinality by 20%")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:9%">'+tr("Min")+'\
-                                    <span class="tip">'+tr("Optional parameter for PERCENTAGE_CHANGE adjustment type. If present, the policy will change the cardinality by at least the number of VMs set in this attribute.")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:28%">'+tr("Time format")+'\
-                                    <span class="tip">'+tr("Recurrence: Time for recurring adjustements. Time is specified with the Unix cron syntax")+'<br><br>\
-                                        '+tr("Start time: Exact time for the adjustement")+'\
-                                    </span>\
-                                </th>\
-                                <th style="width:33%">'+tr("Time expression")+'\
-                                    <span class="tip">'+tr("Time expression depends on the the time formar selected")+'<br><br>\
-                                        '+tr("Recurrence: Time for recurring adjustements. Time is specified with the Unix cron syntax")+'<br>\
-                                        '+tr("Start time: Exact time for the adjustement")+'<br>\
-                                    </span>\
-                                </th>\
-                                <th style="width:3%"></th>\
-                              </tr>\
-                            </thead>\
-                            <tbody id="scheduled_policies_tbody">\
-                            </tbody>\
-                      </table>\
-                </div>\
-            </div>\
-        </fieldset>\
+    <div class="large-3 columns">\
+            <label for="min_vms">' + tr("Min VMs") +
+                '<span class="tip">'+ tr("Minimum number of VMs for elasticity adjustments") +'</span>'+
+            '</label>\
+            <input type="text" id="min_vms" name="min_vms" value="" />\
+    </div>\
+    <div class="large-3 columns">\
+            <label for="max_vms">' + tr("Max VMs") +
+                '<span class="tip">'+ tr("Maximum number of VMs for elasticity adjustments") +'</span>'+
+            '</label>\
+            <input type="text" id="max_vms" name="max_vms" value="" />\
+    </div>\
+    <div class="large-3 columns">\
+            <label for="cooldown">' + tr("Cooldown") +
+                '<span class="tip">'+ tr("Cooldown time after an elasticity operation (secs)") +'</span>'+
+            '</label>\
+            <input type="text" id="cooldown" name="cooldown" value="" />\
+    </div>\
+    <div class="large-3 columns">\
+    </div>\
+</div>\
+<div class="row">\
+    <div class="large-12 columns">\
+          <table id="elasticity_policies_table" class="policies_table dataTable">\
+                <thead style="background:#dfdfdf">\
+                  <tr>\
+                    <th colspan="8">\
+                        '+tr("Elasticty policies")+'\
+                        <div type="button" class="button tiny radius right secondary" id="tf_btn_elas_policies"><span class="fa fa-plus"></span> '+tr("Add")+'</div>\
+                    </th>\
+                  </tr>\
+                </thead>\
+                <thead>\
+                  <tr>\
+                    <th style="width:14%">'+tr("Type")+'\
+                        <br><span class="tip">'+tr("Type of adjustment.")+'<br><br>\
+                            '+tr("CHANGE: Add/substract the given number of VMs.")+'<br>\
+                            '+tr("CARDINALITY: Set the cardinality to the given number.")+'<br>\
+                            '+tr("PERCENTAGE_CHANGE: Add/substract the given percentage to the current cardinality.")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:12%">'+tr("Adjust")+'\
+                        <br><span class="tip">'+tr("Positive or negative adjustment. Its meaning depends on 'type'")+'<br><br>\
+                            '+tr("CHANGE: -2, will substract 2 VMs from the role")+'<br>\
+                            '+tr("CARDINALITY: 8, will set carditanilty to 8")+'<br>\
+                            '+tr("PERCENTAGE_CHANGE: 20, will increment cardinality by 20%")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:9%">'+tr("Min")+'\
+                        <br><span class="tip">'+tr("Optional parameter for PERCENTAGE_CHANGE adjustment type. If present, the policy will change the cardinality by at least the number of VMs set in this attribute.")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:30%">'+tr("Expression")+'\
+                        <br><span class="tip">'+tr("Expression to trigger the elasticity")+'<br><br>\
+                            '+tr("Example: ATT < 20")+'<br>\
+                        </span>\
+                    </th>\
+                    <th style="width:8%">#\
+                        <br><span class="tip">'+tr("Number of periods that the expression must be true before the elasticity is triggered")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:9%">'+tr("Period")+'\
+                        <br><span class="tip">'+tr("Duration, in seconds, of each period in '# Periods'")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:15%">'+tr("Cooldown")+'\
+                        <br><span class="tip">'+tr("Cooldown period duration after a scale operation, in seconds")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:3%"></th>\
+                  </tr>\
+                </thead>\
+                <tbody id="elasticity_policies_tbody">\
+                </tbody>\
+          </table>\
+    </div>\
+</div>\
+<div class="row">\
+    <div class="large-12 columns">\
+          <table id="scheduled_policies_table" class="policies_table dataTable">\
+                <thead style="background:#dfdfdf">\
+                  <tr>\
+                    <th colspan="6">\
+                        '+tr("Scheduled policies")+'\
+                        <div type="button" class="button tiny radius right secondary" id="tf_btn_sche_policies"><span class="fa fa-plus"></span> '+tr("Add")+'</div>\
+                    </th>\
+                  </tr>\
+                </thead>\
+                <thead>\
+                  <tr>\
+                    <th style="width:14%">'+tr("Type")+'\
+                        <br><span class="tip">'+tr("Type of adjustment.")+'<br><br>\
+                            '+tr("CHANGE: Add/substract the given number of VMs.")+'<br>\
+                            '+tr("CARDINALITY: Set the cardinality to the given number.")+'<br>\
+                            '+tr("PERCENTAGE_CHANGE: Add/substract the given percentage to the current cardinality.")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:12%">'+tr("Adjust")+'\
+                        <br><span class="tip">'+tr("Positive or negative adjustment. Its meaning depends on 'type'")+'<br><br>\
+                            '+tr("CHANGE: -2, will substract 2 VMs from the role")+'<br>\
+                            '+tr("CARDINALITY: 8, will set carditanilty to 8")+'<br>\
+                            '+tr("PERCENTAGE_CHANGE: 20, will increment cardinality by 20%")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:9%">'+tr("Min")+'\
+                        <br><span class="tip">'+tr("Optional parameter for PERCENTAGE_CHANGE adjustment type. If present, the policy will change the cardinality by at least the number of VMs set in this attribute.")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:28%">'+tr("Time format")+'\
+                        <br><span class="tip">'+tr("Recurrence: Time for recurring adjustements. Time is specified with the Unix cron syntax")+'<br><br>\
+                            '+tr("Start time: Exact time for the adjustement")+'\
+                        </span>\
+                    </th>\
+                    <th style="width:33%">'+tr("Time expression")+'\
+                        <br><span class="tip">'+tr("Time expression depends on the the time formar selected")+'<br><br>\
+                            '+tr("Recurrence: Time for recurring adjustements. Time is specified with the Unix cron syntax")+'<br>\
+                            '+tr("Start time: Exact time for the adjustement")+'<br>\
+                        </span>\
+                    </th>\
+                    <th style="width:3%"></th>\
+                  </tr>\
+                </thead>\
+                <tbody id="scheduled_policies_tbody">\
+                </tbody>\
+          </table>\
     </div>\
 </div>';
 
@@ -437,15 +324,21 @@ var service_template_actions = {
     "ServiceTemplate.create" : {
         type: "create",
         call: ServiceTemplate.create,
-        callback: function(req, res){
+        callback: function(request, response) {
             //empty creation dialog roles after successful creation
+/*
             var dialog = $create_service_template_dialog;
             $('table#current_roles tbody', dialog).empty();
             $('select[name="parents"]', dialog).empty();
-            addServiceTemplateElement(req, res);
+            dialog.foundation('reveal', 'close');
+*/
+            $create_service_template_dialog.foundation('reveal', 'close')
+            $create_service_template_dialog.empty();
+
+            addServiceTemplateElement(request, response);
+            notifyCustom(tr("Service Template created"), " ID: " + response.DOCUMENT.ID, false);
         },
-        error: onError,
-        notify:true
+        error: onError
     },
 
     "ServiceTemplate.create_dialog" : {
@@ -470,8 +363,10 @@ var service_template_actions = {
         type: "single",
         call: ServiceTemplate.update,
         callback: function(request,response){
-           notifyMessage(tr("ServiceTemplate updated correctly"));
-           Sunstone.runAction('ServiceTemplate.show',response.DOCUMENT.ID);
+            $create_service_template_dialog.foundation('reveal', 'close');
+            Sunstone.runAction("ServiceTemplate.show",request.request.data[0][0]);
+
+            notifyMessage(tr("ServiceTemplate updated correctly"));
         },
         error: onError
     },
@@ -491,20 +386,26 @@ var service_template_actions = {
     "ServiceTemplate.show" : {
         type : "single",
         call: ServiceTemplate.show,
-        callback: updateServiceTemplateElement,
-        error: onError
-    },
+        callback: function(request, response){
+            var tab = dataTable_service_templates.parents(".tab");
 
-    "ServiceTemplate.showinfo" : {
-        type: "single",
-        call: ServiceTemplate.show,
-        callback: updateServiceTemplateInfo,
+            if (Sunstone.rightInfoVisible(tab)) {
+                // individual view
+                updateServiceTemplateInfo(request, response);
+            }
+
+            // datatable row
+            updateServiceTemplateElement(request, response);
+        },
         error: onError
     },
 
     "ServiceTemplate.instantiate" : {
         type: "multiple",
         call: ServiceTemplate.instantiate,
+        callback: function(req){
+            OpenNebula.Helper.clear_cache("SERVICE");
+        },
         elements: serviceTemplateElements,
         error: onError,
         notify: true
@@ -513,24 +414,13 @@ var service_template_actions = {
     "ServiceTemplate.refresh" : {
         type: "custom",
         call: function () {
+          var tab = dataTable_service_templates.parents(".tab");
+          if (Sunstone.rightInfoVisible(tab)) {
+            Sunstone.runAction("ServiceTemplate.show", Sunstone.rightInfoResourceId(tab))
+          } else {
             waitingNodes(dataTable_service_templates);
-            Sunstone.runAction("ServiceTemplate.list");
-        }
-    },
-
-    "ServiceTemplate.autorefresh" : {
-        type: "custom",
-        call: function() {
-            ServiceTemplate.list({
-                timeout: true, 
-                success: function(request, service_list) {
-                    $("#oneflow-templates #error_message").hide();
-                    updateServiceTemplatesView(request, service_list);
-                },
-                error: function(request, error_json) {
-                    onError(request, error_json, $("#oneflow-templates #error_message"));
-                }
-            });
+            Sunstone.runAction("ServiceTemplate.list", {force: true});
+          }
         }
     },
 
@@ -588,6 +478,11 @@ var service_template_buttons = {
         layout: "refresh",
         alwaysActive: true
     },
+//    "Sunstone.toggle_top" : {
+//        type: "custom",
+//        layout: "top",
+//        alwaysActive: true
+//    },
     "ServiceTemplate.create_dialog" : {
         type: "create_dialog",
         layout: "create"
@@ -605,7 +500,7 @@ var service_template_buttons = {
     "ServiceTemplate.chown" : {
         type: "confirm_with_select",
         text: tr("Change owner"),
-        select: users_sel,
+        select: "User",
         layout: "user_select",
         tip: tr("Select the new owner")+":",
         condition: mustBeAdmin
@@ -613,7 +508,7 @@ var service_template_buttons = {
     "ServiceTemplate.chgrp" : {
         type: "confirm_with_select",
         text: tr("Change group"),
-        select: groups_sel,
+        select: "Group",
         layout: "user_select",
         tip: tr("Select the new group")+":",
         condition: mustBeAdmin
@@ -636,10 +531,32 @@ var service_template_info_panel = {
 
 var service_templates_tab = {
     title: "Templates",
-    content: service_template_tab_content,
+    resource: 'ServiceTemplate',
     buttons: service_template_buttons,
     tabClass: 'subTab',
-    parentTab: 'oneflow-dashboard'
+    parentTab: 'oneflow-dashboard',
+    search_input: '<input id="service_templates_search" type="text" placeholder="'+tr("Search")+'" />',
+    list_header: '<i class="fa fa-fw fa-file-o"></i>&emsp;'+tr("OneFlow - Templates"),
+    info_header: '<i class="fa fa-fw fa-file-o"></i>&emsp;'+tr("OneFlow - Template"),
+    subheader: '<span/> <small></small>&emsp;',
+    content:   '<div class="row" id="error_message" hidden>\
+        <div class="small-6 columns small-centered text-center">\
+            <div class="alert-box alert radius">'+tr("Cannot connect to OneFlow server")+'</div>\
+        </div>\
+    </div>',
+    table: '<table id="datatable_service_templates" class="datatable twelve">\
+        <thead>\
+          <tr>\
+            <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
+            <th>'+tr("ID")+'</th>\
+            <th>'+tr("Owner")+'</th>\
+            <th>'+tr("Group")+'</th>\
+            <th>'+tr("Name")+'</th>\
+          </tr>\
+        </thead>\
+        <tbody>\
+        </tbody>\
+      </table>'
 }
 
 Sunstone.addActions(service_template_actions);
@@ -699,13 +616,14 @@ function updateServiceTemplateInfo(request,elem){
     var elem_info = elem.DOCUMENT;
 
     var info_tab = {
-        title: tr("Information"),
+        title : tr("Info"),
+        icon: "fa-info-circle",
         content:
-        '<div class="">\
-          <div class="six columns">\
-          <table id="info_template_table" class="twelve datatable extended_table">\
+        '<div class="row">\
+          <div class="large-6 columns">\
+          <table id="info_template_table" class="dataTable extended_table">\
            <thead>\
-             <tr><th colspan="2">'+tr("Service Template")+' \"'+elem_info.NAME+'\"'+'</th></tr>\
+             <tr><th colspan="2">'+tr("Information")+'</th></tr>\
            </thead>\
            <tr>\
              <td class="key_td">'+tr("ID")+'</td>\
@@ -725,7 +643,7 @@ function updateServiceTemplateInfo(request,elem){
            </tr>\
          </table>' +
        '</div>\
-        <div class="six columns">' + insert_permissions_table('oneflow-templates',
+        <div class="large-6 columns">' + insert_permissions_table('oneflow-templates',
                                                               "ServiceTemplate",
                                                               elem_info.ID,
                                                               elem_info.UNAME,
@@ -740,23 +658,26 @@ function updateServiceTemplateInfo(request,elem){
 
     var roles_tab = {
         title : "Roles",
+        icon: "fa-wrench",
         content : '<form class="custom" id="roles_form" action="">\
-          <div id="roles_info" class="columns twelve">\
-            <table id="datatable_service_template_roles" class="table twelve">\
-              <thead>\
-                <tr>\
-                  <th>'+tr("Name")+'</th>\
-                  <th>'+tr("Cardinality")+'</th>\
-                  <th>'+tr("VM Template")+'</th>\
-                  <th>'+tr("Parents")+'</th>\
-                </tr>\
-              </thead>\
-              <tbody>\
-              </tbody>\
-            </table>\
-          </div>\
-          <div id="roles_extended_info" class="columns twelve">\
-            <span class="radius secondary label">'+tr("Select a role in the table for more information")+'</span>\
+          <div id="roles_info" class="row>\
+            <div class="large-12 columns>\
+                <table id="datatable_service_template_roles" class="table twelve">\
+                  <thead>\
+                    <tr>\
+                      <th>'+tr("Name")+'</th>\
+                      <th>'+tr("Cardinality")+'</th>\
+                      <th>'+tr("VM Template")+'</th>\
+                      <th>'+tr("Parents")+'</th>\
+                    </tr>\
+                  </thead>\
+                  <tbody>\
+                  </tbody>\
+                </table>\
+              <div id="roles_extended_info" class="columns twelve">\
+                <span class="radius secondary label">'+tr("Select a role in the table for more information")+'</span>\
+              </div>\
+            </div>\
           </div>\
         </form>'
     };
@@ -767,16 +688,11 @@ function updateServiceTemplateInfo(request,elem){
 
     setPermissionsTable(elem_info,'');
 
-    $("#service_template_info_panel_refresh", $("#service_template_info_panel")).click(function(){
-        $(this).html(spinner);
-        selected_row_template_role_id = $($('td.markrowselected',serviceTemplaterolesDataTable.fnGetNodes())[1]).html();
-        Sunstone.runAction('ServiceTemplate.showinfo', elem_info.ID);
-    })
-
     var roles = elem_info.TEMPLATE.BODY.roles
     if (roles && roles.length) {
         serviceTemplaterolesDataTable = $('#datatable_service_template_roles').dataTable({
             "bSortClasses": false,
+            "bDeferRender": true,
             "bAutoWidth":false,
             "aoColumnDefs": [
               { "bSortable": false, "aTargets": ["check"] }
@@ -824,8 +740,8 @@ function updateServiceTemplateInfo(request,elem){
                 <fieldset>\
                 <legend>'+tr("Role")+' - '+role.name+'</legend>';
 
-            info_str += "<div class='twelve columns'>\
-                <table class='twelve datatable extended_table policies_table'>\
+            info_str += "<div class='large-12 columns'>\
+                <table class='dataTable extended_table policies_table'>\
                     <thead>\
                         <tr><th colspan='8'>"+tr("Information")+"</th></tr>\
                     </thead>\
@@ -847,10 +763,10 @@ function updateServiceTemplateInfo(request,elem){
 
 
             info_str += "</div>\
-            <div class='twelve columns'>";
+            <div class='large-12 columns'>";
 
             if (role.elasticity_policies && role.elasticity_policies.length > 0) {
-                info_str += '<table class="twelve datatable extended_table policies_table">\
+                info_str += '<table class="dataTable extended_table policies_table">\
                     <thead style="background:#dfdfdf">\
                       <tr>\
                         <th colspan="7">'+tr("Elasticity policies")+'</th>\
@@ -903,8 +819,8 @@ function updateServiceTemplateInfo(request,elem){
                         <td>'+this.adjust+'</td>\
                         <td>'+(this.min_adjust_step || "-")+'</td>\
                         <td>'+this.expression+'</td>\
-                        <td>'+(this.period || "-")+'</td>\
                         <td>'+(this.period_number || "-")+'</td>\
+                        <td>'+(this.period || "-")+'</td>\
                         <td>'+(this.cooldown || "-")+'</td>\
                     </tr>'
                 });
@@ -914,7 +830,7 @@ function updateServiceTemplateInfo(request,elem){
             }
 
             if (role.scheduled_policies && role.scheduled_policies.length > 0) {
-                info_str += '<table class="twelve datatable extended_table policies_table">\
+                info_str += '<table class="dataTable extended_table policies_table">\
                     <thead style="background:#dfdfdf">\
                       <tr>\
                         <th colspan="5">'+tr("Scheduled policies")+'</th>\
@@ -1003,8 +919,7 @@ function setup_policy_tab_content(policy_section, html_policy_id) {
 function setup_role_tab_content(role_section, html_role_id) {
     setupTips(role_section);
 
-    var tpl_select = makeSelectOptions(dataTable_templates, 1, 4, [], [], true);
-    $('select[name="vm_template"]', role_section).html(tpl_select);
+    insertSelectOptions('div#vm_template', role_section, "Template", null, false);
 
     $("#role_name", role_section).change(function(){
         $("#" + html_role_id +" #role_name_text").html($(this).val());
@@ -1038,16 +953,16 @@ function setup_role_tab_content(role_section, html_role_id) {
                     <input type="text" id="expression" name="expression"/>\
                 </td>\
                 <td>\
-                    <input type="text" id="period" name="period"/>\
+                    <input type="text" id="period_number" name="period_number"/>\
                 </td>\
                 <td>\
-                    <input type="text" id="period_number" name="period_number"/>\
+                    <input type="text" id="period" name="period"/>\
                 </td>\
                 <td>\
                     <input type="text" id="cooldown" name="cooldown"/>\
                 </td>\
                 <td>\
-                    <a href="#"><i class="icon-remove-sign remove-tab"></i></a>\
+                    <a href="#"><i class="fa fa-times-circle remove-tab"></i></a>\
                 </td>\
             </tr>');
         new_tr.appendTo($("#elasticity_policies_tbody", role_section));
@@ -1078,7 +993,7 @@ function setup_role_tab_content(role_section, html_role_id) {
                     <input type="text" id="time" name="time"/>\
                 </td>\
                 <td>\
-                    <a href="#"><i class="icon-remove-sign remove-tab"></i></a>\
+                    <a href="#"><i class="fa fa-times-circle remove-tab"></i></a>\
                 </td>\
             </tr>')
         new_tr.appendTo($("#scheduled_policies_tbody", role_section))
@@ -1104,8 +1019,6 @@ function setup_role_tab_content(role_section, html_role_id) {
         add_sche_policy_tab();
     });
 
-    policies_index = 0;
-
     return false;
 }
 
@@ -1117,7 +1030,7 @@ function setupCreateServiceTemplateDialog(){
 
     var dialog = $create_service_template_dialog;
     dialog.html(create_service_template_tmpl);
-    dialog.addClass("reveal-modal xlarge max-height");
+    dialog.addClass("reveal-modal xlarge max-height").attr("data-reveal", "");
 
     setupTips(dialog);
 
@@ -1125,18 +1038,17 @@ function setupCreateServiceTemplateDialog(){
         var html_role_id  = 'role' + role_id;
 
         // Append the new div containing the tab and add the tab to the list
-        var role_section = $('<li id="'+html_role_id+'Tab" class="wizard_internal_tab">'+
+        var role_section = $('<div id="'+html_role_id+'Tab" class="content wizard_internal_tab">'+
             role_tab_content +
-        '</li>').appendTo($("ul#roles_tabs_content"));
+        '</div>').appendTo($("#roles_tabs_content"));
 
         var a = $("<dd>\
-            <a id='"+html_role_id+"' href='#"+html_role_id+"'><span id='role_name_text'>"+tr("Role ")+role_id+" </span>\
-                <i class='icon-remove-sign remove-tab'></i>\
+            <a id='"+html_role_id+"' href='#"+html_role_id+"Tab'><span id='role_name_text'>"+tr("Role ")+role_id+" </span>\
+                <i class='fa fa-times-circle remove-tab'></i>\
             </a>\
         </dd>").appendTo($("dl#roles_tabs"));
 
-        $("#"+html_role_id, a).click();
-        $(document).foundationTabs("set_tab", a);
+        $("a", a).trigger("click");
 
         setup_role_tab_content(role_section, html_role_id);
 
@@ -1144,28 +1056,26 @@ function setupCreateServiceTemplateDialog(){
     }
 
     // close icon: removing the tab on click
-    $( "#roles_tabs i.remove-tab" ).live( "click", function() {
+    $("#roles_tabs").on("click", "i.remove-tab", function() {
         var target = $(this).parent().attr("href");
         var dd = $(this).closest('dd');
         var dl = $(this).closest('dl');
-        var content = $(target + 'Tab');
+        var content = $(target);
 
         dd.remove();
         content.remove();
 
         if (dd.attr("class") == 'active') {
             $('a', dl.children('dd').last()).click();
-            dl.foundationTabs("set_tab", dl.children('dd').last());
+            //TODOO dl.foundationTabs("set_tab", dl.children('dd').last());
         }
-
-        roles_index--;
     });
 
     // Fill parents table
     // Each time a tab is clicked the table is filled with existing tabs (roles)
     // Selected roles are kept
     // TODO If the name of a role is changed and is selected, selection will be lost
-    $("#roles_tabs a").live('click', function(){
+    $("#roles_tabs").on("click", "a", function() {
         var tab_id = "#"+this.id+"Tab";
         var str = "";
 
@@ -1207,24 +1117,24 @@ function setupCreateServiceTemplateDialog(){
     $('#create_service_template_submit',dialog).click(function(){
         var json_template = generate_json_service_template_from_form();
         Sunstone.runAction("ServiceTemplate.create", json_template );
-        dialog.trigger("reveal:close");
         return false;
     });
 
     $('#update_service_template_submit',dialog).click(function(){
         var json_template = generate_json_service_template_from_form();
         Sunstone.runAction("ServiceTemplate.update",service_template_to_update_id, JSON.stringify(json_template));
-        dialog.trigger("reveal:close");
         return false;
     });
 
     $('#create_service_template_reset', dialog).click(function(){
-        $create_service_template_dialog.trigger('reveal:close');
-        $create_service_template_dialog.remove();
+        dialog.html("");
         setupCreateServiceTemplateDialog();
 
         popUpCreateServiceTemplateDialog();
     });
+
+
+    $(document).foundation();
 
     roles_index = 0;
     add_role_tab(roles_index);
@@ -1283,11 +1193,11 @@ function generate_json_service_template_from_form() {
 
     var roles = [];
 
-    $('#roles_tabs_content li', $create_service_template_dialog).each(function(){
+    $('#roles_tabs_content .content', $create_service_template_dialog).each(function(){
         var role = {};
         role['name'] = $('input[name="name"]', this).val();
         role['cardinality'] = $('input[name="cardinality"]', this).val();
-        role['vm_template'] = $('select[name="vm_template"]', this).val();
+        role['vm_template'] = $('#vm_template .resource_list_select', this).val();
         role['shutdown_action'] = $('select[name="shutdown_action_role"]', this).val();
         role['parents'] = [];
 
@@ -1324,8 +1234,8 @@ function generate_json_service_template_from_form() {
                 policy['adjust']  = $("#adjust" ,this).val();
                 policy['min_adjust_step']  = $("#min_adjust_step" ,this).val();
                 policy['expression']  = $("#expression" ,this).val();
-                policy['period']  = $("#period" ,this).val();
                 policy['period_number']  = $("#period_number" ,this).val();
+                policy['period']  = $("#period" ,this).val();
                 policy['cooldown']  = $("#cooldown" ,this).val();
 
                 // TODO remove empty policies
@@ -1364,20 +1274,23 @@ function generate_json_service_template_from_form() {
 }
 
 function popUpCreateServiceTemplateDialog(){
-    if (!$create_service_template_dialog) {
+    if (!$create_service_template_dialog || $create_service_template_dialog.html() == "") {
         setupCreateServiceTemplateDialog();
     }
 
     var dialog = $create_service_template_dialog;
 
+    dialog.die();
+
     $("#create_service_template_header", dialog).show();
     $("#update_service_template_header", dialog).hide();
     $("#create_service_template_submit", dialog).show();
     $("#update_service_template_submit", dialog).hide();
+    $("#create_service_template_reset", dialog).show();
 
     $("#service_name", dialog).removeAttr("disabled");
 
-    dialog.reveal();
+    dialog.foundation().foundation('reveal', 'open');
 }
 
 function popUpUpdateServiceTemplateDialog() {
@@ -1389,30 +1302,30 @@ function popUpUpdateServiceTemplateDialog() {
       return false;
     }
 
-    // Get proper cluster_id
-    var template_id   = ""+selected_nodes[0];
+    if (!$create_service_template_dialog) {
+        setupCreateServiceTemplateDialog();
+    } else {
+        $create_service_template_dialog.remove();
+        setupCreateServiceTemplateDialog();
+    }
 
+    var template_id   = ""+selected_nodes[0];
     Sunstone.runAction("ServiceTemplate.show_to_update", template_id);
 }
 
 
 function fillUpUpdateServiceTemplateDialog(request, response){
-    if (!$create_service_template_dialog) {
-        setupCreateServiceTemplateDialog();
-    } else {
-        $("#create_service_template_reset", $create_service_template_dialog).click();
-    }
-
-    var dialog = $create_service_template_dialog;
+    var dialog = $('#create_service_template_dialog',dialogs_context);
 
     $("#create_service_template_header", dialog).hide();
     $("#update_service_template_header", dialog).show();
     $("#create_service_template_submit", dialog).hide();
     $("#update_service_template_submit", dialog).show();
+    $("#create_service_template_reset", dialog).hide();
 
     var service_template = response[ServiceTemplate.resource]
     $("#service_name", dialog).attr("disabled", "disabled");
-    $("#service_name", dialog).val(service_template.NAME);
+    $("#service_name", dialog).val(htmlDecode(service_template.NAME));
 
     // TODO Check if the template still exists
     $('select[name="deployment"]', dialog).val(service_template.TEMPLATE.BODY.deployment);
@@ -1423,32 +1336,38 @@ function fillUpUpdateServiceTemplateDialog(request, response){
     $.each(service_template.TEMPLATE.BODY.roles, function(index, value){
         more_than_one ? $("#tf_btn_roles", dialog).click() : (more_than_one = true);
 
-        var context = $('#roles_tabs_content li', $create_service_template_dialog).last();
+        var context = $('#roles_tabs_content .content', $create_service_template_dialog).last();
 
-        $("#role_name", context).val(value.name);
+        $("#role_name", context).val(htmlDecode(value.name));
         $("#role_name", context).change();
         roles_names.push(value.name);
 
-        $("#cardinality", context).val(value.cardinality);
-        $('select[name="vm_template"]', context).val(value.vm_template);
+        $("#cardinality", context).val(htmlDecode(value.cardinality));
+
+        // The vm_template select is already initialized, but we need to select
+        // the template retrived from the service_template. Since the initialization
+        // is async, we can't assume the .resource_list_select exists yet.
+        // Calling the initialization again with the correct init_val should
+        // use the cache anyway
+        insertSelectOptions('div#vm_template', context, "Template", value.vm_template, false);
 
         $("select[name='shutdown_action_role']", context).val(value.shutdown_action);
-        $("#min_vms", context).val(value.min_vms);
-        $("#max_vms", context).val(value.max_vms);
-        $("#cooldown", context).val(value.cooldown);
+        $("#min_vms", context).val(htmlDecode(value.min_vms));
+        $("#max_vms", context).val(htmlDecode(value.max_vms));
+        $("#cooldown", context).val(htmlDecode(value.cooldown));
 
         if (value['elasticity_policies']) {
             $.each(value['elasticity_policies'], function(){
                 $("#tf_btn_elas_policies", context).click();
                 var td = $("#elasticity_policies_tbody tr", context).last();
-                $("#type" ,td).val(this['type'])
+                $("#type" ,td).val(htmlDecode(this['type']));
                 $("#type" ,td).change();
-                $("#adjust" ,td).val(this['adjust'] )
-                $("#min_adjust_step" ,td).val(this['min_adjust_step'] || "" )
-                $("#expression" ,td).val(unscape(this.expression))
-                $("#period" ,td).val(this['period'] || "" )
-                $("#period_number" ,td).val(this['period_number'] || "")
-                $("#cooldown" ,td).val(this['cooldown'] || "" )
+                $("#adjust" ,td).val(htmlDecode(this['adjust'] ));
+                $("#min_adjust_step" ,td).val(htmlDecode(this['min_adjust_step'] || ""));
+                $("#expression" ,td).val(htmlDecode(this.expression))
+                $("#period_number" ,td).val(htmlDecode(this['period_number'] || ""));
+                $("#period" ,td).val(htmlDecode(this['period'] || "" ));
+                $("#cooldown" ,td).val(htmlDecode(this['cooldown'] || "" ));
             })
         }
 
@@ -1456,17 +1375,17 @@ function fillUpUpdateServiceTemplateDialog(request, response){
             $.each(value['scheduled_policies'], function(){
                 $("#tf_btn_sche_policies", context).click();
                 var td = $("#scheduled_policies_tbody tr", context).last();
-                $("#type", td).val(this['type'])
+                $("#type", td).val(htmlDecode(this['type']));
                 $("#type" ,td).change();
-                $("#adjust", td).val(this['adjust'] )
-                $("#min_adjust_step", td).val(this['min_adjust_step']  || "")
+                $("#adjust", td).val(htmlDecode(this['adjust'] ));
+                $("#min_adjust_step", td).val(htmlDecode(this['min_adjust_step']  || ""));
 
                 if (this['start_time']) {
                     $("#time_format", td).val('start_time');
-                    $("#time", td).val(this['start_time']);
+                    $("#time", td).val(htmlDecode(this['start_time']));
                 } else if (this['recurrence']) {
                     $("#time_format", td).val('recurrence');
-                    $("#time", td).val(this['recurrence']);
+                    $("#time", td).val(htmlDecode(this['recurrence']));
                 }
             })
         }
@@ -1487,7 +1406,7 @@ function fillUpUpdateServiceTemplateDialog(request, response){
 
         $(tab_id+" #parent_roles_body").html(str);
 
-        var context = $('#roles_tabs_content li#role'+index+'Tab', $create_service_template_dialog);
+        var context = $('#roles_tabs_content .content#role'+index+'Tab', $create_service_template_dialog);
 
         if (value.parents) {
             $.each(value.parents, function(index, value){
@@ -1498,20 +1417,13 @@ function fillUpUpdateServiceTemplateDialog(request, response){
 
     service_template_to_update_id = service_template.ID;
 
-    dialog.reveal();
+    dialog.die();
+    dialog.live('closed', function () {
+        $create_service_template_dialog.html("");
+    });
+
+    dialog.foundation('reveal', 'open');
 }
-
-// Set the autorefresh interval for the datatable
-function setServiceTemplateAutorefresh() {
-    setInterval(function(){
-        var checked = $('input.check_item:checked',dataTable_service_templates);
-        var filter = $("#service_template_search").attr('value');
-        if ((checked.length==0) && !filter){
-            Sunstone.runAction("ServiceTemplate.autorefresh");
-        }
-    },INTERVAL+someTime());
-};
-
 
 //The DOM is ready at this point
 $(document).ready(function(){
@@ -1519,6 +1431,8 @@ $(document).ready(function(){
 
     if (Config.isTabEnabled(tab_name)) {
         dataTable_service_templates = $("#datatable_service_templates",main_tabs_context).dataTable({
+            "bSortClasses": false,
+            "bDeferRender": true,
             "aoColumnDefs": [
                 { "bSortable": false, "aTargets": ["check"] },
                 { "sWidth": "35px", "aTargets": [0] },
@@ -1537,12 +1451,12 @@ $(document).ready(function(){
 
         Sunstone.runAction("ServiceTemplate.list");
 
-        setServiceTemplateAutorefresh();
-
         initCheckAllBoxes(dataTable_service_templates);
         tableCheckboxesListener(dataTable_service_templates);
-        infoListener(dataTable_service_templates,'ServiceTemplate.showinfo');
+        infoListener(dataTable_service_templates,'ServiceTemplate.show');
 
         $('div#service_templates_tab div.legend_div').hide();
+
+        dataTable_service_templates.fnSort( [ [1,config['user_config']['table_order']] ] );
     }
 });

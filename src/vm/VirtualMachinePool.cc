@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -38,7 +38,7 @@ VirtualMachinePool::VirtualMachinePool(
         vector<const Attribute *>&  restricted_attrs,
         time_t                      expire_time,
         bool                        on_hold)
-    : PoolSQL(db, VirtualMachine::table, false)
+    : PoolSQL(db, VirtualMachine::table, true, false)
 {
     const VectorAttribute * vattr;
 
@@ -346,7 +346,7 @@ int VirtualMachinePool::dump_acct(ostringstream& oss,
         }
     }
 
-    cmd << " GROUP BY vid,seq";
+    cmd << " ORDER BY vid,seq";
 
     return PoolSQL::dump(oss, "HISTORY_RECORDS", cmd);
 };

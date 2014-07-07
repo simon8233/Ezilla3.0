@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -18,6 +18,7 @@
 #define _NEBULA_UTIL_H_
 
 #include <string>
+#include <vector>
 
 namespace one_util
 {
@@ -66,6 +67,23 @@ namespace one_util
      *    @return a new random password
      */
     std::string random_password();
+
+    /**
+     * Splits a string, using the given delimiter
+     *
+     * @param st string to split
+     * @param delim delimiter character
+     * @param clean_empty true to clean empty split parts.
+     *  Example for st "a::b:c"
+     *      clean_empty true will return ["a", "b", "c"]
+     *      clean_empty fase will return ["a", "", "b", "c"]
+     *
+     * @return a vector containing the resulting substrings
+     */
+    std::vector<std::string> split(
+            const std::string& st,
+            char delim,
+            bool clean_empty=true);
 };
 
 #endif /* _NEBULA_UTIL_H_ */

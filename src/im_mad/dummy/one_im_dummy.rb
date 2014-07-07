@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -45,10 +45,11 @@ class DummyInformationManager < OpenNebulaDriver
 
         # register actions
         register_action(:MONITOR, method("action_monitor"))
+        register_action(:STOPMONITOR, method("stop_monitor"))
     end
 
     # Execute the sensor array in the remote host
-    def action_monitor(number, host, not_used)
+    def action_monitor(number, host, not_used1, not_used2)
         results =  "HYPERVISOR=dummy\n"
         results << "HOSTNAME=#{host}\n"
 
@@ -64,9 +65,17 @@ class DummyInformationManager < OpenNebulaDriver
         results << "USEDCPU=#{used_cpu}\n"
         results << "FREECPU=#{800-used_cpu}\n"
 
+        results << "DS_LOCATION_USED_MB=9720\n"
+        results << "DS_LOCATION_TOTAL_MB=20480\n"
+        results << "DS_LOCATION_FREE_MB=20480\n"
+
         results = Base64::encode64(results).strip.delete("\n")
 
         send_message("MONITOR", RESULT[:success], number, results)
+    end
+
+    def stop_monitor(number, host)
+        send_message("STOPMONITOR", RESULT[:success], number, nil)
     end
 end
 

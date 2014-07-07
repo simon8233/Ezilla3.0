@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -23,8 +23,10 @@ JUNIT_JAR="/usr/share/java/junit4.jar"
 
 if [ -z $ONE_LOCATION ]; then
     DB_LOCATION="/var/lib/one/one.db"
+    LOG_LOCATION="/var/log/one"
 else
     DB_LOCATION="$ONE_LOCATION/var/one.db"
+    LOG_LOCATION="$ONE_LOCATION/var"
 fi
 
 if [ -f $DB_LOCATION ]; then
@@ -40,7 +42,11 @@ PID=$$
 
 oned -f &
 
-sleep 10s;
+sleep 2;
+
+until grep 'Datastore default (1) successfully monitored' $LOG_LOCATION/oned.log; do
+    sleep 1;
+done
 
 java -cp ../lib/*:../jar/*:$JUNIT_JAR:. org.junit.runner.JUnitCore $1
 

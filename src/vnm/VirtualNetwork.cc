@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -68,15 +68,8 @@ VirtualNetwork::VirtualNetwork(int                      _uid,
 
 VirtualNetwork::~VirtualNetwork()
 {
-    if (leases != 0)
-    {
-        delete leases;
-    }
-
-    if (obj_template != 0)
-    {
-        delete obj_template;
-    }
+    delete leases;
+    delete obj_template;
 }
 
 /* ************************************************************************** */
@@ -191,7 +184,7 @@ int VirtualNetwork::insert(SqlDB * db, string& error_str)
     ostringstream   ose;
     int             rc;
 
-    string vlan_attr;
+    bool b_vlan;
     string s_type;
     string ranged_error_str;
 
@@ -234,19 +227,30 @@ int VirtualNetwork::insert(SqlDB * db, string& error_str)
 
     // ------------ PHYDEV --------------------
 
-    erase_template_attribute("PHYDEV",phydev);
+    erase_template_attribute("PHYDEV", phydev);
+
+    add_template_attribute("PHYDEV", phydev);
 
     // ------------ VLAN_ID -------------------
 
-    erase_template_attribute("VLAN_ID",vlan_id);
+    erase_template_attribute("VLAN_ID", vlan_id);
+
+    add_template_attribute("VLAN_ID", vlan_id);
 
     // ------------ VLAN ----------------------
 
-    erase_template_attribute("VLAN", vlan_attr);
+    erase_template_attribute("VLAN", b_vlan);
 
-    TO_UPPER(vlan_attr);
-
-    vlan = (vlan_attr == "YES") || (vlan_attr.empty() && !phydev.empty());
+    if (b_vlan || !phydev.empty())
+    {
+        vlan = 1;
+        add_template_attribute("VLAN", "YES");
+    }
+    else
+    {
+        vlan = 0;
+        add_template_attribute("VLAN", "NO");
+    }
 
     // ------------ BRIDGE --------------------
 
@@ -262,11 +266,22 @@ int VirtualNetwork::insert(SqlDB * db, string& error_str)
         {
             ostringstream oss;
 
-            oss << "onebr" << oid;
+            oss << "onebr";
+
+            if (!vlan_id.empty())
+            {
+                oss << "." << vlan_id;
+            }
+            else
+            {
+                oss << oid;
+            }
 
             bridge = oss.str();
         }
     }
+
+    add_template_attribute("BRIDGE", bridge);
 
     // ------------ IP6 PREFIX ---------------
 
@@ -382,6 +397,76 @@ error_common:
     error_str = ose.str();
     NebulaLog::log("VNM", Log::ERROR, ose);
     return -1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int VirtualNetwork::replace_template(const string& tmpl_str, string& error_str)
+{
+    string new_bridge;
+    bool   b_vlan;
+
+    /* ---------------------------------------------------------------------- */
+    /* Parse & Update VirtualNetwork Template                                 */
+    /* ---------------------------------------------------------------------- */
+
+    Template * new_tmpl  = new VirtualNetworkTemplate;
+
+    if ( new_tmpl == 0 )
+    {
+        error_str = "Cannot allocate a new template";
+        return -1;
+    }
+
+    if ( new_tmpl->parse_str_or_xml(tmpl_str, error_str) != 0 )
+    {
+        delete new_tmpl;
+        return -1;
+    }
+
+    delete obj_template;
+
+    obj_template = new_tmpl;
+
+    /* ---------------------------------------------------------------------- */
+    /* Update Configuration Attributes (class & template)                     */
+    /*  - PHYDEV                                                              */
+    /*  - VLAN_ID                                                             */
+    /*  - VLAN                                                                */
+    /*  - BRIDGE                                                              */
+    /* ---------------------------------------------------------------------- */
+    erase_template_attribute("PHYDEV", phydev);
+
+    add_template_attribute("PHYDEV", phydev);
+
+    erase_template_attribute("VLAN_ID", vlan_id);
+
+    add_template_attribute("VLAN_ID", vlan_id);
+
+    erase_template_attribute("VLAN", b_vlan);
+
+    if (b_vlan || !phydev.empty())
+    {
+        vlan = 1;
+        add_template_attribute("VLAN", "YES");
+    }
+    else
+    {
+        vlan = 0;
+        add_template_attribute("VLAN", "NO");
+    }
+
+    erase_template_attribute("BRIDGE",new_bridge);
+
+    if (!new_bridge.empty())
+    {
+        bridge = new_bridge;
+    }
+
+    add_template_attribute("BRIDGE", bridge);
+
+    return 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -530,14 +615,6 @@ string& VirtualNetwork::to_xml_extended(string& xml, bool extended) const
     string leases_xml;
     string perm_str;
 
-    // Total leases is the number of used leases.
-    int total_leases = 0;
-
-    if (leases != 0)
-    {
-        total_leases = leases->n_used;
-    }
-
     os <<
         "<VNET>" <<
             "<ID>"          << oid          << "</ID>"          <<
@@ -604,21 +681,12 @@ string& VirtualNetwork::to_xml_extended(string& xml, bool extended) const
             "</RANGE>";
     }
 
-    os  <<  "<TOTAL_LEASES>"<< total_leases << "</TOTAL_LEASES>"<<
+    os  <<  "<TOTAL_LEASES>"<< leases->n_used << "</TOTAL_LEASES>"<<
             obj_template->to_xml(template_xml);
 
     if (extended)
     {
-        if (leases != 0)
-        {
-            os <<   "<LEASES>"                  <<
-                    leases->to_xml(leases_xml)     <<
-                    "</LEASES>";
-        }
-        else
-        {
-            os << "<LEASES/>";
-        }
+        os << "<LEASES>" << leases->to_xml(leases_xml) << "</LEASES>";
     }
 
     os << "</VNET>";
@@ -706,17 +774,23 @@ int VirtualNetwork::from_xml(const string &xml_str)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int VirtualNetwork::nic_attribute(VectorAttribute *nic, int vid)
+int VirtualNetwork::nic_attribute(
+        VectorAttribute *       nic,
+        int                     vid,
+        const vector<string>&   inherit_attrs)
 {
     int rc;
 
     string  ip;
     string  mac;
+    string  inherit_val;
 
     unsigned int eui64[2];
     unsigned int prefix[2] = {0, 0};
 
     ostringstream oss;
+
+    vector<string>::const_iterator it;
 
     ip    = nic->vector_value("IP");
     oss << oid;
@@ -790,6 +864,16 @@ int VirtualNetwork::nic_attribute(VectorAttribute *nic, int vid)
         oss << get_cluster_id();
 
         nic->replace("CLUSTER_ID", oss.str());
+    }
+
+    for (it = inherit_attrs.begin(); it != inherit_attrs.end(); it++)
+    {
+        get_template_attribute((*it).c_str(), inherit_val);
+
+        if (!inherit_val.empty())
+        {
+            nic->replace(*it, inherit_val);
+        }
     }
 
     return 0;

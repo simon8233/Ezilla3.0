@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -80,8 +80,6 @@ public:
      *    @param oid the id assigned to the Datastore
      *    @param cluster_id the id of the cluster this Datastore will belong to
      *    @param cluster_name the name of the cluster this Datastore will belong to
-     *    @param ds_location for hosts in the cluster. defaults to oned.conf.
-     *    It will be modified to incude a trailing '/' if missing.
      *    @param error_str Returns the error reason, if any
      *
      *    @return the oid assigned to the object, -1 in case of failure
@@ -96,7 +94,6 @@ public:
             int *               oid,
             int                 cluster_id,
             const string&       cluster_name,
-            string&             ds_location,
             string&             error_str);
 
     /**
@@ -171,12 +168,14 @@ public:
      *  query
      *  @param oss the output stream to dump the pool contents
      *  @param where filter for the objects, defaults to all
+     *  @param limit parameters used for pagination
      *
      *  @return 0 on success
      */
-    int dump(ostringstream& oss, const string& where)
+    int dump(ostringstream& oss, const string& where, const string& limit)
     {
-        return PoolSQL::dump(oss, "DATASTORE_POOL", Datastore::table, where);
+        return PoolSQL::dump(oss, "DATASTORE_POOL", Datastore::table, where,
+                             limit);
     };
 
     /**
@@ -198,7 +197,7 @@ private:
      */
     PoolObjectSQL * create()
     {
-        return new Datastore(-1,-1,"","", 0, 0, -1, "", "");
+        return new Datastore(-1,-1,"","", 0, 0, -1, "");
     };
 };
 

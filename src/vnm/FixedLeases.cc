@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -140,6 +140,8 @@ int FixedLeases::add(const string& ip, const string& mac, int vid,
         n_used++;
     }
 
+    current = leases.begin();
+
     return rc;
 
 error_no_ip_mac:
@@ -198,7 +200,7 @@ int FixedLeases::remove(const string& ip, string& error_msg)
         goto error_notfound;
     }
 
-    if (it->second->used) //it is in use
+    if (it->second->used && it->second->vid != -1) //it is in use by VM
     {
         goto error_used;
     }
@@ -216,6 +218,8 @@ int FixedLeases::remove(const string& ip, string& error_msg)
     delete it->second;
 
     leases.erase(it);
+
+    current = leases.begin();
 
     return rc;
 

@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -30,17 +30,20 @@ CONF = {
 }
 
 COMMANDS = {
-  :ebtables => "sudo /sbin/ebtables",
-  :iptables => "sudo /sbin/iptables",
-  :brctl    => "sudo /sbin/brctl",
-  :ip       => "sudo /sbin/ip",
-  :vconfig  => "sudo /sbin/vconfig",
+  :ebtables => "sudo ebtables",
+  :iptables => "sudo iptables",
+  :brctl    => "sudo brctl",
+  :ip       => "sudo ip",
+  :vconfig  => "sudo vconfig",
   :virsh    => "virsh -c qemu:///system",
-  :xm       => "sudo /usr/sbin/xm",
-  :ovs_vsctl=> "sudo /usr/bin/ovs-vsctl",
-  :ovs_ofctl=> "sudo /usr/bin/ovs-ofctl",
-  :lsmod    => "/sbin/lsmod"
+  :xm       => "sudo xm",
+  :ovs_vsctl=> "sudo ovs-vsctl",
+  :ovs_ofctl=> "sudo ovs-ofctl",
+  :lsmod    => "lsmod"
 }
+
+# Set PATH
+ENV['PATH'] = "#{ENV['PATH']}:/bin:/sbin:/usr/bin"
 
 class VM
     attr_accessor :nics, :vm_info, :deploy_id

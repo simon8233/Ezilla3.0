@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -20,6 +20,7 @@
 #include "Log.h"
 #include "HostPoolXML.h"
 #include "ClusterPoolXML.h"
+#include "DatastorePoolXML.h"
 #include "VirtualMachinePoolXML.h"
 #include "SchedulerPolicy.h"
 #include "ActionManager.h"
@@ -51,13 +52,14 @@ protected:
         clpool(0),
         vmpool(0),
         vmapool(0),
+        dspool(0),
+        img_dspool(0),
         acls(0),
         timer(0),
         url(""),
         machines_limit(0),
         dispatch_limit(0),
         host_dispatch_limit(0),
-        hypervisor_mem(0),
         client(0)
     {
         am.addListener(this);
@@ -65,35 +67,18 @@ protected:
 
     virtual ~Scheduler()
     {
-        if ( hpool != 0)
-        {
-            delete hpool;
-        }
+        delete hpool;
+        delete clpool;
 
-        if ( clpool != 0)
-        {
-            delete clpool;
-        }
+        delete vmpool;
+        delete vmapool;
 
-        if ( vmpool != 0)
-        {
-            delete vmpool;
-        }
+        delete dspool;
+        delete img_dspool;
 
-        if ( vmapool != 0)
-        {
-            delete vmapool;
-        }
+        delete acls;
 
-        if ( acls != 0)
-        {
-            delete acls;
-        }
-
-        if ( client != 0)
-        {
-            delete client;
-        }
+        delete client;
     };
 
     // ---------------------------------------------------------------
@@ -105,6 +90,8 @@ protected:
 
     VirtualMachinePoolXML *       vmpool;
     VirtualMachineActionsPoolXML* vmapool;
+    SystemDatastorePoolXML * dspool;
+    ImageDatastorePoolXML * img_dspool;
 
     AclXML * acls;
 
@@ -112,9 +99,14 @@ protected:
     // Scheduler Policies
     // ---------------------------------------------------------------
 
-    void add_host_policy(SchedulerHostPolicy *policy)
+    void add_host_policy(SchedulerPolicy *policy)
     {
         host_policies.push_back(policy);
+    }
+
+    void add_ds_policy(SchedulerPolicy *policy)
+    {
+        ds_policies.push_back(policy);
     }
 
     // ---------------------------------------------------------------
@@ -126,11 +118,9 @@ protected:
      *  the capacity of the host is checked. If there is enough room to host the
      *  VM a share vector is added to the VM.
      */
-    virtual void match();
+    virtual void match_schedule();
 
     virtual void dispatch();
-
-    virtual int schedule();
 
     /**
      * Retrieves the pools
@@ -140,7 +130,6 @@ protected:
      *          -2 if no VMs need to be scheduled
      */
     virtual int set_up_pools();
-
 
     virtual int do_scheduled_actions();
 
@@ -155,7 +144,8 @@ private:
     // Scheduling Policies
     // ---------------------------------------------------------------
 
-    vector<SchedulerHostPolicy *>   host_policies;
+    vector<SchedulerPolicy *> host_policies;
+    vector<SchedulerPolicy *> ds_policies;
 
     // ---------------------------------------------------------------
     // Configuration attributes
@@ -181,14 +171,19 @@ private:
     unsigned int host_dispatch_limit;
 
     /**
-     *  Memory reserved for the hypervisor
+     *  OpenNebula zone id.
      */
-    float hypervisor_mem;
+    int zone_id;
 
     /**
      *  XML_RPC client
      */
     Client * client;
+
+    /**
+     * oned runtime configuration values
+     */
+     Template oned_conf;
 
     // ---------------------------------------------------------------
     // Timer to periodically schedule and dispatch VMs

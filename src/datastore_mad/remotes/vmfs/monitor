@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -50,17 +50,24 @@ done < <($XPATH     /DS_DRIVER_ACTION_DATA/DATASTORE/BASE_PATH \
 BASE_PATH="${XPATH_ELEMENTS[0]}"
 BRIDGE_LIST="${XPATH_ELEMENTS[1]}"
 
-HOST=`get_destination_host $ID`
+HOST=`get_destination_host`
+
+if [ -z "$HOST" ]; then
+    error_message "Datastore template missing 'BRIDGE_LIST' attribute."
+    exit -1
+fi
 
 # ------------ Compute datastore usage -------------
 
 MONITOR_SCRIPT=$(cat <<EOF
-USED_MB=\$(du -sLm ${BASE_PATH%/} 2>/dev/null | cut -f1)
+set -e
 
-DF_STR=\$(df -m | grep ${BASE_PATH%/} | sed 's/ \+/:/g')
+USED_MB=\$($DU -sLm ${BASE_PATH%/} 2>/dev/null | $CUT -f1)
 
-TOTAL_MB=\$(echo \$DF_STR | cut -d':' -f 2)
-FREE_MB=\$(echo \$DF_STR | cut -d':' -f 4)
+DF_STR=\$($DF -m | grep ${BASE_PATH%/} | sed -e 's/ \+/:/g')
+
+TOTAL_MB=\$(echo \$DF_STR | $CUT -d: -f 2)
+FREE_MB=\$(echo \$DF_STR | $CUT -d: -f 4)
 
 echo "USED_MB=\$USED_MB"
 echo "TOTAL_MB=\$TOTAL_MB"

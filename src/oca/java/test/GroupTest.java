@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs
+ * Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -144,7 +144,7 @@ public class GroupTest
         res = system.getGroupQuotas();
         assertTrue( res.getErrorMessage(), !res.isError() );
 
-        res = system.setGroupQuotas("VM = [ VMS = 7, MEMORY = 0, CPU = 3]");
+        res = system.setGroupQuotas("VM = [ VMS = 7, MEMORY = 0, CPU = 3, VOLATILE_SIZE = 1 ]");
         assertTrue( res.getErrorMessage(), !res.isError() );
 
         Node node = system.getGroupQuotasXML();

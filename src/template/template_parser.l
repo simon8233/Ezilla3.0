@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -75,7 +75,7 @@ STRING [^=#[:blank:]\n,\[\]]+
  /*   - String in double quoted form                                         */
  /*   - Anything but  =,][# and blanks                                       */
  /* ------------------------------------------------------------------------ */
-<VALUE>\"([^\"]|"\\\"")+\" { lvalp->val_str = mem_collector_strdup(mc,yytext+1);
+<VALUE>\"([^\"]|"\\\"")*\" { lvalp->val_str = mem_collector_strdup(mc,yytext+1);
                              lvalp->val_str[yyleng-2] = '\0';
                              BEGIN(INITIAL); return STRING; }
 

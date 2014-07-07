@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -28,7 +28,8 @@ class GroupPool : public PoolSQL
 public:
     GroupPool(SqlDB * db,
               vector<const Attribute *> hook_mads,
-              const string&             remotes_location);
+              const string&             remotes_location,
+              bool                      is_federation_slave);
 
     ~GroupPool(){};
 
@@ -112,14 +113,19 @@ public:
         return name;
     };
 
-    /** Update a particular Group
+    /**
+     * Update a particular Group. This method does not update the group's quotas
      *    @param user pointer to Group
      *    @return 0 on success
      */
-    int update(Group * group)
-    {
-        return group->update(db);
-    };
+    int update(Group * group);
+
+    /**
+     * Update a particular Group's Quotas
+     *    @param group pointer to Group
+     *    @return 0 on success
+     */
+    int update_quotas(Group * group);
 
     /**
      *  Drops the Group from the data base. The object mutex SHOULD be
@@ -147,23 +153,11 @@ public:
      *  query
      *  @param oss the output stream to dump the pool contents
      *  @param where filter for the objects, defaults to all
+     *  @param limit parameters used for pagination
      *
      *  @return 0 on success
      */
-    int dump(ostringstream& oss, const string& where)
-    {
-        return PoolSQL::dump(oss, "GROUP_POOL", Group::table, where);
-    };
-
-protected:
-
-    /**
-     * Adds the default quotas xml element, right after all the
-     * pool objects
-     *
-     * @param oss The output stream to dump the xml contents
-     */
-    virtual void add_extra_xml(ostringstream&  oss);
+    int dump(ostringstream& oss, const string& where, const string& limit);
 
 private:
 
@@ -175,6 +169,15 @@ private:
     {
         return new Group(-1,"");
     };
+
+    /**
+     *  Callback function to get output in XML format
+     *    @param num the number of columns read from the DB
+     *    @param names the column names
+     *    @param vaues the column values
+     *    @return 0 on success
+     */
+    int dump_cb(void * _oss, int num, char **values, char **names);
 };
 
 #endif /*GROUP_POOL_H_*/

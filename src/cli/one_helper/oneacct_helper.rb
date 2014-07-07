@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -87,7 +87,7 @@ class AcctHelper < OpenNebulaHelper::OneHelper
         :name  => "json",
         :short => "-j",
         :large => "--json",
-        :description => "Show the resource in xml format"
+        :description => "Show the resource in json format"
     }
 
     SPLIT={
@@ -100,6 +100,10 @@ class AcctHelper < OpenNebulaHelper::OneHelper
 
 
     ACCT_TABLE = CLIHelper::ShowTable.new("oneacct.yaml", nil) do
+        column :UID, "User ID", :size=>4 do |d|
+            d["UID"]
+        end
+
         column :VID, "Virtual Machine ID", :size=>4 do |d|
             d["OID"]
         end

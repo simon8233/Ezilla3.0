@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -177,7 +177,7 @@ void VMTemplateInstantiate::request_execute(xmlrpc_c::paramList const& paramList
 
     if ( att.uid != 0 )
     {
-        AuthRequest ar(att.uid, att.gid);
+        AuthRequest ar(att.uid, att.group_ids);
 
         ar.add_auth(auth_op, perms); //USE TEMPLATE
 
@@ -187,7 +187,8 @@ void VMTemplateInstantiate::request_execute(xmlrpc_c::paramList const& paramList
 
             tmpl->to_xml(tmpl_str);
 
-            ar.add_create_auth(auth_object, tmpl_str); // CREATE TEMPLATE
+            // CREATE TEMPLATE
+            ar.add_create_auth(att.uid, att.gid, auth_object, tmpl_str);
         }
 
         VirtualMachine::set_auth_request(att.uid, ar, tmpl);

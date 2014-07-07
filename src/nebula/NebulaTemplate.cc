@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -90,8 +90,10 @@ void OpenNebulaTemplate::set_conf_default()
 # Daemon configuration attributes
 #-------------------------------------------------------------------------------
 #  MONITORING_INTERVAL
+#  MONITORING_THREADS
 #  HOST_PER_INTERVAL
 #  HOST_MONITORING_EXPIRATION_TIME
+#  VM_INDIVIDUAL_MONITORING
 #  VM_PER_INTERVAL
 #  VM_MONITORING_EXPIRATION_TIME
 #  PORT
@@ -102,9 +104,15 @@ void OpenNebulaTemplate::set_conf_default()
 #*******************************************************************************
 */
     // MONITORING_INTERVAL
-    value = "300";
+    value = "60";
 
     attribute = new SingleAttribute("MONITORING_INTERVAL",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // MONITORING_THREADS
+    value = "50";
+
+    attribute = new SingleAttribute("MONITORING_THREADS",value);
     conf_default.insert(make_pair(attribute->name(),attribute));
 
     // HOST_PER_INTERVAL
@@ -114,9 +122,15 @@ void OpenNebulaTemplate::set_conf_default()
     conf_default.insert(make_pair(attribute->name(),attribute));
 
     // HOST_MONITORING_EXPIRATION_TIME
-    value = "86400";
+    value = "43200";
 
     attribute = new SingleAttribute("HOST_MONITORING_EXPIRATION_TIME",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // VM_INDIVIDUAL_MONITORING
+    value = "no";
+
+    attribute = new SingleAttribute("VM_INDIVIDUAL_MONITORING",value);
     conf_default.insert(make_pair(attribute->name(),attribute));
 
     // VM_PER_INTERVAL
@@ -126,7 +140,7 @@ void OpenNebulaTemplate::set_conf_default()
     conf_default.insert(make_pair(attribute->name(),attribute));
 
     // VM_MONITORING_EXPIRATION_TIME
-    value = "86400";
+    value = "14400";
 
     attribute = new SingleAttribute("VM_MONITORING_EXPIRATION_TIME",value);
     conf_default.insert(make_pair(attribute->name(),attribute));
@@ -176,6 +190,78 @@ void OpenNebulaTemplate::set_conf_default()
     conf_default.insert(make_pair(vattribute->name(),vattribute));
 /*
 #*******************************************************************************
+# Federation configuration attributes
+#-------------------------------------------------------------------------------
+#  FEDERATION
+#   MODE
+#   ZONE_ID
+#   MASTER_ONED
+#*******************************************************************************
+*/
+    // FEDERATION
+    vvalue.clear();
+    vvalue.insert(make_pair("MODE","STANDALONE"));
+    vvalue.insert(make_pair("ZONE_ID","0"));
+    vvalue.insert(make_pair("MASTER_ONED",""));
+
+    vattribute = new VectorAttribute("FEDERATION",vvalue);
+    conf_default.insert(make_pair(vattribute->name(),vattribute));
+/*
+#*******************************************************************************
+# XML-RPC server configuration
+#-------------------------------------------------------------------------------
+#  MAX_CONN
+#  MAX_CONN_BACKLOG
+#  KEEPALIVE_TIMEOUT
+#  KEEPALIVE_MAX_CONN
+#  TIMEOUT
+#  RPC_LOG
+#  MESSAGE_SIZE
+#*******************************************************************************
+*/
+    // MAX_CONN
+    value = "15";
+
+    attribute = new SingleAttribute("MAX_CONN",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // MAX_CONN_BACKLOG
+    value = "15";
+
+    attribute = new SingleAttribute("MAX_CONN_BACKLOG",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // KEEPALIVE_TIMEOUT
+    value = "15";
+
+    attribute = new SingleAttribute("KEEPALIVE_TIMEOUT",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // KEEPALIVE_MAX_CONN
+    value = "30";
+
+    attribute = new SingleAttribute("KEEPALIVE_MAX_CONN",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // TIMEOUT
+    value = "15";
+
+    attribute = new SingleAttribute("TIMEOUT",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    // RPC_LOG
+    value = "NO";
+
+    attribute = new SingleAttribute("RPC_LOG",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    //MESSAGE_SIZE
+    value = "1073741824";
+
+    attribute = new SingleAttribute("MESSAGE_SIZE",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+/*
+#*******************************************************************************
 # Physical Networks configuration
 #*******************************************************************************
 #  NETWORK_SIZE
@@ -199,13 +285,20 @@ void OpenNebulaTemplate::set_conf_default()
 # Datastore Configuration
 #*******************************************************************************
 #  DATASTORE_LOCATION
+#  DATASTORE_BASE_PATH
 #  DATASTORE_CAPACITY_CHECK
 #  DEFAULT_IMAGE_TYPE
 #  DEFAULT_DEVICE_PREFIX
+#  DEFAULT_CDROM_DEVICE_PREFIX
 #*******************************************************************************
 */
     //DATASTORE_LOCATION
     attribute = new SingleAttribute("DATASTORE_LOCATION",
+                                     var_location + "/datastores");
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    //DATASTORE_BASE_PATH
+    attribute = new SingleAttribute("DATASTORE_BASE_PATH",
                                      var_location + "/datastores");
     conf_default.insert(make_pair(attribute->name(),attribute));
 
@@ -225,6 +318,10 @@ void OpenNebulaTemplate::set_conf_default()
     value = "hd";
 
     attribute = new SingleAttribute("DEFAULT_DEVICE_PREFIX",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
+    //DEFAULT_CDROM_DEVICE_PREFIX
+    attribute = new SingleAttribute("DEFAULT_CDROM_DEVICE_PREFIX",value);
     conf_default.insert(make_pair(attribute->name(),attribute));
 /*
 #*******************************************************************************

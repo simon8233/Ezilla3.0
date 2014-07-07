@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -26,7 +26,6 @@
 
 /*Users tab plugin*/
 var dataTable_users;
-var users_select="";
 var $create_user_dialog;
 var $user_quotas_dialog;
 var $update_pw_dialog;
@@ -52,60 +51,6 @@ var user_acct_graphs = [
 ];
 
 
-var users_tab_content = '\
-<form class="custom" id="user_form" action="">\
-<div class="panel">\
-<div class="row">\
-  <div class="twelve columns">\
-    <h4 class="subheader header">\
-      <span class="header-resource">\
-        <i class="icon-user"></i> '+tr("Users")+'\
-      </span>\
-      <span class="header-info">\
-        <span id="total_users"/> <small>'+tr("TOTAL")+'</small>\
-      </span>\
-      <span class="user-login">\
-      </span>\
-    </h4>\
-  </div>\
-</div>\
-<div class="row">\
-  <div class="ten columns">\
-    <div class="action_blocks">\
-    </div>\
-  </div>\
-  <div class="two columns">\
-    <input id="user_search" type="text" placeholder="'+tr("Search")+'" />\
-  </div>\
-  <br>\
-  <br>\
-</div>\
-</div>\
-  <div class="row">\
-    <div class="twelve columns">\
-<table id="datatable_users" class="datatable twelve">\
-  <thead>\
-    <tr>\
-      <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
-      <th>'+tr("ID")+'</th>\
-      <th>'+tr("Name")+'</th>\
-      <th>'+tr("Group")+'</th>\
-      <th>'+tr("Auth driver")+'</th>\
-      <th>'+tr("VMs")+'</th>\
-      <th>'+tr("Memory")+'</th>\
-      <th>'+tr("CPU")+'</th>\
-      <th>'+tr("Group ID")+'</th>\
-    </tr>\
-  </thead>\
-  <tbody id="tbodyusers">\
-  </tbody>\
-</table>\
-  </div>\
-  </div>\
-</form>';
-
-// authn = "ssh,x509,ldap,server_cipher,server_x509"
-
 var auth_drivers_div =
 '<select name="driver" id="driver">\
      <option value="core" selected="selected">'+tr("Core")+'</option>\
@@ -116,241 +61,193 @@ var auth_drivers_div =
      <option value="custom">'+tr("Custom")+'</option>\
 </select>\
 <div>\
-  <input type="text" name="custom_auth" />\
+  <input type="text" id="custom_auth" name="custom_auth" />\
+</div>';
+
+// Used also from groups-tabs.js
+var user_creation_div =
+'<div class="row">\
+  <div class="large-12 columns">\
+    <label for="username">'+tr("Username")+'</label>\
+    <input type="text" name="username" id="username" />\
+  </div>\
+</div>\
+<div class="row">\
+  <div class="large-12 columns">\
+    <label for="pass">'+tr("Password")+'</label>\
+    <input type="password" name="pass" id="pass" />\
+  </div>\
+</div>\
+<div class="row">\
+  <div class="large-12 columns">\
+    <label for="driver">'+tr("Authentication")+'</label>\
+    '+auth_drivers_div+'\
+  </div>\
 </div>';
 
 var create_user_tmpl =
-'<div class="panel">\
-  <h3>\
-    <small id="create_vnet_header">'+tr("Create User")+'</small>\
-  </h3>\
+'<div class="row">\
+  <div class="large-12 columns">\
+    <h3 class="subheader" id="create_user_header">'+tr("Create User")+'</h3>\
+  </div>\
 </div>\
-<form id="create_user_form" action="">\
-      <div class="row centered">\
-          <div class="four columns">\
-              <label class="inline right" for="username">'+tr("Username")+':</label>\
-          </div>\
-          <div class="seven columns">\
-              <input type="text" name="username" id="username" />\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
-          </div>\
-      </div>\
-      <div class="row centered">\
-          <div class="four columns">\
-              <label class="inline right" for="pass">'+tr("Password")+':</label>\
-          </div>\
-          <div class="seven columns">\
-              <input type="password" name="pass" id="pass" />\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
-          </div>\
-      </div>\
-      <div class="row centered">\
-          <div class="four columns">\
-              <label class="inline right" for="driver">'+tr("Authentication")+':</label>\
-          </div>\
-          <div class="seven columns">'+auth_drivers_div+'</div>\
-          <div class="one columns">\
-              <div class=""></div>\
-          </div>\
-      </div>\
-      <hr>\
-      <div class="form_buttons">\
-          <button class="button radius right success" id="create_user_submit" value="user/create">'+tr("Create")+'</button>\
-          <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
-      </div>\
+<form id="create_user_form" action="">'+
+  user_creation_div +
+  '<div class="form_buttons row">\
+      <button class="button radius right success" id="create_user_submit" value="user/create">'+tr("Create")+'</button>\
+  </div>\
   <a class="close-reveal-modal">&#215;</a>\
 </form>';
 
-var update_pw_tmpl = '<div class="panel">\
-  <h3>\
-    <small id="create_vnet_header">'+tr("Update Password")+'</small>\
-  </h3>\
+var update_pw_tmpl = '<div class="row">\
+  <div class="large-12 columns">\
+    <h3 id="create_vnet_header" class="subheader">'+tr("Update Password")+'</h3>\
+  </div>\
 </div>\
 <form id="update_user_pw_form" action="">\
-      <div class="row centered">\
-          <div class="four columns">\
-              <label class="inline right" for="new_password">'+tr("New password")+':</label>\
-          </div>\
-          <div class="seven columns">\
-              <input type="password" name="new_password" id="new_password" />\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
-          </div>\
+      <div class="row">\
+        <div class="large-12 columns">\
+          <label for="new_password">'+tr("New password")+':\
+            <input type="password" name="new_password" id="new_password" />\
+          </label>\
+        </div>\
       </div>\
-      <hr>\
+      <div class="row">\
+        <div class="large-12 columns">\
+          <label for="confirm_password">'+tr("Confirm Password")+':\
+            <input type="password" name="confirm_password" id="confirm_password" />\
+          </label>\
+        </div>\
+      </div>\
       <div class="form_buttons">\
           <button class="button radius right success" id="update_pw_submit" type="submit" value="User.update">'+tr("Change")+'</button>\
-          <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
       </div>\
   <a class="close-reveal-modal">&#215;</a>\
 </form>';
 
-var change_password_tmpl = '<div class="panel">\
-  <h3>\
-    <small id="change_password_header">'+tr("Change authentication")+'</small>\
-  </h3>\
+var change_password_tmpl = '<div class="row">\
+  <div class="large-12 columns">\
+    <h3 id="change_password_header" class="subheader">'+tr("Change authentication")+'</h3>\
+  </div>\
 </div>\
 <form id="change_password_form" action="">\
   <div class="row">\
-    <div id="confirm_with_select_tip">'+tr("Please choose the new type of authentication for the selected users")+':\
+    <div class="large-12 columns">\
+      <label for="driver">'+tr("Authentication")+':\
+        '+auth_drivers_div+'\
+      </label>\
     </div>\
   </div>\
-  <div class="row">'+auth_drivers_div+'\
-  </div>\
-  <hr>\
   <div class="form_buttons">\
     <button class="button radius right success" id="change_password_submit" type="submit" value="User.change_authentication">'+tr("Change")+'</button>\
-    <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
   </div>\
   <a class="close-reveal-modal">&#215;</a>\
 </form>';
 
-var user_quotas_tmpl = '<div class="panel">\
-  <h3>\
-    <small id="create_vnet_header">'+tr("Update Quota")+'</small>\
-  </h3>\
-</div>\
-        <div class="reveal-body">\
-<form id="user_quotas_form" action="">\
+var quotas_tmpl = '<div class="row">\
+    <div class="large-12 columns">\
+      <dl class="tabs right-info-tabs text-center" data-tab>\
+           <dd class="active"><a href="#vm_quota"><i class="fa fa-cloud"></i><br>'+tr("VM")+'</a></dd>\
+           <dd><a href="#datastore_quota"><i class="fa fa-folder-open"></i><br>'+tr("Datastore")+'</a></dd>\
+           <dd><a href="#image_quota"><i class="fa fa-upload"></i><br>'+tr("Image")+'</a></dd>\
+           <dd><a href="#network_quota"><i class="fa fa-globe"></i><br>'+tr("VNet")+'</a></dd>\
+      </dl>\
+    </div>\
+  </div>\
   <div class="row">\
-    <div class="six columns">\
-     <div id="quota_types">\
-           <label>'+tr("Quota type")+':</label>\
-           <input type="radio" name="quota_type" value="vm">'+tr("Virtual Machine")+'</input>\
-           <input type="radio" name="quota_type" value="datastore">'+tr("Datastore")+'</input>\
-           <input type="radio" name="quota_type" value="image">'+tr("Image")+'</input>\
-           <input type="radio" name="quota_type" value="network">'+tr("Network")+'</input>\
-      </div>\
-      <hr>\
-      <div id="vm_quota">\
+    <div class="large-4 columns">\
+      <div class="tabs-content">\
+      <div id="vm_quota" class="content active">\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max VMs")+':</label>\
-          </div>\
-          <div class="seven columns">\
-            <input type="text" name="VMS"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max VMs")+'\
+                <input type="text" name="VMS"></input>\
+              </label>\
           </div>\
         </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max Memory (MB)")+':</label>\
-          </div>\
-          <div class="seven columns">\
-            <input type="text" name="MEMORY"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max Memory (MB)")+'\
+                <input type="text" name="MEMORY"></input>\
+              </label>\
           </div>\
         </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max CPU")+':</label>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max CPU")+'\
+                <input type="text" name="CPU"></input>\
+              </label>\
           </div>\
-          <div class="seven columns">\
-            <input type="text" name="CPU"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+        </div>\
+        <div class="row">\
+          <div class="large-12 columns">\
+              <label>'+tr("Max Volatile Storage (MB)")+'\
+                <input type="text" name="VOLATILE_SIZE"></input>\
+              </label>\
           </div>\
         </div>\
       </div>\
-      <div id="datastore_quota">\
+      <div id="datastore_quota" class="content">\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Datastore")+'</label>\
-          </div>\
-          <div class="seven columns">\
-            <select name="ID"></select>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Datastore")+'\
+                <select name="ID"></select>\
+              </label>\
           </div>\
         </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max size (MB)")+':</label>\
-          </div>\
-          <div class="seven columns">\
-            <input type="text" name="SIZE"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max size (MB)")+'\
+                <input type="text" name="SIZE"></input>\
+              </label>\
           </div>\
         </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max images")+':</label>\
-          </div>\
-          <div class="seven columns">\
-            <input type="text" name="IMAGES"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max images")+'\
+                <input type="text" name="IMAGES"></input>\
+              </label>\
           </div>\
         </div>\
       </div>\
-      <div id="image_quota">\
+      <div id="image_quota" class="content">\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Image")+'</label>\
-          </div>\
-          <div class="seven columns">\
-            <select name="ID"></select>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Image")+'\
+                <select name="ID"></select>\
+              </label>\
           </div>\
         </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max RVMs")+'</label>\
-          </div>\
-          <div class="seven columns">\
-            <input type="text" name="RVMS"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max RVMs")+'\
+                <input type="text" name="RVMS"></input>\
+              </label>\
           </div>\
         </div>\
       </div>\
-      <div id="network_quota">\
+      <div id="network_quota" class="content">\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Network")+'</label>\
-          </div>\
-          <div class="seven columns">\
-            <select name="ID"></select>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Network")+'\
+                <select name="ID"></select>\
+              </label>\
           </div>\
         </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" >'+tr("Max leases")+'</label>\
-          </div>\
-          <div class="seven columns">\
-            <input type="text" name="LEASES"></input>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
+          <div class="large-12 columns">\
+              <label>'+tr("Max leases")+'\
+                <input type="text" name="LEASES"></input>\
+              </label>\
           </div>\
         </div>\
       </div>\
-      <br>\
+      </div>\
       <button class="button right small radius" id="add_quota_button" value="add_quota">'+tr("Add/edit quota")+'</button>\
     </div>\
-    <div class="six columns">\
+    <div class="large-8 columns">\
       <div class="current_quotas">\
-         <table class="datatable twelve extended_table">\
+         <table class="dataTable extended_table" cellpadding="0" cellspacing="0" border="0">\
             <thead><tr>\
                  <th>'+tr("Type")+'</th>\
                  <th>'+tr("Quota")+'</th>\
@@ -360,12 +257,18 @@ var user_quotas_tmpl = '<div class="panel">\
          </table>\
       </div>\
     </div>\
+  </div>'
+var user_quotas_tmpl = '<div class="row">\
+  <div class="large-12 columns">\
+    <h3 id="create_vnet_header" class="subheader">'+tr("Update Quota")+'</h3>\
   </div>\
-  <div class="reveal-footer">\
-      <hr>\
+</div>\
+<div class="reveal-body">\
+<form id="user_quotas_form" action="">'+
+  quotas_tmpl +
+  '<div class="reveal-footer">\
       <div class="form_buttons">\
           <button class="button radius right success" id="create_user_submit" type="submit" value="User.set_quota">'+tr("Apply changes")+'</button>\
-          <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
       </div>\
   </div>\
   <a class="close-reveal-modal">&#215;</a>\
@@ -377,9 +280,15 @@ var user_actions = {
     "User.create" : {
         type: "create",
         call: OpenNebula.User.create,
-        callback: addUserElement,
-        error: onError,
-        notify: true
+        callback: function(request, response) {
+            $create_user_dialog.foundation('reveal', 'close');
+            $create_user_dialog.empty();
+            setupCreateUserDialog();
+
+            addUserElement(request, response);
+            notifyCustom(tr("User created"), " ID: " + response.USER.ID, false);
+        },
+        error: onError
     },
 
     "User.create_dialog" : {
@@ -397,19 +306,13 @@ var user_actions = {
     "User.refresh" : {
         type: "custom",
         call: function () {
+          var tab = dataTable_users.parents(".tab");
+          if (Sunstone.rightInfoVisible(tab)) {
+            Sunstone.runAction("User.show", Sunstone.rightInfoResourceId(tab))
+          } else {
             waitingNodes(dataTable_users);
-            Sunstone.runAction("User.list");
-        }
-    },
-
-    "User.autorefresh" : {
-        type: "custom",
-        call: function(){
-            OpenNebula.User.list({
-                timeout: true,
-                success: updateUsersView,
-                error: onError
-            });
+            Sunstone.runAction("User.list", {force: true});
+          }
         }
     },
 
@@ -421,9 +324,6 @@ var user_actions = {
     "User.passwd" : {
         type: "multiple",
         call: OpenNebula.User.passwd,
-        callback: function(req,res){
-            notifyMessage(tr("Change password successful"));
-        },
         elements: userElements,
         error: onError
     },
@@ -434,10 +334,26 @@ var user_actions = {
             Sunstone.runAction("User.show",req.request.data[0][0]);
         },
         elements : userElements,
-        error: onError,
-        notify: true
+        error: onError
     },
-
+    "User.addgroup" : {
+        type: "multiple",
+        call: OpenNebula.User.addgroup,
+        callback : function(req){
+            Sunstone.runAction("User.show",req.request.data[0][0]);
+        },
+        elements : userElements,
+        error: onError
+    },
+    "User.delgroup" : {
+        type: "multiple",
+        call: OpenNebula.User.delgroup,
+        callback : function(req){
+            Sunstone.runAction("User.show",req.request.data[0][0]);
+        },
+        elements : userElements,
+        error: onError
+    },
     "User.change_authentication" : {
         type: "custom",
         call: popUpChangeAuthenticationDialog
@@ -449,20 +365,17 @@ var user_actions = {
             Sunstone.runAction("User.show",req.request.data[0][0]);
         },
         elements: userElements,
-        error: onError,
-        notify: true
+        error: onError
     },
     "User.show" : {
         type: "single",
         call: OpenNebula.User.show,
-        callback: updateUserElement,
-        error: onError
-    },
-
-    "User.showinfo" : {
-        type: "single",
-        call: OpenNebula.User.show,
-        callback: updateUserInfo,
+        callback:   function(request, response) {
+            updateUserElement(request, response);
+            if (Sunstone.rightInfoVisible($("#users-tab"))) {
+                updateUserInfo(request, response);
+            }
+        },
         error: onError
     },
 
@@ -471,16 +384,14 @@ var user_actions = {
         call: OpenNebula.User.del,
         callback: deleteUserElement,
         elements: userElements,
-        error: onError,
-        notify: true
+        error: onError
     },
 
     "User.update_template" : {
         type: "single",
         call: OpenNebula.User.update,
         callback: function(request) {
-            notifyMessage(tr("Template updated correctly"));
-            Sunstone.runAction('User.showinfo',request.request.data[0]);
+            Sunstone.runAction('User.show',request.request.data[0][0]);
         },
         error: onError
     },
@@ -511,8 +422,7 @@ var user_actions = {
         call: OpenNebula.User.set_quota,
         elements: userElements,
         callback: function(request) {
-            notifyMessage(tr("Quotas updated correctly"));
-            Sunstone.runAction('User.showinfo',request.request.data[0]);
+            Sunstone.runAction('User.show',request.request.data[0]);
         },
         error: onError
     },
@@ -525,14 +435,6 @@ var user_actions = {
             plot_graph(response,'#user_acct_tab','user_acct_', info);
         },
         error: onError
-    },
-
-    "User.help" : {
-        type: "custom",
-        call: function() {
-            hideDialog();
-            $('div#users_tab div.legend_div').slideToggle();
-        }
     }
 }
 
@@ -542,6 +444,11 @@ var user_buttons = {
         layout: "refresh",
         alwaysActive: true
     },
+//    "Sunstone.toggle_top" : {
+//        type: "custom",
+//        layout: "top",
+//        alwaysActive: true
+//    },
     "User.create_dialog" : {
         type: "create_dialog",
         layout: "create",
@@ -549,26 +456,42 @@ var user_buttons = {
     },
     "User.update_password" : {
         type : "action",
-        layout: "more_select",
-        text : tr("Change password")
+        layout: "main_buttons",
+        text : tr("Password")
     },
     "User.change_authentication" : {
         type : "action",
-        layout: "more_select",
-        text : tr("Change authentication")
+        layout: "main_buttons",
+        text : tr("Auth")
     },
     "User.quotas_dialog" : {
         type : "action",
-        layout: "more_select",
-        text : tr("Update quotas"),
+        layout: "main_buttons",
+        text : tr("Quotas"),
         condition: mustBeAdmin
     },
     "User.chgrp" : {
         type: "confirm_with_select",
         text: tr("Change group"),
         layout: "user_select",
-        select: groups_sel,
+        select: "Group",
         tip: tr("This will change the main group of the selected users. Select the new group")+":",
+        condition: mustBeAdmin
+    },
+    "User.addgroup" : {
+        type: "confirm_with_select",
+        text: tr("Add to group"),
+        layout: "user_select",
+        select: "Group",
+        tip: tr("This will add the user to a secondary group. Select the new group")+":",
+        condition: mustBeAdmin
+    },
+    "User.delgroup" : {
+        type: "confirm_with_select",
+        text: tr("Remove from group"),
+        layout: "user_select",
+        select: "Group",
+        tip: tr("This will remove the user from a secondary group. Select the group")+":",
         condition: mustBeAdmin
     },
     "User.delete" : {
@@ -596,25 +519,38 @@ var user_info_panel = {
 
 var users_tab = {
     title: tr("Users"),
-    content: users_tab_content,
+    resource: 'User',
     buttons: user_buttons,
     tabClass: 'subTab',
     parentTab: 'system-tab',
-    condition: mustBeAdmin
+    search_input: ' <input id="user_search" type="text" placeholder="'+tr("Search")+'" />',
+    list_header: '<i class="fa fa-fw fa-user"></i>&emsp;'+tr("Users"),
+    info_header: '<i class="fa fa-fw fa-user"></i>&emsp;'+tr("User"),
+    subheader: '<span>\
+        <span class="total_users"/> <small>'+tr("TOTAL")+'</small>\
+      </span>',
+    table: '<table id="datatable_users" cellpadding="0" cellspacing="0" border="0" class="tdisplay">\
+      <thead>\
+        <tr>\
+          <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
+          <th>'+tr("ID")+'</th>\
+          <th>'+tr("Name")+'</th>\
+          <th>'+tr("Group")+'</th>\
+          <th>'+tr("Auth driver")+'</th>\
+          <th>'+tr("VMs")+'</th>\
+          <th>'+tr("Memory")+'</th>\
+          <th>'+tr("CPU")+'</th>\
+          <th>'+tr("Group ID")+'</th>\
+        </tr>\
+      </thead>\
+      <tbody id="tbodyusers">\
+      </tbody>\
+    </table>'
 };
 
-var users_tab_non_admin = {
-    title: tr("User info"),
-    content: users_tab_content,
-    buttons: user_buttons,
-    tabClass: 'subTab',
-    parentTab: 'dashboard-tab',
-    condition: mustNotBeAdmin
-}
 
 Sunstone.addActions(user_actions);
 Sunstone.addMainTab('users-tab',users_tab);
-Sunstone.addMainTab('users_tab_non_admin',users_tab_non_admin);
 Sunstone.addInfoPanel("user_info_panel",user_info_panel);
 
 function userElements(){
@@ -662,15 +598,6 @@ function userElementArray(user_json){
     ]
 };
 
-function updateUserSelect(){
-    users_select = makeSelectOptions(dataTable_users,
-                                     1,//id_col
-                                     2,//name_col
-                                     [],//status_cols
-                                     []//bad status values
-                                     );
-}
-
 // Callback to refresh a single element from the dataTable
 function updateUserElement(request, user_json){
     var id = user_json.USER.ID;
@@ -681,47 +608,48 @@ function updateUserElement(request, user_json){
 // Callback to delete a single element from the dataTable
 function deleteUserElement(req){
     deleteElement(dataTable_users,'#user_'+req.request.data);
-    updateUserSelect();
 }
 
 // Callback to add a single user element
 function addUserElement(request,user_json){
     var element = userElementArray(user_json);
     addElement(element,dataTable_users);
-    updateUserSelect();
 }
 
 // Callback to update the list of users
-function updateUsersView(request,users_list){
+function updateUsersView(request,users_list,quotas_list){
     var user_list_array = [];
 
     $.each(users_list,function(){
-        //if (this.USER.ID == uid)
-        //    dashboardQuotasHTML(this.USER);
+        // Inject the VM user quota. This info is returned separately in the
+        // pool info call, but the userElementArray expects it inside the USER,
+        // as it is returned by the individual info call
+        var q = quotas_list[this.USER.ID];
+
+        if (q != undefined) {
+            this.USER.VM_QUOTA = q.QUOTAS.VM_QUOTA;
+        }
+
         user_list_array.push(userElementArray(this));
     });
     updateView(user_list_array,dataTable_users);
 
-    updateUserSelect();
 
-    $("#total_users", $dashboard).text(users_list.length);
-
-    var form = $("#user_form");
-
-    $("#total_users", form).text(users_list.length);
+    $(".total_users").text(users_list.length);
 };
 
 function updateUserInfo(request,user){
     var info = user.USER;
 
     var info_tab = {
-        title : tr("User information"),
+        title : tr("Info"),
+        icon: "fa-info-circle",
         content :
-        '<div class="">\
-          <div class="six columns">\
-          <table id="info_user_table" class="twelve datatable extended_table">\
+        '<div class="row">\
+          <div class="large-6 columns">\
+          <table id="info_user_table" class="dataTable extended_table" cellpadding="0" cellspacing="0" border="0">\
             <thead>\
-               <tr><th colspan="2">' + tr("User") + ' - '+info.NAME+'</th><th></th></tr>\
+               <tr><th colspan="2">' + tr("Information") + '</th><th></th></tr>\
             </thead>\
             <tbody>\
             <tr>\
@@ -729,9 +657,19 @@ function updateUserInfo(request,user){
                 <td class="value_td">'+info.ID+'</td>\
                 <td></td>\
             </tr>\
+            <tr>\
+                <td class="key_td">' + tr("Name") + '</td>\
+                <td class="value_td">'+info.NAME+'</td>\
+                <td></td>\
+            </tr>\
             <tr>' +
-                insert_group_dropdown("User",info.ID,info.GNAME,info.GID) +
+                insert_group_dropdown("User",info.ID,info.GNAME,info.GID,"#info_user_table") +
             '</tr>\
+            <tr>\
+                <td class="key_td">' + tr("Secondary groups") + '</td>\
+                <td class="value_td">'+(typeof info.GROUPS.ID == "object" ? info.GROUPS.ID.join(",") : "-")+'</td>\
+                <td></td>\
+            </tr>\
             <tr>\
                 <td class="key_td">' + tr("Authentication driver") + '</td>\
                 <td class="value_td">'+info.AUTH_DRIVER+'</td>\
@@ -740,87 +678,129 @@ function updateUserInfo(request,user){
             </tbody>\
          </table>\
        </div>\
-       <div class="six columns">' +
+       <div class="large-6 columns">' +
+       '</div>\
+     </div>\
+     <div class="row">\
+          <div class="large-9 columns">'+
                insert_extended_template_table(info.TEMPLATE,
                                               "User",
                                               info.ID,
-                                              tr("Configuration Attributes")) +
+                                              tr("Attributes")) +
        '</div>\
      </div>'
     };
 
-    var default_user_quotas = Quotas.default_quotas(info.DEFAULT_USER_QUOTAS)
-    var quotas_tab_html = '<div class="four columns">' + Quotas.vms(info, default_user_quotas) + '</div>';
-    quotas_tab_html += '<div class="four columns">' + Quotas.cpu(info, default_user_quotas) + '</div>';
-    quotas_tab_html += '<div class="four columns">' + Quotas.memory(info, default_user_quotas) + '</div>';
-    quotas_tab_html += '<br><br>';
-    quotas_tab_html += '<div class="six columns">' + Quotas.image(info, default_user_quotas) + '</div>';
-    quotas_tab_html += '<div class="six columns">' + Quotas.network(info, default_user_quotas) + '</div>';
-    quotas_tab_html += '<br><br>';
-    quotas_tab_html += '<div class="twelve columns">' + Quotas.datastore(info, default_user_quotas) + '</div>';
+    var default_user_quotas = Quotas.default_quotas(info.DEFAULT_USER_QUOTAS);
+    var vms_quota = Quotas.vms(info, default_user_quotas);
+    var cpu_quota = Quotas.cpu(info, default_user_quotas);
+    var memory_quota = Quotas.memory(info, default_user_quotas);
+    var volatile_size_quota = Quotas.volatile_size(info, default_user_quotas);
+    var image_quota = Quotas.image(info, default_user_quotas);
+    var network_quota = Quotas.network(info, default_user_quotas);
+    var datastore_quota = Quotas.datastore(info, default_user_quotas);
+
+    var quotas_html;
+    if (vms_quota || cpu_quota || memory_quota || volatile_size_quota || image_quota || network_quota || datastore_quota) {
+      quotas_html = '<div class="large-6 columns">' + vms_quota + '</div>';
+      quotas_html += '<div class="large-6 columns">' + cpu_quota + '</div>';
+      quotas_html += '<div class="large-6 columns">' + memory_quota + '</div>';
+      quotas_html += '<div class="large-6 columns">' + volatile_size_quota+ '</div>';
+      quotas_html += '<br><br>';
+      quotas_html += '<div class="large-6 columns">' + image_quota + '</div>';
+      quotas_html += '<div class="large-6 columns">' + network_quota + '</div>';
+      quotas_html += '<br><br>';
+      quotas_html += '<div class="large-12 columns">' + datastore_quota + '</div>';
+    } else {
+      quotas_html = '<div class="row">\
+              <div class="large-12 columns">\
+                <p class="subheader">'+tr("No quotas defined")+'</p>\
+              </div>\
+            </div>'
+    }
+
     var quotas_tab = {
         title : tr("Quotas"),
-        content : quotas_tab_html
+        icon: "fa-align-left",
+        content : quotas_html
+    };
+
+    var accounting_tab = {
+        title: tr("Accounting"),
+        icon: "fa-bar-chart-o",
+        content: '<div id="user_accounting"></div>'
     };
 
     Sunstone.updateInfoPanelTab("user_info_panel","user_info_tab",info_tab);
     Sunstone.updateInfoPanelTab("user_info_panel","user_quotas_tab",quotas_tab);
+    Sunstone.updateInfoPanelTab("user_info_panel","user_accouning_tab",accounting_tab);
     //Sunstone.updateInfoPanelTab("user_info_panel","user_acct_tab",acct_tab);
     Sunstone.popUpInfoPanel("user_info_panel", 'users-tab');
 
-    $("#user_info_panel_refresh", $("#user_info_panel")).click(function(){
-      $(this).html(spinner);
-      Sunstone.runAction('User.showinfo', info.ID);
-    })
+    accountingGraphs(
+        $("#user_accounting","#user_info_panel"),
+        {   fixed_user: info.ID,
+            init_group_by: "vm" });
+
 };
 
-// Prepare the user creation dialog
-function setupCreateUserDialog(){
-    dialogs_context.append('<div title=\"'+tr("Create user")+'\" id="create_user_dialog"></div>');
-    $create_user_dialog = $('#create_user_dialog',dialogs_context);
-    var dialog = $create_user_dialog;
-    dialog.html(create_user_tmpl);
-
-    //Prepare jquery dialog
-    //dialog.dialog({
-    //    autoOpen: false,
-    //    modal:true,
-    //    width: 400
-    //});
-
-    dialog.addClass("reveal-modal");
-
-    //$('button',dialog).button();
-
+// Used also from groups-tabs.js
+function setupCustomAuthDialog(dialog){
     $('input[name="custom_auth"]',dialog).parent().hide();
-    $('select#driver').change(function(){
+    $('select#driver',dialog).change(function(){
         if ($(this).val() == "custom")
             $('input[name="custom_auth"]',dialog).parent().show();
         else
             $('input[name="custom_auth"]',dialog).parent().hide();
     });
+};
 
+function buildUserJSON(dialog){
+    var user_name = $('#username',dialog).val();
+    var user_password = $('#pass',dialog).val();
+    var driver = $('#driver', dialog).val();
+
+    if (driver == 'custom'){
+        driver = $('input[name="custom_auth"]', dialog).val();
+    }
+
+    if (!user_name.length || !user_password.length){
+        return false;
+    }
+
+    var user_json = { "user" :
+                      { "name" : user_name,
+                        "password" : user_password,
+                        "auth_driver" : driver
+                      }
+                    };
+
+    return user_json;
+};
+
+// Prepare the user creation dialog
+function setupCreateUserDialog(){
+    dialogs_context.append('<div id="create_user_dialog"  class="reveal-modal tiny" data-reveal></div>');
+    $create_user_dialog = $('#create_user_dialog',dialogs_context);
+    var dialog = $create_user_dialog;
+    dialog.html(create_user_tmpl);
+    $(document).foundation();
+
+    //dialog.addClass("reveal-modal").attr("data-reveal", "");
+
+    //$('button',dialog).button();
+
+    setupCustomAuthDialog(dialog);
 
     $('#create_user_form',dialog).submit(function(){
-        var user_name=$('#username',this).val();
-        var user_password=$('#pass',this).val();
-        var driver = $('#driver', this).val();
-        if (driver == 'custom')
-            driver = $('input[name="custom_auth"]').val();
+        var user_json = buildUserJSON(this);
 
-        if (!user_name.length || !user_password.length){
+        if (!user_json) {
             notifyError(tr("User name and password must be filled in"));
             return false;
-        };
+        }
 
-        var user_json = { "user" :
-                          { "name" : user_name,
-                            "password" : user_password,
-                            "auth_driver" : driver
-                          }
-                        };
         Sunstone.runAction("User.create",user_json);
-        $create_user_dialog.trigger("reveal:close")
         return false;
     });
 }
@@ -831,18 +811,24 @@ function setupUpdatePasswordDialog(){
     var dialog = $update_pw_dialog;
     dialog.html(update_pw_tmpl);
 
-    dialog.addClass("reveal-modal");
+    dialog.addClass("reveal-modal").attr("data-reveal", "");
 
     $('#update_user_pw_form',dialog).submit(function(){
         var pw=$('#new_password',this).val();
+        var confirm_password=$('#confirm_password',this).val();
 
         if (!pw.length){
             notifyError(tr("Fill in a new password"));
             return false;
         }
 
+        if (pw !== confirm_password){
+            notifyError(tr("Passwords do not match"));
+            return false;
+        }
+
         Sunstone.runAction("User.passwd",getSelectedNodes(dataTable_users),pw);
-        $update_pw_dialog.trigger("reveal:close")
+        $update_pw_dialog.foundation('reveal', 'close');
         return false;
     });
 };
@@ -853,10 +839,10 @@ function setupChangeAuthenticationDialog(){
     var dialog = $change_auth_dialog;
     dialog.html(change_password_tmpl);
 
-    dialog.addClass("reveal-modal");
+    dialog.addClass("reveal-modal").attr("data-reveal", "");
 
     $('input[name="custom_auth"]',dialog).parent().hide();
-    $('select#driver').change(function(){
+    $('select#driver', dialog).change(function(){
         if ($(this).val() == "custom")
             $('input[name="custom_auth"]',dialog).parent().show();
         else
@@ -874,7 +860,7 @@ function setupChangeAuthenticationDialog(){
         }
 
         Sunstone.runAction("User.chauth",getSelectedNodes(dataTable_users), driver);
-        $change_auth_dialog.trigger("reveal:close")
+        $change_auth_dialog.foundation('reveal', 'close');
         return false;
     });
 };
@@ -886,38 +872,30 @@ function setupUserQuotasDialog(){
     var dialog = $user_quotas_dialog;
     dialog.html(user_quotas_tmpl);
 
+    $(document).foundation();
+
     setupQuotasDialog(dialog);
 }
 
 function popUpUserQuotasDialog(){
-    popUpQuotasDialog($user_quotas_dialog, 'User', userElements())
+    popUpQuotasDialog($user_quotas_dialog, 'User', userElements());
 }
 
 function popUpCreateUserDialog(){
-    $create_user_dialog.reveal();
-
+    $create_user_dialog.foundation().foundation('reveal', 'open');;
+    $("input#username",$create_user_dialog).focus();
 }
 
 
 function popUpUpdatePasswordDialog(){
     $('#new_password',$update_pw_dialog).val("");
-    $update_pw_dialog.reveal();
+    $update_pw_dialog.foundation().foundation('reveal', 'open');;
+    $("input#new_password",$update_pw_dialog).focus();
 }
 
 function popUpChangeAuthenticationDialog(){
     $('#driver',$change_auth_dialog).val("");
-    $change_auth_dialog.reveal();
-}
-
-// Prepare the autorefresh of the list
-function setUserAutorefresh(){
-    setInterval(function(){
-        var checked = $('input.check_item:checked',dataTable_users);
-        var filter = $("#user_search").attr('value');
-        if ((checked.length==0) && !filter){
-            Sunstone.runAction("User.autorefresh");
-        }
-    },INTERVAL+someTime());
+    $change_auth_dialog.foundation().foundation('reveal', 'open');;
 }
 
 $(document).ready(function(){
@@ -926,7 +904,9 @@ $(document).ready(function(){
     if (Config.isTabEnabled(tab_name)) {
       //if we are not oneadmin, our tab will not even be in the DOM.
       dataTable_users = $("#datatable_users",main_tabs_context).dataTable({
-          "aoColumnDefs": [
+            "bSortClasses": false,
+            "bDeferRender": true,
+            "aoColumnDefs": [
               { "bSortable": false, "aTargets": ["check",5,6,7] },
               { "sWidth": "35px", "aTargets": [0] },
               { "sWidth": "150px", "aTargets": [5,6,7] },
@@ -949,16 +929,17 @@ $(document).ready(function(){
       setupUpdatePasswordDialog();
       setupChangeAuthenticationDialog();
       setupUserQuotasDialog();
-      setUserAutorefresh();
       //Setup quota icons
       //Also for group tab
       setupQuotaIcons();
 
       initCheckAllBoxes(dataTable_users);
       tableCheckboxesListener(dataTable_users);
-      infoListener(dataTable_users,'User.showinfo');
+      infoListener(dataTable_users,'User.show');
 
       $('div#users_tab div.legend_div').hide();
       $('div#users_tab_non_admin div.legend_div').hide();
+
+      dataTable_users.fnSort( [ [1,config['user_config']['table_order']] ] );
     }
 });

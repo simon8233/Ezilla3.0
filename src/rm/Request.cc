@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -40,7 +40,8 @@ void Request::execute(
                                                 att.uid,
                                                 att.gid,
                                                 att.uname,
-                                                att.gname);
+                                                att.gname,
+                                                att.group_ids);
 
     log_method_invoked(att, _paramList);
 
@@ -240,7 +241,7 @@ bool Request::basic_authorization(int oid,
         perms.obj_type = auth_object;
     }
 
-    AuthRequest ar(att.uid, att.gid);
+    AuthRequest ar(att.uid, att.group_ids);
 
     ar.add_auth(op, perms);
 
@@ -259,7 +260,7 @@ bool Request::basic_authorization(int oid,
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-bool Request::user_quota_authorization (Template * tmpl, 
+bool Request::user_quota_authorization (Template * tmpl,
                                         Quotas::QuotaType  qtype,
                                         RequestAttributes& att,
                                         string& error_str)
@@ -278,13 +279,13 @@ bool Request::user_quota_authorization (Template * tmpl,
         return false;
     }
 
-    Quotas default_user_quotas = nd.get_default_user_quota();
+    DefaultQuotas default_user_quotas = nd.get_default_user_quota();
 
     rc = user->quota.quota_check(qtype, tmpl, default_user_quotas, error_str);
 
     if (rc == true)
     {
-        upool->update(user);
+        upool->update_quotas(user);
     }
     else
     {
@@ -303,7 +304,7 @@ bool Request::user_quota_authorization (Template * tmpl,
 
 /* -------------------------------------------------------------------------- */
 
-bool Request::group_quota_authorization (Template * tmpl, 
+bool Request::group_quota_authorization (Template * tmpl,
                                          Quotas::QuotaType  qtype,
                                          RequestAttributes& att,
                                          string& error_str)
@@ -322,13 +323,13 @@ bool Request::group_quota_authorization (Template * tmpl,
         return false;
     }
 
-    Quotas default_group_quotas = nd.get_default_group_quota();
+    DefaultQuotas default_group_quotas = nd.get_default_group_quota();
 
     rc = group->quota.quota_check(qtype, tmpl, default_group_quotas, error_str);
 
     if (rc == true)
     {
-        gpool->update(group);
+        gpool->update_quotas(group);
     }
     else
     {
@@ -347,7 +348,7 @@ bool Request::group_quota_authorization (Template * tmpl,
 
 /* -------------------------------------------------------------------------- */
 
-void Request::user_quota_rollback(Template *         tmpl, 
+void Request::user_quota_rollback(Template *         tmpl,
                                   Quotas::QuotaType  qtype,
                                   RequestAttributes& att)
 {
@@ -365,14 +366,14 @@ void Request::user_quota_rollback(Template *         tmpl,
 
     user->quota.quota_del(qtype, tmpl);
 
-    upool->update(user);
+    upool->update_quotas(user);
 
     user->unlock();
 }
 
 /* -------------------------------------------------------------------------- */
 
-void Request::group_quota_rollback(Template *         tmpl, 
+void Request::group_quota_rollback(Template *         tmpl,
                                    Quotas::QuotaType  qtype,
                                    RequestAttributes& att)
 {
@@ -390,7 +391,7 @@ void Request::group_quota_rollback(Template *         tmpl,
 
     group->quota.quota_del(qtype, tmpl);
 
-    gpool->update(group);
+    gpool->update_quotas(group);
 
     group->unlock();
 }
@@ -457,8 +458,8 @@ bool Request::quota_authorization(
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-void Request::quota_rollback(Template *         tmpl, 
-                             Quotas::QuotaType  qtype, 
+void Request::quota_rollback(Template *         tmpl,
+                             Quotas::QuotaType  qtype,
                              RequestAttributes& att)
 {
     // uid/gid == -1 means do not update user/group
@@ -479,7 +480,7 @@ void Request::quota_rollback(Template *         tmpl,
 
 void Request::failure_response(ErrorCode ec, const string& str_val,
                                RequestAttributes& att)
-{    
+{
     vector<xmlrpc_c::value> arrayData;
 
     arrayData.push_back(xmlrpc_c::value_boolean(false));
@@ -495,7 +496,7 @@ void Request::failure_response(ErrorCode ec, const string& str_val,
 /* -------------------------------------------------------------------------- */
 
 void Request::success_response(int id, RequestAttributes& att)
-{    
+{
     vector<xmlrpc_c::value> arrayData;
 
     arrayData.push_back(xmlrpc_c::value_boolean(true));
@@ -511,7 +512,7 @@ void Request::success_response(int id, RequestAttributes& att)
 /* -------------------------------------------------------------------------- */
 
 void Request::success_response(const string& val, RequestAttributes& att)
-{    
+{
     vector<xmlrpc_c::value> arrayData;
 
     arrayData.push_back(xmlrpc_c::value_boolean(true));
@@ -552,6 +553,8 @@ string Request::object_name(PoolObjectSQL::ObjectType ob)
             return "cluster";
         case PoolObjectSQL::DOCUMENT:
             return "document";
+        case PoolObjectSQL::ZONE:
+            return "zone";
         default:
             return "-";
       }
@@ -632,7 +635,7 @@ string Request::request_error (const string &err_desc, const string &err_detail)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-string Request::allocate_error(PoolObjectSQL::ObjectType obj, 
+string Request::allocate_error(PoolObjectSQL::ObjectType obj,
                                const string&             error)
 {
     ostringstream oss;
@@ -675,13 +678,18 @@ int Request::get_info(
         PoolObjectSQL::ObjectType type,
         RequestAttributes&        att,
         PoolObjectAuth&           perms,
-        string&                   name)
+        string&                   name,
+        bool                      throw_error)
 {
     PoolObjectSQL * ob;
 
     if ((ob = pool->get(id,true)) == 0 )
     {
-        failure_response(NO_EXISTS, get_error(object_name(type), id), att);
+        if (throw_error)
+        {
+            failure_response(NO_EXISTS, get_error(object_name(type), id), att);
+        }
+
         return -1;
     }
 

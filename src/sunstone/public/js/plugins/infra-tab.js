@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -25,7 +25,8 @@
 /*-------------------------------------------------------------------------------*/
 
 var infra_tab = {
-    title: '<i class="icon-sitemap"></i>'+tr("Infrastructure")
+    title: '<i class="fa fa-lg fa-fw fa-sitemap"></i>&emsp;'+tr("Infrastructure"),
+    no_content: true
 }
 
 Sunstone.addMainTab('infra-tab',infra_tab);

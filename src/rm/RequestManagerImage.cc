@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -229,8 +229,8 @@ void ImageClone::request_execute(
     int    clone_id = xmlrpc_c::value_int(paramList.getInt(1));
     string name     = xmlrpc_c::value_string(paramList.getString(2));
 
-    unsigned int    avail;
-    int             rc, new_id, ds_id, size, umask;
+    long long       avail, size;
+    int             rc, new_id, ds_id, umask;
     string          error_str, ds_name, ds_data;
     bool            ds_check;
 
@@ -347,7 +347,7 @@ void ImageClone::request_execute(
     img_usage.add("DATASTORE", ds_id);
     img_usage.add("SIZE", size);
 
-    if (ds_check && ((unsigned int) size > avail))
+    if (ds_check && (size > avail))
     {
         failure_response(ACTION, "Not enough space in datastore", att);
 
@@ -357,14 +357,14 @@ void ImageClone::request_execute(
 
     if ( att.uid != 0 )
     {
-        AuthRequest ar(att.uid, att.gid);
+        AuthRequest ar(att.uid, att.group_ids);
         string      tmpl_str;
 
         // ------------------ Check permissions and ACLs  ----------------------
 
         tmpl->to_xml(tmpl_str);
 
-        ar.add_create_auth(auth_object, tmpl_str); // CREATE IMAGE
+        ar.add_create_auth(att.uid, att.gid, auth_object, tmpl_str); // CREATE IMAGE
 
         ar.add_auth(AuthRequest::USE, ds_perms); // USE DATASTORE
 

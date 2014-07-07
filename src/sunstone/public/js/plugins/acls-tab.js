@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -28,144 +28,156 @@
 var dataTable_acls;
 var $create_acl_dialog;
 
-var acls_tab_content = '\
-<form class="custom" id="acl_form" action="">\
-<div class="panel">\
-<div class="row">\
-  <div class="twelve columns">\
-    <h4 class="subheader header">\
-      <span class="header-resource">\
-        <i class="icon-key"></i> '+tr("Access Control Lists")+'\
-      </span>\
-      <span class="header-info">\
-        <span/> <small></small>&emsp;\
-      </span>\
-      <span class="user-login">\
-      </span>\
-    </h4>\
-  </div>\
-</div>\
-<div class="row">\
-  <div class="ten columns">\
-    <div class="action_blocks">\
-    </div>\
-  </div>\
-  <div class="two columns">\
-    <input id="acl_search" type="text" placeholder="'+tr("Search")+'" />\
-  </div>\
-  <br>\
-  <br>\
-</div>\
-</div>\
-  <div class="row">\
-    <div class="twelve columns">\
-<table id="datatable_acls" class="datatable twelve">\
-  <thead>\
-    <tr>\
-      <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
-      <th>'+tr("ID")+'</th>\
-      <th>'+tr("Applies to")+'</th>\
-      <th>'+tr("Affected resources")+'</th>\
-      <th>'+tr("Resource ID / Owned by")+'</th>\
-      <th>'+tr("Allowed operations")+'</th>\
-      <th>'+tr("ACL String")+'</th>\
-    </tr>\
-  </thead>\
-  <tbody id="tbodyaclss">\
-  </tbody>\
-</table>\
-</form>';
-
 var create_acl_tmpl =
-'<div class="panel">\
-  <h3>\
-    <small id="create_vnet_header">'+tr("Create ACL")+'</small>\
-  </h3>\
+'<div class="row">\
+    <div class="large-12 columns">\
+        <h3 id="create_vnet_header" class="subheader">'+tr("Create ACL")+'</h3>\
+    </div>\
 </div>\
-<div class="reveal-body">\
 <form id="create_acl_form" action="">\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" for="applies">'+tr("This rule applies to")+':</label>\
-          </div>\
-          <div class="seven columns">\
-              <select name="applies" id="applies"></select>\
-          </div>\
-          <div class="one columns">\
-              <div class=""></div>\
-          </div>\
-         </div>\
-        <div class="row">\
+        <div class="large-6 columns">\
             <fieldset>\
-            <legend>'+tr("Affected resources")+'</legend>\
-            <div class="six columns">\
-                <input type="checkbox" name="res_host" class="resource_cb" value="HOST">'+tr("Hosts")+'</input><br />\
-                <input type="checkbox" name="res_cluster" class="resource_cb" value="CLUSTER">'+tr("Clusters")+'</input><br />\
-                <input type="checkbox" name="res_datastore" class="resource_cb" value="DATASTORE">'+tr("Datastores")+'</input><br />\
-                <input type="checkbox" name="res_vm" class="resource_cb" value="VM">'+tr("Virtual Machines")+'</input><br />\
-                <input type="checkbox" name="res_net" class="resource_cb" value="NET">'+tr("Virtual Networks")+'</input><br />\
-            </div>\
-            <div class="six columns">\
-                <input type="checkbox" name="res_image" class="resource_cb" value="IMAGE">'+tr("Images")+'</input><br />\
-                <input type="checkbox" name="res_template" class="resource_cb" value="TEMPLATE">'+tr("Templates")+'</input><br />\
-                <input type="checkbox" name="res_user" class="resource_cb" value="USER">'+tr("Users")+'</input><br />\
-                <input type="checkbox" name="res_group" class="resource_cb" value="GROUP">'+tr("Groups")+'</input><br />\
-                <input type="checkbox" name="res_document" class="resource_cb" value="DOCUMENT">'+tr("Documents")+'</input><br />\
-            </div>\
+                <legend>'+tr("This rule applies to")+'</legend>\
+                <div class="row">\
+                    <div class="large-4 columns">\
+                        <input type="radio" class="applies" name="applies_select" value="*" id="applies_all"><label class="applies" for="applies_all">'+tr("All")+'</label>\
+                    </div>\
+                    <div class="large-4 columns">\
+                        <input type="radio" class="applies" name="applies_select" value="applies_to_user" id="applies_id"><label class="applies" for="applies_id">'+tr("User")+'</label>\
+                    </div>\
+                    <div class="large-4 columns">\
+                        <input type="radio" class="applies" name="applies_select" value="applies_to_group" id="applies_group"><label class="applies" for="applies_group">'+tr("Group")+'</label>\
+                    </div>\
+                </div>\
+                <div class="row">\
+                    <div class="large-12 columns">\
+                        <div class="applies_to_user">\
+                            <label for="applies_to_user">'+tr("User")+':</label>\
+                            <div name="applies_to_user" id="applies_to_user">\
+                            </div>\
+                        </div>\
+                        <div class="applies_to_group">\
+                            <label for="applies_to_group">'+tr("Group")+':</label>\
+                            <div name="applies_to_group" id="applies_to_group">\
+                            </div>\
+                        </div>\
+                    </div>\
+                </div>\
             </fieldset>\
         </div>\
-        <div class="row">\
-            <fieldset>\
-            <legend>'+tr("Resource subset")+'</legend>\
-            <div class="six columns">\
-                <input type="radio" class="res_subgroup" name="mode_select" value="*" id="res_subgroup_all">'+tr("All")+'</input><br />\
-                <input type="radio" class="res_subgroup" name="mode_select" value="res_id" id="res_subgroup_id">'+tr("Specific ID")+'</input><br />\
-                <input type="radio" class="res_subgroup" name="mode_select" value="belonging_to" id="res_subgroup_group">'+tr("Owned by group")+'</input><br />\
-                <input type="radio" class="res_subgroup" name="mode_select" value="in_cluster" id="res_subgroup_group">'+tr("Assigned to cluster")+'</input><br />\
+          <div class="large-6 columns">\
+            <label for="zones_applies">'+tr("Zones where the rule applies")+'</label>\
+            <div name="zones_applies" id="zones_applies">\
             </div>\
-            <div class="six columns">\
+          </div>\
+        </div>\
+        <fieldset>\
+            <legend>'+tr("Affected resources")+'</legend>\
+        <div class="row">\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_host" name="res_host" class="resource_cb" value="HOST"><label for="res_host">'+tr("Hosts")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_cluster" name="res_cluster" class="resource_cb" value="CLUSTER"><label for="res_cluster">'+tr("Clusters")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_datastore" name="res_datastore" class="resource_cb" value="DATASTORE"><label for="res_datastore">'+tr("Datastores")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_vm" name="res_vm" class="resource_cb" value="VM"><label for="res_vm">'+tr("Virtual Machines")+'</label>\
+            </div>\
+        </div>\
+        <div class="row">\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_net" name="res_net" class="resource_cb" value="NET"><label for="res_net">'+tr("Virtual Networks")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_image" name="res_image" class="resource_cb" value="IMAGE"><label for="res_image">'+tr("Images")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_template" name="res_template" class="resource_cb" value="TEMPLATE"><label for="res_template">'+tr("Templates")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_user" name="res_user" class="resource_cb" value="USER"><label for="res_user">'+tr("Users")+'</label>\
+            </div>\
+        </div>\
+        <div class="row">\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_group" name="res_group" class="resource_cb" value="GROUP"><label for="res_group">'+tr("Groups")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_document" name="res_document" class="resource_cb" value="DOCUMENT"><label for="res_document">'+tr("Documents")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="res_zone" name="res_zone" class="resource_cb" value="ZONE"><label for="res_zone">'+tr("Zones")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+            </div>\
+        </div>\
+        </fieldset>\
+        <fieldset>\
+            <legend>'+tr("Resource subset")+'</legend>\
+        <div class="row">\
+            <div class="large-3 columns">\
+                <input type="radio" class="res_subgroup" name="mode_select" value="*" id="res_subgroup_all"><label class="res_subgroup" for="res_subgroup_all">'+tr("All")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="radio" class="res_subgroup" name="mode_select" value="res_id" id="res_subgroup_id"><label class="res_subgroup" for="res_subgroup_id">'+tr("ID")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="radio" class="res_subgroup" name="mode_select" value="belonging_to" id="res_subgroup_group"><label class="res_subgroup" for="res_subgroup_group">'+tr("Group")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="radio" class="res_subgroup" name="mode_select" value="in_cluster" id="res_subgroup_cluster"><label class="res_subgroup" for="res_subgroup_cluster">'+tr("Cluster")+'</label>\
+            </div>\
+        </div>\
+        <div class="row">\
+            <div class="large-6 columns">\
                 <div class="res_id">\
                     <label for="res_id">'+tr("Resource ID")+':</label>\
                     <input type="text" name="res_id" id="res_id"></input>\
                 </div>\
                 <div class="belonging_to">\
                     <label for="belonging_to">'+tr("Group")+':</label>\
-                    <select name="belonging_to" id="belonging_to"></select>\
+                    <div name="belonging_to" id="belonging_to">\
+                    </div>\
                 </div>\
                 <div class="in_cluster">\
                     <label for="in_cluster">'+tr("Cluster")+':</label>\
-                    <select name="in_cluster" id="in_cluster"></select>\
+                    <div name="in_cluster" id="in_cluster">\
+                    </div>\
                 </div>\
             </div>\
-            </fieldset>\
         </div>\
-        <div class="row">\
-            <fieldset>\
+        </fieldset>\
+        <fieldset>\
             <legend>'+tr("Allowed operations")+'</legend>\
-                <input type="checkbox" name="right_delete" class="right_cb" value="USE">'+tr("Use")+'</input>\
-                <input type="checkbox" name="right_use" class="right_cb" value="MANAGE">'+tr("Manage")+'</input>\
-                <input type="checkbox" name="right_manage" class="right_cb" value="ADMIN">'+tr("Administrate")+'</input>\
-                <input type="checkbox" name="right_create" class="right_cb" value="CREATE">'+tr("Create")+'</input>\
-            </fieldset>\
-        </div>\
         <div class="row">\
-          <div class="four columns">\
-              <label class="inline right" for="acl_preview">'+tr("ACL String preview")+':</label>\
-          </div>\
-          <div class="seven columns">\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="right_delete" name="right_delete" class="right_cb" value="USE"><label for="right_delete">'+tr("Use")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="right_use" name="right_use" class="right_cb" value="MANAGE"><label for="right_use">'+ tr("Manage")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="right_manage" name="right_manage" class="right_cb" value="ADMIN"><label for="right_manage">'+tr("Administrate")+'</label>\
+            </div>\
+            <div class="large-3 columns">\
+                <input type="checkbox" id="right_create" name="right_create" class="right_cb" value="CREATE"><label for="right_create">'+tr("Create")+'</label>\
+            </div>\
+        </div>\
+        </fieldset>\
+        <br>\
+        <div class="row">\
+          <div class="large-12 columns">\
+              <label for="acl_preview">'+tr("ACL String preview")+':</label>\
               <input type="text" name="acl_preview" id="acl_preview"></input>\
           </div>\
-          <div class="one columns">\
-              <div class=""></div>\
-          </div>\
         </div>\
-        <div class="reveal-footer">\
-        <hr>\
         <div class="form_buttons">\
           <button class="button radius right success" id="create_acl_submit" type="submit" value="Acl.create">'+tr("Create")+'</button>\
           <button class="button secondary radius" type="reset" value="reset">'+tr("Reset")+'</button>\
-          <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
-        </div>\
         </div>\
     <a class="close-reveal-modal">&#215;</a>\
 </form>\
@@ -176,6 +188,10 @@ var acl_actions = {
         type: "create",
         call: OpenNebula.Acl.create,
         callback: function(){
+            $create_acl_dialog.foundation('reveal', 'close');
+            $create_acl_dialog.empty();
+            setupCreateAclDialog();
+
             Sunstone.runAction("Acl.list");
         },
         error: onError,
@@ -198,18 +214,7 @@ var acl_actions = {
         type: "custom",
         call: function () {
             waitingNodes(dataTable_acls);
-            Sunstone.runAction("Acl.list");
-        }
-    },
-
-    "Acl.autorefresh" : {
-        type: "custom",
-        call: function(){
-            OpenNebula.Acl.list({
-                timeout: true,
-                success: updateAclsView,
-                error: onError
-            });
+            Sunstone.runAction("Acl.list", {force: true});
         }
     },
 
@@ -237,6 +242,11 @@ var acl_buttons = {
         layout: "refresh",
         alwaysActive: true
     },
+//    "Sunstone.toggle_top" : {
+//        type: "custom",
+//        layout: "top",
+//        alwaysActive: true
+//    },
     "Acl.create_dialog" : {
         type: "create_dialog",
         layout: "create"
@@ -255,10 +265,29 @@ var acl_buttons = {
 
 var acls_tab = {
     title: tr("ACLs"),
-    content: acls_tab_content,
+    resource: 'Acl',
     buttons: acl_buttons,
     tabClass: 'subTab',
-    parentTab: 'system-tab'
+    parentTab: 'system-tab',
+    search_input: '<input id="acl_search" type="text" placeholder="'+tr("Search")+'" />',
+    list_header: '<i class="fa fa-key"></i>&emsp;'+tr("Access Control Lists"),
+    subheader: '<span/><small></small>&emsp;',
+    table: '<table id="datatable_acls" class="dataTable">\
+      <thead>\
+        <tr>\
+          <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
+          <th>'+tr("ID")+'</th>\
+          <th>'+tr("Applies to")+'</th>\
+          <th>'+tr("Affected resources")+'</th>\
+          <th>'+tr("Resource ID / Owned by")+'</th>\
+          <th>'+tr("Allowed operations")+'</th>\
+          <th>'+tr("Zone")+'</th>\
+          <th>'+tr("ACL String")+'</th>\
+        </tr>\
+      </thead>\
+      <tbody id="tbodyaclss">\
+      </tbody>\
+    </table>'
 }
 
 Sunstone.addActions(acl_actions);
@@ -314,6 +343,23 @@ function parseResourceAcl(user){
     return user_str;
 }
 
+//Receives a segment of an ACL and translates:
+// * -> All
+// #1 -> Zone 1 (tries to translate "1" into zone name)
+//Translation of zone names depends on
+//zone plugins tables.
+function parseZoneAcl(zone){
+    var zone_str = "";
+
+    if (zone[0] == '*'){
+        zone_str = tr("All");
+    } else if (zone[0] == '#'){
+        zone_str = getZoneName(zone.substring(1));
+    }
+
+    return zone_str;
+}
+
 //Parses a full ACL string, and translates it into
 //a legible array
 //to be put in the datatable fields.
@@ -322,6 +368,7 @@ function parseAclString(string) {
     var user = space_split[0];
     var resources = space_split[1];
     var rights = space_split[2];
+    var zone = space_split[3];
 
     //User
     var user_str=parseUserAcl(user);
@@ -364,6 +411,9 @@ function parseAclString(string) {
         case "DOCUMENT":
             resources_str+=tr("Documents")+", ";
             break;
+        case "ZONE":
+            resources_str+=tr("Zones")+", ";
+            break;
         };
     };
     //remove ", " from end
@@ -377,7 +427,10 @@ function parseAclString(string) {
     }
     ops_str= ops_str.substring(0,ops_str.length-2);
 
-    return [user_str,resources_str,belonging_to,ops_str];
+    //Zone
+    var zone_str = parseZoneAcl(zone);
+
+    return [user_str, resources_str, belonging_to, ops_str, zone_str];
 }
 
 //forms the array of data to be inserted from
@@ -394,7 +447,8 @@ function aclElementArray(acl_json){
         acl_array[0],
         acl_array[1],
         acl_array[2],
-        tr(acl_array[3].charAt(0).toUpperCase()+acl_array[3].substring(1)), //capitalize 1st letter for translation
+        acl_array[3],
+        tr(acl_array[4].charAt(0).toUpperCase()+acl_array[4].substring(1)), //capitalize 1st letter for translation
         acl.STRING
     ]
 }
@@ -416,7 +470,7 @@ function updateAclsView(request,list){
 }
 
 function setupCreateAclDialog(){
-    dialogs_context.append('<div title=\"'+tr("Create ACL")+'\" id="create_acl_dialog"></div>');
+    dialogs_context.append('<div id="create_acl_dialog"></div>');
     $create_acl_dialog = $('#create_acl_dialog',dialogs_context);
     var dialog = $create_acl_dialog;
     dialog.html(create_acl_tmpl);
@@ -428,9 +482,13 @@ function setupCreateAclDialog(){
     //    width: 650,
     //    height: height
     //});
-    dialog.addClass("reveal-modal large max-height");
+    dialog.addClass("reveal-modal large").attr("data-reveal", "");
 
     //Default selected options
+    $('#applies_all',dialog).attr('checked','checked');
+    $('.applies_to_user',dialog).hide();
+    $('.applies_to_group',dialog).hide();
+
     $('#res_subgroup_all',dialog).attr('checked','checked');
     $('.res_id',dialog).hide();
     $('.belonging_to',dialog).hide();
@@ -438,30 +496,48 @@ function setupCreateAclDialog(){
 
     //$('button',dialog).button();
 
+    //Applies to subset radio buttons
+    $('.applies',dialog).click(function(){
+        var value = $(this).val();
+        switch (value) {
+        case "*":
+            $('.applies_to_user',dialog).hide();
+            $('.applies_to_group',dialog).hide();
+            break;
+        case "applies_to_user":
+            $('.applies_to_user',dialog).show();
+            $('.applies_to_group',dialog).hide();
+            break;
+        case "applies_to_group":
+            $('.applies_to_user',dialog).hide();
+            $('.applies_to_group',dialog).show();
+            break;
+        };
+    });
+
     //Resource subset radio buttons
     $('.res_subgroup',dialog).click(function(){
         var value = $(this).val();
-        var context = $(this).closest('fieldset')
         switch (value) {
         case "*":
-            $('.res_id',context).hide();
-            $('.belonging_to',context).hide();
-            $('.in_cluster',context).hide();
+            $('.res_id',dialog).hide();
+            $('.belonging_to',dialog).hide();
+            $('.in_cluster',dialog).hide();
             break;
         case "res_id":
-            $('.res_id',context).show();
+            $('.res_id',dialog).show();
             $('.belonging_to').hide();
-            $('.in_cluster',context).hide();
+            $('.in_cluster',dialog).hide();
             break;
         case "belonging_to":
-            $('.res_id',context).hide();
-            $('.belonging_to',context).show();
-            $('.in_cluster',context).hide();
+            $('.res_id',dialog).hide();
+            $('.belonging_to',dialog).show();
+            $('.in_cluster',dialog).hide();
             break;
         case "in_cluster":
-            $('.res_id',context).hide();
-            $('.belonging_to',context).hide();
-            $('.in_cluster',context).show();
+            $('.res_id',dialog).hide();
+            $('.belonging_to',dialog).hide();
+            $('.in_cluster',dialog).show();
             break;
         };
     });
@@ -472,15 +548,23 @@ function setupCreateAclDialog(){
     });
 
     //update the rule preview every time some field changes
-    $('input,select',dialog).change(function(){
+    $(dialog).off('change', 'input,select');
+    $(dialog).on('change', 'input,select', function(){
         var context = $('#create_acl_form',$create_acl_dialog);
-        var user = $('#applies',context).val();
 
-        if ($('#applies :selected',context).hasClass("user")){
-            user='#'+user;
-        } else if ($('#applies :selected',context).hasClass("group")){
-            user = '@'+user;
-        };
+        var user="";
+        var mode = $('.applies:checked',context).val();
+        switch (mode) {
+        case "*":
+            user="*";
+            break;
+        case "applies_to_user":
+            user="#"+$('div#applies_to_user .resource_list_select',context).val();
+            break;
+        case "applies_to_group":
+            user="@"+$('div#applies_to_group .resource_list_select',context).val();
+            break;
+        }
 
         var resources = "";
         $('.resource_cb:checked',context).each(function(){
@@ -498,10 +582,10 @@ function setupCreateAclDialog(){
             belonging="#"+$('#res_id',context).val();
             break;
         case "belonging_to":
-            belonging="@"+$('#belonging_to',context).val();
+            belonging="@"+$('div#belonging_to .resource_list_select',context).val();
             break;
         case "in_cluster":
-            belonging="%"+$('#in_cluster',context).val();
+            belonging="%"+$('#in_cluster .resource_list_select',context).val();
             break;
         }
 
@@ -512,17 +596,36 @@ function setupCreateAclDialog(){
         });
         if (rights.length) { rights = rights.substring(0,rights.length-1) };
 
-        var acl_string = user + ' ' + resources + '/' + belonging + ' ' + rights;
+        var zone = $('#zones_applies .resource_list_select',context).val();
+
+        if (zone != "*"){
+            zone = '#'+zone;
+        }
+
+        var acl_string = user + ' ' + resources + '/' + belonging + ' '
+                        + rights + ' ' + zone;
         $('#acl_preview',context).val(acl_string);
 
     });
 
     $('#create_acl_form',dialog).submit(function(){
-        var user = $('#applies',this).val();
-        if (!user.length) {
-            notifyError(tr("Please specify to who this ACL applies"));
-            return false;
-        };
+        var mode = $('.applies:checked',this).val();
+        switch (mode) {
+        case "applies_to_user":
+            var l=$('#applies_to_user .resource_list_select',this).val().length;
+            if (!l){
+                notifyError("Please select a user to whom the acl applies");
+                return false;
+            }
+            break;
+        case "applies_to_group":
+            var l=$('#applies_to_group .resource_list_select',this).val().length;
+            if (!l){
+                notifyError("Please select a group to whom the acl applies");
+                return false;
+            }
+            break;
+        }
 
         var resources = $('.resource_cb:checked',this).length;
         if (!resources) {
@@ -540,14 +643,14 @@ function setupCreateAclDialog(){
             }
             break;
         case "belonging_to":
-            var l=$('#belonging_to',this).val().length;
+            var l=$('#belonging_to .resource_list_select',this).val().length;
             if (!l){
                 notifyError("Please select a group to which the selected resources belong to");
                 return false;
             }
             break;
         case "in_cluster":
-            var l=$('#in_cluster',this).val().length;
+            var l=$('#in_cluster .resource_list_select',this).val().length;
             if (!l){
                 notifyError("Please select a cluster to which the selected resources belong to");
                 return false;
@@ -565,7 +668,6 @@ function setupCreateAclDialog(){
 
         var acl_json = { "acl" : acl_string };
         Sunstone.runAction("Acl.create",acl_json);
-        $create_acl_dialog.trigger("reveal:close");
         return false;
     });
 }
@@ -574,36 +676,18 @@ function setupCreateAclDialog(){
 // required: we have to put the right options in the
 // selects.
 function popUpCreateAclDialog(){
-    var users = $('<select>'+users_sel()+'</select>');
-    $('.empty_value',users).remove();
-    $('option',users).addClass("user");
-    users.prepend('<option value="">---'+tr("Users")+'---</option>');
-
-    var groups = $('<select>'+groups_sel()+'</select>');
-    $('.empty_value',groups).remove();
-    $('option',groups).addClass("group");
-    groups.prepend('<option value="">---'+tr("Groups")+'---</option>');
-
     var dialog =  $create_acl_dialog;
-    $('#applies',dialog).html('<option value="*">'+tr("All")+'</option>'+
-                                          users.html()+groups.html());
-    $('#belonging_to',dialog).html(groups_select);
-    $('#in_cluster',dialog).html(clusters_select);
 
-    $('#applies',dialog).trigger("change");
-    dialog.reveal();
-}
+    insertSelectOptions('div#applies_to_user', dialog, "User", null, true);
+    insertSelectOptions('div#applies_to_group', dialog, "Group", null, true);
 
-// Prepare the autorefresh of the list
-function setAclAutorefresh(){
-    setInterval(function(){
-        var checked = $('input.check_item:checked',dataTable_acls);
-        var filter = $('#acl_search').attr('value');
-        if ((checked.length==0) && !filter){
-            Sunstone.runAction("Acl.autorefresh");
-        }
-    },INTERVAL+someTime());
+    insertSelectOptions('div#belonging_to', dialog, "Group", null, true);
+    insertSelectOptions('#in_cluster',dialog, "Cluster", null, true);
 
+    insertSelectOptions('div#zones_applies', dialog, "Zone", "*", false,
+                        '<option value="*">'+tr("All")+'</option>');
+
+    dialog.foundation().foundation('reveal', 'open');
 }
 
 $(document).ready(function(){
@@ -613,11 +697,13 @@ $(document).ready(function(){
         //if we are not oneadmin, our tab will not even be in the DOM.
         dataTable_acls = $("#datatable_acls",main_tabs_context).dataTable({
             "aoColumnDefs": [
-                { "bSortable": false, "aTargets": ["check",2,3,4,5,6] },
+                { "bSortable": false, "aTargets": ["check",2,3,4,5,6,7] },
                 { "sWidth": "35px", "aTargets": [0] },
                 { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
                 { "bVisible": false, "aTargets": ['_all']}
-            ]
+            ],
+            "bSortClasses" : false,
+            "bDeferRender": true
         });
 
 
@@ -632,7 +718,6 @@ $(document).ready(function(){
         Sunstone.runAction("Acl.list");
 
         setupCreateAclDialog();
-        setAclAutorefresh();
 
         initCheckAllBoxes(dataTable_acls);
         tableCheckboxesListener(dataTable_acls);
@@ -641,5 +726,7 @@ $(document).ready(function(){
         infoListener(dataTable_acls);
 
         $('div#acls_tab div.legend_div').hide();
+
+        dataTable_acls.fnSort( [ [1,config['user_config']['table_order']] ] );
     }
 })

@@ -16,27 +16,34 @@ enabled_tabs:
     datastores-tab: true
     vnets-tab: true
     marketplace-tab: true
-    oneflow-dashboard: false
-    oneflow-services: false
-    oneflow-templates: false
+    oneflow-dashboard: true
+    oneflow-services: true
+    oneflow-templates: true
+    zones-tab: true
+autorefresh: true
 tabs:
     dashboard-tab:
         panel_tabs:
         actions:
+            Dashboard.refresh: false
+            Sunstone.toggle_top: false
         widgets_three_per_row:
             - storage
             - users
             - network
         widgets_two_per_row:
-            - hosts
-            - vms
+#            - user_quotas
+#            - group_quotas
         widgets_one_per_row:
+            - vms
+            - hosts
+        widgets_one_footer:
     system-tab:
         panel_tabs:
         actions:
     users-tab:
         panel_tabs:
-            user_info_panel: true
+            user_info_tab: true
             user_quotas_tab: true
         table_columns:
             - 0         # Checkbox
@@ -47,13 +54,15 @@ tabs:
             - 5         # VMs
             - 6         # Memory
             - 7         # CPU
-            #- 8         # Group ID
+            - 8         # Group ID
         actions:
             User.refresh: true
             User.create_dialog: true
             User.update_password: true
             User.quotas_dialog: true
             User.chgrp: true
+            User.addgroup: true
+            User.delgroup: true
             User.chauth: true
             User.delete: true
     groups-tab:
@@ -81,7 +90,8 @@ tabs:
             - 3         # Affected resources
             - 4         # Resource ID / Owned by
             - 5         # Allowed operations
-            #- 6         # ACL String
+            - 6         # Zone
+            #- 7         # ACL String
         actions:
             Acl.refresh: true
             Acl.create_dialog: true
@@ -113,11 +123,11 @@ tabs:
             - 9       # IPs
             #- 10      # Start Time
             - 11      # VNC
-            - 12      # redirect Port
+            - 12      # End Point
         actions:
             VM.refresh: true
             VM.create_dialog: true
-            VM.easy_provision: true
+            VM.easy_provision: false
             VM.chown: true
             VM.chgrp: true
             VM.chmod: true
@@ -183,9 +193,11 @@ tabs:
             input_output: true
             context: true
             scheduling: true
+            other: true
     images-tab:
         panel_tabs:
-            image_info_panel: true
+            image_info_tab: true
+            image_vms_tab: true
         table_columns:
             - 0         # Checkbox
             - 1         # ID
@@ -193,14 +205,13 @@ tabs:
             - 3         # Group
             - 4         # Name
             - 5         # Datastore
-            #- 6        # Size
-            - 7         # Type
-            - 8         # OSTYPE
-            #- 9        # Registration time
-            #- 10        # Persistent
-            - 11        # Status
-            - 12        # #VMs
-            #- 13       # Target
+            #- 6         # Size
+            - 7        # Type
+            #- 8         # Registration time
+            #- 9        # Persistent
+            - 10        # Status
+            - 11        # #VMs
+            #- 12       # Target
         actions:
             Image.refresh: true
             Image.create_dialog: true
@@ -215,7 +226,7 @@ tabs:
             Image.delete: true
     files-tab:
         panel_tabs:
-            file_info_panel: true
+            file_info_tab: true
         table_columns:
             - 0         # Checkbox
             - 1         # ID
@@ -412,7 +423,7 @@ tabs:
             Service.delete: true
     oneflow-templates:
         panel_tabs:
-            service_template_info_panel: true
+            service_template_info_tab: true
             service_template_roles_tab: true
         table_columns:
             - 0         # Checkbox
@@ -428,3 +439,15 @@ tabs:
             ServiceTemplate.chgrp: true
             ServiceTemplate.chmod: true
             ServiceTemplate.delete: true
+    zones-tab:
+        panel_tabs:
+            zone_info_tab: true
+        table_columns:
+            - 0         # Checkbox
+            - 1         # ID
+            - 2         # Name
+            - 3         # Endpoint
+        actions:
+            Zone.refresh: true
+            Zone.create_dialog: true
+            Zone.delete: true

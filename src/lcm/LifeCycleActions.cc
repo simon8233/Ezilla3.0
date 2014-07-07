@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -321,7 +321,8 @@ void  LifeCycleManager::shutdown_action(int vid)
     }
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING)
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&                 nd = Nebula::instance();
         VirtualMachineManager * vmm = nd.get_vmm();
@@ -371,7 +372,8 @@ void  LifeCycleManager::undeploy_action(int vid, bool hard)
     }
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING)
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&                 nd = Nebula::instance();
         VirtualMachineManager * vmm = nd.get_vmm();
@@ -447,7 +449,8 @@ void  LifeCycleManager::poweroff_action(int vid, bool hard)
     }
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING)
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&                 nd = Nebula::instance();
         VirtualMachineManager * vmm = nd.get_vmm();
@@ -562,7 +565,8 @@ void  LifeCycleManager::cancel_action(int vid)
     }
 
     if (vm->get_state()     == VirtualMachine::ACTIVE &&
-        vm->get_lcm_state() == VirtualMachine::RUNNING)
+        (vm->get_lcm_state() == VirtualMachine::RUNNING ||
+         vm->get_lcm_state() == VirtualMachine::UNKNOWN))
     {
         Nebula&                 nd = Nebula::instance();
         VirtualMachineManager * vmm = nd.get_vmm();
@@ -850,6 +854,9 @@ void  LifeCycleManager::clean_up_vm(VirtualMachine * vm, bool dispose, int& imag
     vm->set_resched(false);
 
     vm->delete_snapshots();
+
+    map<string, string> empty;
+    vm->update_info(0, 0, -1, -1, empty);
 
     vmpool->update(vm);
 

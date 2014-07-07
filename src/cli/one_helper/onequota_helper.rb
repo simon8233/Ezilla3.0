@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -31,9 +31,10 @@ class OneQuotaHelper
         #  ]
         #
         #  VM = [
-        #    VMS    = <Max. number of VMs>
-        #    MEMORY = <Max. allocated memory (Mb)>
-        #    CPU    = <Max. allocated CPU>
+        #    VMS           = <Max. number of VMs>
+        #    MEMORY        = <Max. allocated memory (MB)>
+        #    CPU           = <Max. allocated CPU>
+        #    VOLATILE_SIZE = <Max. allocated volatile disks (MB)>
         #  ]
         #
         #  NETWORK = [
@@ -45,9 +46,12 @@ class OneQuotaHelper
         #    ID     = <ID of the image>
         #    RVMS   = <Max. number of VMs using the image>
         #  ]
+    EOT
+
+    HELP_QUOTA_FOOTER = <<-EOT.unindent
         #
         #  In any quota:
-        #    -1 means use the default limit ('defaultquota' command)
+        #    -1 means use the default limit (set with the 'defaultquota' command)
         #    0 means unlimited.
         #
         #  The usage counters "*_USED" are shown for information
@@ -55,12 +59,23 @@ class OneQuotaHelper
         #-----------------------------------------------------------------------
     EOT
 
+    HELP_DEFAULT_QUOTA_FOOTER = <<-EOT.unindent
+        #
+        #  In any quota:
+        #    0 means unlimited.
+        #
+        #  The usage counters "*_USED" will always be 0 for the default
+        #  quotas, and can be ignored.
+        #-----------------------------------------------------------------------
+    EOT
+
     #  Edits the quota template of a resource
     #  @param [XMLElement] resource to get the current info from
     #  @param [String] path to the new contents. If nil a editor will be 
     #         used
+    #  @param [True|False] is_default To change the help text
     #  @return [String] contents of the new quotas
-    def self.set_quota(resource, path)
+    def self.set_quota(resource, path, is_default=false)
         str = ""
 
         if path.nil?
@@ -70,6 +85,13 @@ class OneQuotaHelper
             path = tmp.path
 
             tmp << HELP_QUOTA
+
+            if (is_default)
+                tmp << HELP_DEFAULT_QUOTA_FOOTER
+            else
+                tmp << HELP_QUOTA_FOOTER
+            end
+
             tmp << resource.template_like_str("DATASTORE_QUOTA") << "\n"
             tmp << resource.template_like_str("VM_QUOTA") << "\n"
             tmp << resource.template_like_str("NETWORK_QUOTA") << "\n"
@@ -180,14 +202,14 @@ class OneQuotaHelper
 
         if !vm_quotas[0].nil?
             CLIHelper::ShowTable.new(nil, self) do
-                column :"NUMBER OF VMS", "", :right, :size=>20 do |d|
+                column :"NUMBER OF VMS", "", :right, :size=>17 do |d|
                     if !d.nil?
                         elem = 'VMS'
                         limit = d[elem]
                         limit = helper.get_default_limit(
                             limit, "VM_QUOTA/VM/#{elem}")
 
-                        "%8d / %8d" % [d["VMS_USED"], limit]
+                        "%7d / %7d" % [d["VMS_USED"], limit]
                     end
                 end
 
@@ -213,6 +235,20 @@ class OneQuotaHelper
                             limit, "VM_QUOTA/VM/#{elem}")
 
                         "%8.2f / %8.2f" % [d["CPU_USED"], limit]
+                    end
+                end
+
+                column :"VOLATILE_SIZE", "", :right, :size=>20 do |d|
+                    if !d.nil?
+                        elem = 'VOLATILE_SIZE'
+                        limit = d[elem]
+                        limit = helper.get_default_limit(
+                            limit, "VM_QUOTA/VM/#{elem}")
+
+                        "%8s / %8s" % [
+                            OpenNebulaHelper.unit_to_str(d["VOLATILE_SIZE_USED"].to_i,{},"M"),
+                            OpenNebulaHelper.unit_to_str(limit.to_i,{},"M")
+                        ]
                     end
                 end
             end.show(vm_quotas, {})

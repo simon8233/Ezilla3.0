@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -40,9 +40,11 @@ var Service = {
                                         Service.path);
     },
     "del": function(params){
+        params.cache_name = "SERVICE";
         OpenNebula.Action.del(params,Service.resource, Service.path);
     },
     "list" : function(params){
+        params.cache_name = "SERVICE";
         OpenNebula.Action.list(params, Service.resource, Service.path)
     },
     "show" : function(params){
@@ -661,15 +663,15 @@ var role_actions = {
 Sunstone.addActions(role_actions);
 
 function roleElements() {
-    return getSelectedNodes(servicerolesDataTable);
+    return getSelectedNodes(servicerolesDataTable, true);
 };
 
 function roleVMElements() {
-    return getSelectedNodes(serviceroleVMsDataTable);
+    return getSelectedNodes(serviceroleVMsDataTable, true);
 };
 
 function roleCallback() {
-    return $("#service_info_panel_refresh", $("#service_info_panel")).click();
+    return Sunstone.runAction('Service.refresh');
 }
 
 var role_buttons = {
@@ -699,7 +701,7 @@ var role_buttons = {
     },
     "Role.resume" : {
         type: "action",
-        text: '<i class="icon-play"/>',
+        text: '<i class="fa fa-play"/>',
         layout: "vmsplay_buttons",
         tip: tr("This will resume selected VMs")
     },
@@ -779,48 +781,6 @@ var role_buttons = {
 
 
 var role_vm_buttons = {
-//    "RoleVM.chown" : {
-//        type: "confirm_with_select",
-//        text: tr("Change owner"),
-//        select: users_sel,
-//        layout: "user_select",
-//        tip: tr("Select the new owner")+":",
-//        condition: mustBeAdmin
-//    },
-//
-//    "RoleVM.chgrp" : {
-//        type: "confirm_with_select",
-//        text: tr("Change group"),
-//        select: groups_sel,
-//        layout: "user_select",
-//        tip: tr("Select the new group")+":",
-//        condition: mustBeAdmin
-//    },
-//    "RoleVM.deploy" : {
-//        type: "confirm_with_select",
-//        text: tr("Deploy"),
-//        tip: tr("This will deploy the selected VMs on the chosen host"),
-//        layout: "vmsplanification_buttons",
-//        select: hosts_sel,
-//        condition: mustBeAdmin
-//    },
-//    "RoleVM.migrate" : {
-//        type: "confirm_with_select",
-//        text: tr("Migrate"),
-//        tip: tr("This will migrate the selected VMs to the chosen host"),
-//        layout: "vmsplanification_buttons",
-//        select: hosts_sel,
-//        condition: mustBeAdmin
-//
-//    },
-//    "RoleVM.migrate_live" : {
-//        type: "confirm_with_select",
-//        text: tr("Migrate") + ' <span class="label secondary radius">live</span>',
-//        tip: tr("This will live-migrate the selected VMs to the chosen host"),
-//        layout: "vmsplanification_buttons",
-//        select: hosts_sel,
-//        condition: mustBeAdmin
-//    },
     "RoleVM.hold" : {
         type: "action",
         text: tr("Hold"),
@@ -841,7 +801,7 @@ var role_vm_buttons = {
     },
     "RoleVM.resume" : {
         type: "action",
-        text: '<i class="icon-play"/>',
+        text: '<i class="fa fa-play"/>',
         layout: "vmsplay_buttons",
         tip: tr("This will resume selected VMs")
     },
@@ -929,71 +889,8 @@ var role_vm_buttons = {
         text: tr("Un-Reschedule"),
         layout: "vmsplanification_buttons",
         tip: tr("This will cancel the rescheduling for the selected VMs")
-    },
-//    "RoleVM.recover" : {
-//        type: "confirm_with_select",
-//        text: tr("Recover"),
-//        layout: "vmsplanification_buttons",
-//        select: function(){ return '<option value="success">' + tr("success") + '</option>\
-//                 <option value="failure">' + tr("failure") + '</option>'},
-//        tip: tr("Recovers a stuck VM that is waiting for a driver operation. \
-//                The recovery may be done by failing or succeeding the pending operation. \
-//                YOU NEED TO MANUALLY CHECK THE VM STATUS ON THE HOST, to decide if the operation \
-//                was successful or not.")
-//    }
+    }
 }
-
-var service_tab_content = '\
-<form class="custom" id="template_form" action="">\
-<div class="panel">\
-<div class="row">\
-  <div class="twelve columns">\
-    <h4 class="subheader header">\
-      <span class="header-resource">\
-       <i class="icon-code-fork icon-rotate-90"></i> '+tr("OneFlow - Services")+'\
-      </span>\
-      <span class="header-info">\
-        <span/> <small></small>&emsp;\
-      </span>\
-      <span class="user-login">\
-      </span>\
-    </h4>\
-  </div>\
-</div>\
-<div class="row">\
-  <div class="nine columns">\
-    <div class="action_blocks">\
-    </div>\
-  </div>\
-  <div class="three columns">\
-    <input id="services_search" type="text" placeholder="'+tr("Search")+'" />\
-  </div>\
-  <br>\
-  <br>\
-</div>\
-</div>\
-  <div class="row">\
-    <div class="twelve columns">\
-      <table id="datatable_services" class="datatable twelve">\
-        <thead>\
-          <tr>\
-            <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
-            <th>'+tr("ID")+'</th>\
-            <th>'+tr("Owner")+'</th>\
-            <th>'+tr("Group")+'</th>\
-            <th>'+tr("Name")+'</th>\
-            <th>'+tr("State")+'</th>\
-          </tr>\
-        </thead>\
-        <tbody>\
-        </tbody>\
-      </table>\
-    </div>\
-  </div>\
-<div class="row" id="error_message" hidden>\
-    <div class="alert-box alert">'+tr("Cannot connect to OneFlow server")+'<a href="" class="close">&times;</a></div>\
-</div>\
-</form>';
 
 var dataTable_services;
 
@@ -1013,38 +910,42 @@ var service_actions = {
     "Service.show" : {
         type : "single",
         call: Service.show,
-        callback: updateServiceElement,
-        error: onError
-    },
+        callback: function(request, response){
+            var tab = dataTable_services.parents(".tab");
 
-    "Service.showinfo" : {
-        type: "single",
-        call: Service.show,
-        callback: updateServiceInfo,
+            if (Sunstone.rightInfoVisible(tab)) {
+                // individual view
+                updateServiceInfo(request, response);
+            }
+
+            // datatable row
+            updateServiceElement(request, response);
+        },
         error: onError
     },
 
     "Service.refresh" : {
         type: "custom",
         call: function () {
-            waitingNodes(dataTable_services);
-            Sunstone.runAction("Service.list");
-        }
-    },
+            var tab = dataTable_services.parents(".tab");
+            if (Sunstone.rightInfoVisible(tab)) {
+                selected_row_role_id = $($('td.markrowselected',servicerolesDataTable.fnGetNodes())[1]).html();
+                checked_row_rolevm_ids = new Array();
 
-    "Service.autorefresh" : {
-        type: "custom",
-        call: function() {
-            Service.list({
-                timeout: true, 
-                success: function(request, service_list) {
-                    $("#oneflow-services #error_message").hide();
-                    updateServicesView(request, service_list);
-                },
-                error: function(request, error_json) {
-                    onError(request, error_json, $("#oneflow-services #error_message"));
+                if (typeof(serviceroleVMsDataTable) !== 'undefined') {
+                    $.each($(serviceroleVMsDataTable.fnGetNodes()), function(){
+                       if($('td.markrowchecked',this).length!=0)
+                       {
+                            checked_row_rolevm_ids.push($($('td',$(this))[1]).html());
+                       }
+                    });
                 }
-            });
+
+                Sunstone.runAction("Service.show", Sunstone.rightInfoResourceId(tab))
+            } else {
+                waitingNodes(dataTable_services);
+                Sunstone.runAction("Service.list", {force: true});
+            }
         }
     },
 
@@ -1110,18 +1011,22 @@ var service_buttons = {
         layout: "refresh",
         alwaysActive: true
     },
-
+//    "Sunstone.toggle_top" : {
+//        type: "custom",
+//        layout: "top",
+//        alwaysActive: true
+//    },
     "Service.chown" : {
         type: "confirm_with_select",
         text: tr("Change owner"),
-        select: users_sel,
+        select: "User",
         tip: tr("Select the new owner")+":",
         layout: "user_select"
     },
     "Service.chgrp" : {
         type: "confirm_with_select",
         text: tr("Change group"),
-        select: groups_sel,
+        select: "Group",
         tip: tr("Select the new group")+":",
         layout: "user_select"
     },
@@ -1152,10 +1057,33 @@ var service_info_panel = {
 
 var services_tab = {
     title: "Services",
-    content: service_tab_content,
+    resource: 'Service',
     buttons: service_buttons,
     tabClass: 'subTab',
-    parentTab: 'oneflow-dashboard'
+    parentTab: 'oneflow-dashboard',
+    search_input: '<input id="services_search" type="text" placeholder="'+tr("Search")+'" />',
+    list_header: '<i class="fa fa-fw fa-code-fork fa fa-rotate-90"></i>&emsp;'+tr("OneFlow - Services"),
+    info_header: '<i class="fa fa-fw fa-code-fork fa fa-rotate-90"></i>&emsp;'+tr("OneFlow - Service"),
+    subheader: '<span/> <small></small>&emsp;',
+    content:   '<div class="row" id="error_message" hidden>\
+        <div class="small-6 columns small-centered text-center">\
+            <div class="alert-box alert radius">'+tr("Cannot connect to OneFlow server")+'</div>\
+        </div>\
+    </div>',
+    table: '<table id="datatable_services" class="datatable twelve">\
+        <thead>\
+          <tr>\
+            <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
+            <th>'+tr("ID")+'</th>\
+            <th>'+tr("Owner")+'</th>\
+            <th>'+tr("Group")+'</th>\
+            <th>'+tr("Name")+'</th>\
+            <th>'+tr("State")+'</th>\
+          </tr>\
+        </thead>\
+        <tbody>\
+        </tbody>\
+      </table>'
 }
 
 Sunstone.addActions(service_actions);
@@ -1227,13 +1155,14 @@ function updateServiceInfo(request,elem){
     var elem_info = elem.DOCUMENT;
 
     var info_tab = {
-        title: tr("Information"),
+        title : tr("Info"),
+        icon: "fa-info-circle",
         content:
-        '<div class="">\
-          <div class="six columns">\
-          <table id="info_template_table" class="twelve datatable extended_table">\
+        '<div class="row">\
+          <div class="large-6 columns">\
+          <table id="info_template_table" class="dataTable extended_table">\
            <thead>\
-             <tr><th colspan="2">'+tr("Service")+' \"'+elem_info.NAME+'\"'+'</th></tr>\
+             <tr><th colspan="2">'+tr("Information")+'</th></tr>\
            </thead>\
            <tr>\
              <td class="key_td">'+tr("ID")+'</td>\
@@ -1257,7 +1186,7 @@ function updateServiceInfo(request,elem){
            </tr>\
          </table>' +
        '</div>\
-        <div class="six columns">' + insert_permissions_table('oneflow-services',
+        <div class="large-6 columns">' + insert_permissions_table('oneflow-services',
                                                               "Service",
                                                               elem_info.ID,
                                                               elem_info.UNAME,
@@ -1272,35 +1201,34 @@ function updateServiceInfo(request,elem){
 
     var roles_tab = {
         title : "Roles",
+        icon: "fa-wrench",
         content : '<form class="custom" id="roles_form" action="">\
+          <div class="row">\
           <div id="role_actions">\
-            <div class="action_blocks columns eight">\
+            <div class="columns large-8">\
+                <h4>'+tr("Roles")+'</h4>\
             </div>\
-            <div class="columns four">\
+            <div class="columns large-4 right">\
               <div class="row">\
-                    <div class="two columns">\
-                        <label class="inline right" for="batch_action_period">' + tr("Period") + ':</label>\
-                    </div>\
-                    <div class="two columns">\
+                    <div class="large-6 columns">\
+                        <label for="batch_action_period">' + tr("Period") + ':\
+                            <span class="tip">'+ tr("Seconds between each group of actions") +'</span>\
+                        </label>\
                         <input type="text" id="batch_action_period" name="batch_action_period"/>\
                     </div>\
-                    <div class="one columns">\
-                        <div class="tip">'+ tr("Seconds between each group of actions") +'</div>\
-                    </div>\
-                    <div class="four columns">\
-                        <label class="inline right" for="batch_action_number">' + tr("Number") + ':</label>\
-                    </div>\
-                    <div class="two columns">\
+                    <div class="large-6 columns">\
+                        <label for="batch_action_number">' + tr("Number") + '\
+                            <span class="tip">'+ tr("Number of VMs to apply the action to each period") +'</span>\
+                        :</label>\
                         <input type="text" id="batch_action_number" name="batch_action_number"/>\
-                    </div>\
-                    <div class="one columns">\
-                        <div class="tip">'+ tr("Number of VMs to apply the action to each period") +'</div>\
                     </div>\
               </div>\
             </div>\
+            <div class="action_blocks columns large-12">\
+            </div>\
           </div>\
-          <div id="roles_info" class="columns twelve">\
-            <table id="datatable_service_roles" class="table twelve">\
+          <div id="roles_info" class="columns large-12">\
+            <table id="datatable_service_roles" class="dataTable twelve">\
               <thead>\
                 <tr>\
                   <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
@@ -1318,6 +1246,7 @@ function updateServiceInfo(request,elem){
           <div id="roles_extended_info" class="columns twelve">\
             <span class="radius secondary label">'+tr("Select a role in the table for more information")+'</span>\
           </div>\
+          </div>\
         </form>'
     };
 
@@ -1326,7 +1255,7 @@ function updateServiceInfo(request,elem){
     var logs = elem_info.TEMPLATE.BODY.log
     var log_info = ''
     if (logs) {
-        log_info += '<div class="twelve columns"><div class="log-tab">'
+        log_info += '<div class="row"><div class="large-12 columns log-tab">'
 
         for (var i = 0; i < logs.length; i++) {
           var line =  pretty_time(logs[i].timestamp)+' ['+logs[i].severity + '] ' + logs[i].message+ '<br>';
@@ -1341,7 +1270,8 @@ function updateServiceInfo(request,elem){
     }
 
     var logs_tab = {
-      title: "Logs",
+      title: "Log",
+      icon: "fa-file-text",
       content: log_info
     }
 
@@ -1353,26 +1283,11 @@ function updateServiceInfo(request,elem){
     Sunstone.popUpInfoPanel("service_info_panel", "oneflow-services");
     setPermissionsTable(elem_info,'');
 
-    $("#service_info_panel_refresh", $("#service_info_panel")).click(function(){
-        $(this).html(spinner);
-        selected_row_role_id = $($('td.markrowselected',servicerolesDataTable.fnGetNodes())[1]).html();
-        checked_row_rolevm_ids = new Array();
-
-        if (typeof(serviceroleVMsDataTable) !== 'undefined') {
-            $.each($(serviceroleVMsDataTable.fnGetNodes()), function(){
-               if($('td.markrowchecked',this).length!=0)
-               {
-                 checked_row_rolevm_ids.push($($('td',$(this))[1]).html());
-               }
-            });
-        }
-        Sunstone.runAction('Service.showinfo', elem_info.ID);
-    })
-
     var roles = elem_info.TEMPLATE.BODY.roles
     if (roles && roles.length) {
         servicerolesDataTable = $('#datatable_service_roles').dataTable({
             "bSortClasses": false,
+            "bDeferRender": true,
             "bAutoWidth":false,
             "aoColumnDefs": [
               { "bSortable": false, "aTargets": ["check"] }
@@ -1395,17 +1310,15 @@ function updateServiceInfo(request,elem){
 
         updateView(role_elements ,servicerolesDataTable);
 
-        insertButtonsInTab("oneflow-services", "service_roles_tab", role_buttons, $('#role_actions', $("#dialog")))
-        $('#role_actions', $("#dialog")).foundationButtons();
-        $('#role_actions', $("#dialog")).foundationButtons();
+        insertButtonsInTab("oneflow-services", "service_roles_tab", role_buttons, $('#role_actions'))
 
         setupScaleDialog();
 
         $('tbody input.check_item',servicerolesDataTable).die();
         $('tbody tr',servicerolesDataTable).die();
 
-        initCheckAllBoxes(servicerolesDataTable, $('#role_actions', $("#dialog")));
-        tableCheckboxesListener(servicerolesDataTable, $('#role_actions', $("#dialog")));
+        initCheckAllBoxes(servicerolesDataTable, $('#role_actions'));
+        tableCheckboxesListener(servicerolesDataTable, $('#role_actions'));
 
         $('tbody tr',servicerolesDataTable).die()
         $('tbody tr',servicerolesDataTable).live("click",function(e){
@@ -1441,27 +1354,14 @@ function updateServiceInfo(request,elem){
                     $(this).addClass('markrowselected');
                 });
             }
-
-            //if($(this).is(":checked"))
-            //{
-            //    $(this).parents('tr').children().each(function(){$(this).addClass('markrowchecked');});
-            //}
-            //else
-            //{
-            //    $(this).parents('tr').children().removeClass('markrowchecked');
-            //    $(this).parents('tr').children().removeClass('markrowselected');
-            //}
-//
-            //recountCheckboxes(datatable);
         });
 
         var generate_role_div = function(role_index) {
             var role = roles[role_index]
             var info_str = "<form>\
-                <fieldset>\
-                <legend>"+tr("Role")+" - "+role.name+"</legend>\
-                <div class='twelve columns'>\
-                    <table class='twelve datatable extended_table policies_table'>\
+                <h4>"+tr("Role")+" - "+role.name+"</h4>\
+                <div class='large-12 columns'>\
+                    <table class='dataTable extended_table policies_table'>\
                         <thead>\
                             <tr><th colspan='8'>"+tr("Information")+"</th></tr>\
                         </thead>\
@@ -1478,6 +1378,7 @@ function updateServiceInfo(request,elem){
                            </tr>\
                         </tbody>\
                     </table>\
+                    <br>\
                  </div>";
 
             info_str += '<fieldset>\
@@ -1488,7 +1389,7 @@ function updateServiceInfo(request,elem){
                 </div>\
                 <div class="columns twelve">\
                     <br>\
-                    <table id="datatable_service_vms_'+role.name+'" class="table datatable twelve ">\
+                    <table id="datatable_service_vms_'+role.name+'" class="dataTable twelve ">\
                       <thead>\
                         <tr>\
                           <th></th>\
@@ -1512,10 +1413,10 @@ function updateServiceInfo(request,elem){
                 </div>\
                 </fieldset>';
 
-            info_str += "<div class='twelve columns'><br>";
+            info_str += "<div class='large-12 columns'><br>";
 
             if (role.elasticity_policies && role.elasticity_policies.length > 0) {
-                info_str += '<table class="twelve datatable extended_table policies_table">\
+                info_str += '<table class="dataTable extended_table policies_table">\
                     <thead style="background:#dfdfdf">\
                       <tr>\
                         <th colspan="7">'+tr("Elasticity policies")+'</th>\
@@ -1568,8 +1469,8 @@ function updateServiceInfo(request,elem){
                         <td>'+this.adjust+'</td>\
                         <td>'+(this.min_adjust_step || "-")+'</td>\
                         <td>'+(this.expression_evaluated || this.expression)+'</td>\
-                        <td>'+(this.true_evals || 0 )+'/'+ this.period+'</td>\
-                        <td>'+(this.period_number || "-")+'</td>\
+                        <td>'+( this.period_number ? ((this.true_evals || 0 )+'/'+(this.period_number)) : '-' )+'</td>\
+                        <td>'+(this.period || "-")+'</td>\
                         <td>'+(this.cooldown || "-")+'</td>\
                     </tr>'
                 });
@@ -1579,7 +1480,7 @@ function updateServiceInfo(request,elem){
             }
 
             if (role.scheduled_policies && role.scheduled_policies.length > 0) {
-                info_str += '<table class="twelve datatable extended_table policies_table">\
+                info_str += '<table class="dataTable extended_table policies_table">\
                     <thead style="background:#dfdfdf">\
                       <tr>\
                         <th colspan="5">'+tr("Scheduled policies")+'</th>\
@@ -1640,7 +1541,6 @@ function updateServiceInfo(request,elem){
             }
 
             info_str += '</div>\
-                </fieldset>\
                     </form>'
 
             context.html(info_str);
@@ -1648,6 +1548,8 @@ function updateServiceInfo(request,elem){
 
             var vms = [];
             serviceroleVMsDataTable = $('#datatable_service_vms_'+role.name, context).dataTable({
+                "bSortClasses": false,
+                "bDeferRender": true,
                 "aoColumnDefs": [
                     { "bSortable": false, "aTargets": [0,1,7,8,10,12] },
                     { "sWidth": "35px", "aTargets": [0,1] },
@@ -1661,9 +1563,9 @@ function updateServiceInfo(request,elem){
 
                     var info = [];
                     if (this.scale_up) {
-                        info.push("<i class='icon-arrow-up'/>");
+                        info.push("<i class='fa fa-arrow-up'/>");
                     } else if (this.disposed) {
-                        info.push("<i class='icon-arrow-down'/>");
+                        info.push("<i class='fa fa-arrow-down'/>");
                     } else {
                         info.push("");
                     }
@@ -1684,15 +1586,13 @@ function updateServiceInfo(request,elem){
             }
 
 
-            insertButtonsInTab("oneflow-services", "service_roles_tab", role_vm_buttons, $('div#role_vms_actions', $("#dialog")))
-            $('div#role_vms_actions', $("#dialog")).foundationButtons();
-            $('div#role_vms_actions', $("#dialog")).foundationButtons();
+            insertButtonsInTab("oneflow-services", "service_roles_tab", role_vm_buttons, $('div#role_vms_actions'))
 
             $('tbody input.check_item',serviceroleVMsDataTable).die();
             $('tbody tr',serviceroleVMsDataTable).die();
 
-            initCheckAllBoxes(serviceroleVMsDataTable, $('div#role_vms_actions', $("#dialog")));
-            tableCheckboxesListener(serviceroleVMsDataTable, $('div#role_vms_actions', $("#dialog")));
+            initCheckAllBoxes(serviceroleVMsDataTable, $('div#role_vms_actions'));
+            tableCheckboxesListener(serviceroleVMsDataTable, $('div#role_vms_actions'));
 
             $('tbody tr',serviceroleVMsDataTable).live("click",function(e){
                 if ($(e.target).is('input') ||
@@ -1705,6 +1605,14 @@ function updateServiceInfo(request,elem){
                 }
                 else
                 {
+                    var aData = serviceroleVMsDataTable.fnGetData(this);
+                    if (!aData) return true;
+
+                    var id = $(aData[1]).val();
+                    if (!id) return true;
+
+                    showElement("vms-tab", "VM.show", id);
+/*
                     $('tbody input.check_item',$(this).parents('table')).removeAttr('checked');
                     $('.check_item',this).click();
                     $('td',$(this).parents('table')).removeClass('markrowchecked');
@@ -1719,13 +1627,14 @@ function updateServiceInfo(request,elem){
                     $(this).children().each(function(){
                         $(this).addClass('markrowchecked');
                     });
+*/
                 }
             });
 
 
             //insertButtonsInTab("oneflow-services", "service_roles_tab", role_buttons)
-            //$('li#service_roles_tabTab', $("#dialog")).foundationButtons();
-            //$('li#service_roles_tabTab', $("#dialog")).foundationButtons();
+            //$('li#service_roles_tabTab').foundationButtons();
+            //$('li#service_roles_tabTab').foundationButtons();
         }
 
         if(selected_row_role_id) {
@@ -1747,29 +1656,8 @@ function updateServiceInfo(request,elem){
                 }
             });
         }
-        //setupActionButtons($('li#service_roles_tabTab', $("#dialog")));
+        //setupActionButtons($('li#service_roles_tabTab'));
     }
-
-
-    //$('tbody tr',serviceroleVMsDataTable).click(function(e){
-    //    var aData = serviceroleVMsDataTable.fnGetData(this);
-    //    var id = aData[1];
-    //    if (!id) return true;
-    //    if ($(e.target).is('img')) return true;
-//
-    //    //open the Vresources submenu in case it was closed
-    //    var vres_menu = $('div#menu li#li_vres_tab')
-    //    $('li.vres_tab', vres_menu.parent()).fadeIn('fast');
-    //    $('span', vres_menu).removeClass('ui-icon-circle-plus');
-    //    $('span', vres_menu).addClass('ui-icon-circle-minus');
-//
-    //    showTab('vms_tab');
-//
-    //    popDialogLoading();
-    //    Sunstone.runAction("VM.showinfo", id)
-    //    return false;
-    //});
-
 
     setupTips($("#roles_form"));
 }
@@ -1779,43 +1667,32 @@ function setupScaleDialog(){
     $scale_dialog = $('#scale_dialog', dialogs_context);
     var dialog = $scale_dialog;
 
-    dialog.html('<div class="panel">\
-      <h3>\
-        <small id="">'+tr("Scale")+'</small>\
-      </h3>\
+    dialog.html('<div class="row">\
+      <h3 class="subheader">'+tr("Scale")+'</h3>\
     </div>\
     <form id="scale_form" action="">\
           <div class="row">\
-              <div class="four columns">\
-                  <label class="inline right" for="cardinality">'+tr("Cardinality")+':</label>\
-              </div>\
-              <div class="seven columns">\
+              <div class="large-12 columns">\
+                  <label for="cardinality">'+tr("Cardinality")+
+                    '<span class="tip">'+ tr("Number of VMs to instantiate with this role") +'</span>'+
+                  '</label>\
                   <input type="text" name="cardinality" id="cardinality"/>\
-              </div>\
-              <div class="one columns">\
-                  <div class="tip">'+ tr("Number of VMs to instantiate with this role") +'</div>\
               </div>\
           </div>\
           <div class="row">\
-              <div class="four columns">\
-                  <label class="inline right" for="force">'+tr("Force")+':</label>\
-              </div>\
-              <div class="two columns">\
-                  <input type="checkbox" name="force" id="force"/>\
-              </div>\
-              <div class="one columns pull-five">\
-                  <div class="tip">'+ tr("Force the new cardinality even if it is outside the limits") +'</div>\
+              <div class="large-12 columns">\
+                  <input type="checkbox" name="force" id="force"/><label class="inline" for="force">'+tr("Force")+
+                    '<span class="tip">'+ tr("Force the new cardinality even if it is outside the limits") +'</span>'+
+                  '</label>\
               </div>\
           </div>\
-          <hr>\
           <div class="form_buttons">\
               <button class="button radius right success" id="" type="submit" value="">'+tr("Scale")+'</button>\
-              <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
           </div>\
       <a class="close-reveal-modal">&#215;</a>\
     </form></div>')
 
-    dialog.addClass("reveal-modal");
+    dialog.addClass("reveal-modal").attr("data-reveal", "");
     setupTips(dialog);
 
     $('#scale_form',dialog).submit(function(){
@@ -1831,27 +1708,16 @@ function setupScaleDialog(){
 
         Sunstone.runAction('Role.update', roleElements(), obj);
 
-        $scale_dialog.trigger("reveal:close")
+        $scale_dialog.foundation('reveal', 'close')
         return false;
     });
 };
 
 
 function popUpScaleDialog(){
-    $scale_dialog.reveal();
+    $scale_dialog.foundation().foundation('reveal', 'open');
     return false;
 }
-
-// Set the autorefresh interval for the datatable
-function setServiceAutorefresh() {
-    setInterval(function(){
-        var checked = $('input.check_item:checked',dataTable_services);
-        var filter = $("#services_search").attr('value');
-        if ((checked.length==0) && !filter){
-            Sunstone.runAction("Service.autorefresh");
-        }
-    },INTERVAL+someTime());
-};
 
 //The DOM is ready at this point
 $(document).ready(function(){
@@ -1859,6 +1725,8 @@ $(document).ready(function(){
 
     if (Config.isTabEnabled(tab_name)) {
         dataTable_services = $("#datatable_services",main_tabs_context).dataTable({
+            "bSortClasses": false,
+            "bDeferRender": true,
             "aoColumnDefs": [
                 { "bSortable": false, "aTargets": ["check"] },
                 { "sWidth": "35px", "aTargets": [0] },
@@ -1877,10 +1745,9 @@ $(document).ready(function(){
 
         Sunstone.runAction("Service.list");
 
-        setServiceAutorefresh();
-
         initCheckAllBoxes(dataTable_services);
         tableCheckboxesListener(dataTable_services);
-        infoListener(dataTable_services,'Service.showinfo');
+        infoListener(dataTable_services,'Service.show');
+        dataTable_services.fnSort( [ [1,config['user_config']['table_order']] ] );
     }
 });

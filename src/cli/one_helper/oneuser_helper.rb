@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -148,10 +148,27 @@ class OneUserHelper < OpenNebulaHelper::OneHelper
     def format_pool(options)
         config_file = self.class.table_conf
 
-        prefix = '/USER_POOL/DEFAULT_USER_QUOTAS/'
-        user_pool = @user_pool
-
         table = CLIHelper::ShowTable.new(config_file, self) do
+            def pool_default_quotas(path)
+                @data.dsearch('/USER_POOL/DEFAULT_USER_QUOTAS/'+path)
+            end
+
+            def quotas
+                if !defined?(@quotas)
+                    quotas = @data.dsearch('USER_POOL/QUOTAS')
+                    @quotas = Hash.new
+
+                    if (!quotas.nil?)
+                        quotas = [quotas].flatten
+
+                        quotas.each do |q|
+                            @quotas[q['ID']] = q
+                        end
+                    end
+                end
+                @quotas
+            end
+
             column :ID, "ONE identifier for the User", :size=>4 do |d|
                 d["ID"]
             end
@@ -168,49 +185,54 @@ class OneUserHelper < OpenNebulaHelper::OneHelper
                 d["AUTH_DRIVER"]
             end
 
-            column :VMS , "Number of VMS", :size=>9 do |d|             
-                if d.has_key?('VM_QUOTA') and d['VM_QUOTA'].has_key?('VM')
-                    limit = d['VM_QUOTA']['VM']["VMS"]
+            column :VMS , "Number of VMS", :size=>9 do |d|
+                begin
+                    q = quotas[d['ID']]
+                    limit = q['VM_QUOTA']['VM']["VMS"]
 
                     if limit == "-1"
-                        limit = user_pool["#{prefix}VM_QUOTA/VM/VMS"]
+                        limit = pool_default_quotas("VM_QUOTA/VM/VMS")
                         limit = "0" if limit.nil? || limit == ""
                     end
 
-                    "%3d / %3d" % [d['VM_QUOTA']['VM']["VMS_USED"], limit]
-                else
+                    "%3d / %3d" % [q['VM_QUOTA']['VM']["VMS_USED"], limit]
+
+                rescue NoMethodError
                     "-"
-                end 
+                end
             end
 
             column :MEMORY, "Total memory allocated to user VMs", :size=>17 do |d|
-                if d.has_key?('VM_QUOTA') and d['VM_QUOTA'].has_key?('VM')
-                    limit = d['VM_QUOTA']['VM']["MEMORY"]
+                begin
+                    q = quotas[d['ID']]
+                    limit = q['VM_QUOTA']['VM']["MEMORY"]
 
                     if limit == "-1"
-                        limit = user_pool["#{prefix}VM_QUOTA/VM/MEMORY"]
+                        limit = pool_default_quotas("VM_QUOTA/VM/MEMORY")
                         limit = "0" if limit.nil? || limit == ""
                     end
 
-                    d['VM_QUOTA']['VM']['MEMORY_USED']
-                    "%7s / %7s" % [OpenNebulaHelper.unit_to_str(d['VM_QUOTA']['VM']["MEMORY_USED"].to_i,{},"M"),
+                    "%7s / %7s" % [OpenNebulaHelper.unit_to_str(q['VM_QUOTA']['VM']["MEMORY_USED"].to_i,{},"M"),
                     OpenNebulaHelper.unit_to_str(limit.to_i,{},"M")]
-                else
+
+                rescue NoMethodError
                     "-"
                 end
             end
 
             column :CPU, "Total CPU allocated to user VMs", :size=>11 do |d|
-                if d.has_key?('VM_QUOTA') and d['VM_QUOTA'].has_key?('VM')
-                    limit = d['VM_QUOTA']['VM']["CPU"]
+                begin
+                    q = quotas[d['ID']]
+                    limit = q['VM_QUOTA']['VM']["CPU"]
 
                     if limit == "-1"
-                        limit = user_pool["#{prefix}VM_QUOTA/VM/CPU"]
+                        limit = pool_default_quotas("VM_QUOTA/VM/CPU")
                         limit = "0" if limit.nil? || limit == ""
                     end
 
-                    "%3.1f / %3.1f" % [d['VM_QUOTA']['VM']["CPU_USED"], limit]
-                else
+                    "%3.1f / %3.1f" % [q['VM_QUOTA']['VM']["CPU_USED"], limit]
+
+                rescue NoMethodError
                     "-"
                 end
             end
@@ -245,13 +267,15 @@ class OneUserHelper < OpenNebulaHelper::OneHelper
     def format_resource(user, options = {})
         system = System.new(@client)
 
-        str="%-15s: %-20s"
+        str="%-16s: %-20s"
         str_h1="%-80s"
 
         CLIHelper.print_header(str_h1 % "USER #{user['ID']} INFORMATION")
         puts str % ["ID",          user.id.to_s]
         puts str % ["NAME",        user.name]
         puts str % ["GROUP",       user['GNAME']]
+        groups = user.retrieve_elements("GROUPS/ID")
+        puts str % ["SECONDARY GROUPS", groups.join(',') ] if groups.size > 1
         puts str % ["PASSWORD",    user['PASSWORD']]
         puts str % ["AUTH_DRIVER", user['AUTH_DRIVER']]
 

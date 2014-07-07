@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -66,6 +66,18 @@ public:
      * Deletes all the attributes, excepts the restricted ones
      */
     void remove_all_except_restricted();
+
+    /**
+     * Replaces the given image from the DISK attribute with a new one
+     *   @param target_id IMAGE_ID the image to be replaced
+     *   @param target_name IMAGE the image to be replaced
+     *   @param target_uname IMAGE_UNAME the image to be replaced
+     *   @param new_name of the new image
+     *   @param new_uname of the owner of the new image
+     */
+    int replace_disk_image(int target_id, const string&
+        target_name, const string& target_uname, const string& new_name,
+        const string& new_uname);
 
 private:
 

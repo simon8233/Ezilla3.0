@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -80,11 +80,18 @@ private:
     static const char * pc_table;
 
     // DB versioning table
-    static const char * ver_names;
+    static const char * shared_ver_names;
 
-    static const char * ver_bootstrap;
+    static const char * shared_ver_bootstrap;
 
-    static const char * ver_table;
+    static const char * shared_ver_table;
+
+    // DB slave versioning table
+    static const char * local_ver_names;
+
+    static const char * local_ver_bootstrap;
+
+    static const char * local_ver_table;
 
     // System attributes table
     static const char * sys_names;
@@ -108,11 +115,18 @@ private:
                        bool          replace,
                        string&       error_str);
     /**
-     *  Bootstraps the database control tables
+     *  Bootstraps the database control tables for shared tables
      *
      *    @return 0 on success
      */
-    int bootstrap();
+    int shared_bootstrap();
+
+    /**
+     *  Bootstraps the database control tables for a local DB tables
+     *
+     *    @return 0 on success
+     */
+    int local_bootstrap();
 
     /**
      *  Callback function for the check_db_version method. Stores the read
@@ -136,12 +150,24 @@ private:
                        char **names);
     /**
      * Reads the current DB version.
+     * @param is_federation_slave
+     * @param local_bs boostrap local DB tables
+     * @param shared_bs boostrap shared DB tables
      *
      * @return  0 on success,
-     *          -1 if there is a version mismatch,
-     *          -2 if the DB needs a bootstrap
+     *          -1 if there is a version mismatch, or replica config error.
      */
-    int check_db_version();
+    int check_db_version(bool is_slave, bool& local_bs, bool& shared_bs);
+
+    /**
+     *  check_db_version to check versioning
+     *  @param table name of the DB table
+     *  @param version target DB version
+     *  @return 0 success, -1 upgrade needed, -2 bootstrap needed
+     */
+    int check_db_version(const string& table,
+                         const string& version,
+                         string& error);
 };
 
 #endif //SYSTEM_DB_H

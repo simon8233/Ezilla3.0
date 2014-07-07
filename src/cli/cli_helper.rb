@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -14,6 +14,8 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
+require 'csv'
+
 module CLIHelper
     LIST = {
         :name  => "list",
@@ -21,6 +23,12 @@ module CLIHelper
         :large => "--list x,y,z",
         :format => Array,
         :description => "Selects columns to display with list command"
+    }
+
+    CSV_OPT = {
+        :name  => "csv",
+        :large => "--csv",
+        :description => "Write table in csv format"
     }
 
     #ORDER = {
@@ -56,7 +64,7 @@ module CLIHelper
     }
 
     #OPTIONS = [LIST, ORDER, FILTER, HEADER, DELAY]
-    OPTIONS = [LIST, DELAY, FILTER]
+    OPTIONS = [LIST, DELAY, FILTER, CSV_OPT]
 
     # Sets bold font
     def CLIHelper.scr_bold
@@ -126,8 +134,35 @@ module CLIHelper
         puts
     end
 
+    module HashWithSearch
+        def dsearch(path)
+            stems=path.split('/')
+            hash=self
+
+            stems.delete_if {|s| s.nil? || s.empty? }
+
+            stems.each do |stem|
+                if Hash===hash
+                    if hash[stem]
+                        hash=hash[stem]
+                    else
+                        hash=nil
+                        break
+                    end
+                else
+                    hash=nil
+                    break
+                end
+            end
+
+            hash
+        end
+    end
+
     class ShowTable
         require 'yaml'
+
+        attr_reader :default_columns
 
         def initialize(conf=nil, ext=nil, &block)
             @columns = Hash.new
@@ -168,7 +203,23 @@ module CLIHelper
 
         def show(data, options={})
             update_columns(options)
-            print_table(data, options)
+
+            if Hash===data
+                @data=data
+                @data.extend(HashWithSearch)
+
+                pool=@data.keys.first
+                return print_table(nil, options) if !pool
+
+                element=pool.split('_').first
+
+                pool_data=@data.dsearch("#{pool}/#{element}")
+                pool_data=[pool_data].flatten if pool_data
+
+                print_table(pool_data, options)
+            else
+                print_table(data, options)
+            end
         end
 
         def top(options={}, &block)
@@ -176,10 +227,10 @@ module CLIHelper
 
             begin
                 while true
+                    data = block.call
+
                     CLIHelper.scr_cls
                     CLIHelper.scr_move(0,0)
-
-                    data = block.call
 
                     show(data, options)
                     sleep delay
@@ -200,7 +251,7 @@ module CLIHelper
         private
 
         def print_table(data, options)
-            CLIHelper.print_header(header_str)
+            CLIHelper.print_header(header_str) if !options[:csv]
             data ? print_data(data, options) : puts
         end
 
@@ -216,21 +267,24 @@ module CLIHelper
             end
 
             begin
-                print res_data.collect{|l|
-                    (0..ncolumns-1).collect{ |i|
-                        dat=l[i]
-                        col=@default_columns[i]
+                if options[:csv]
+                    puts CSV.generate_line(@default_columns)
+                    res_data.each {|l| puts CSV.generate_line(l) }
+                else
+                    res_data.each{|l|
+                        puts (0..ncolumns-1).collect{ |i|
+                            dat=l[i]
+                            col=@default_columns[i]
 
-                        str=format_str(col, dat)
-                        str=CLIHelper.color_state(str) if i==stat_column
+                            str=format_str(col, dat)
+                            str=CLIHelper.color_state(str) if i==stat_column
 
-                        str
-                    }.join(' ')
-                }.join("\n").gsub(/ *$/, '')
+                            str
+                        }.join(' ').rstrip
+                    }
+                end
             rescue Errno::EPIPE
             end
-
-            puts
         end
 
         def data_array(data, options)

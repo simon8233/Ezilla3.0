@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------ */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs      */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs      */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may  */
 /* not use this file except in compliance with the License. You may obtain  */
@@ -75,10 +75,14 @@ public:
      */
     enum DiskType
     {
-        FILE   = 0, /** < File-based disk */
-        CD_ROM = 1, /** < An ISO9660 disk */
-        BLOCK  = 2, /** < Block-device disk */
-        RBD    = 3  /** < CEPH RBD disk */
+        FILE          = 0, /** < File-based disk */
+        CD_ROM        = 1, /** < An ISO9660 disk */
+        BLOCK         = 2, /** < Block-device disk */
+        RBD           = 3, /** < CEPH RBD disk */
+        RBD_CDROM     = 4, /** < CEPH RBD CDROM disk */
+        GLUSTER       = 5, /** < Gluster Block Device */
+        GLUSTER_CDROM = 6, /** < Gluster CDROM Device Device */
+        NONE          = 255 /** < No disk type, error situation */
     };
 
     /**
@@ -90,13 +94,23 @@ public:
     {
         switch (ob)
         {
-            case FILE:   return "FILE" ; break;
-            case CD_ROM: return "CDROM" ; break;
-            case BLOCK:  return "BLOCK" ; break;
-            case RBD:    return "RBD" ; break;
-            default:     return "";
+            case FILE:              return "FILE" ; break;
+            case CD_ROM:            return "CDROM" ; break;
+            case BLOCK:             return "BLOCK" ; break;
+            case RBD:               return "RBD" ; break;
+            case RBD_CDROM:         return "RBD_CDROM" ; break;
+            case GLUSTER:           return "GLUSTER" ; break;
+            case GLUSTER_CDROM:     return "GLUSTER_CDROM" ; break;
+            default:                return "";
         }
     };
+
+    /**
+     *  Return the string representation of a DiskType
+     *    @param s_disk_type string representing the DiskTypr
+     *    @return the DiskType (defaults to FILE)
+     */
+    static DiskType str_to_disk_type(string& s_disk_type);
 
     /**
      *  Image State
@@ -193,9 +207,9 @@ public:
 
     /**
      *  Returns the size of the image
-     *     @return size in mb
+     *     @return size in MB
      */
-    int get_size() const
+    long long get_size() const
     {
         return size_mb;
     }
@@ -211,7 +225,7 @@ public:
     /**
      *  Sets the size for the image
      */
-    void set_size(unsigned int _size_mb)
+    void set_size(long long _size_mb)
     {
         size_mb = _size_mb;
     }
@@ -455,12 +469,15 @@ public:
      * @param img_type will be set to the used image's type
      * @param dev_prefix will be set to the defined dev_prefix,
      *   or the default one
+     * @param inherit_attrs Attributes to be inherited from the image template
+     *   into the disk
      *
      * @return 0 on success, -1 otherwise
      */
-    int disk_attribute( VectorAttribute * disk,
-                        ImageType&        img_type,
-                        string&           dev_prefix);
+    int disk_attribute( VectorAttribute *       disk,
+                        ImageType&              img_type,
+                        string&                 dev_prefix,
+                        const vector<string>&   inherit_attrs);
 
     /**
      *  Factory method for image templates
@@ -479,11 +496,19 @@ public:
     };
 
     /**
-     * Returns the Datastore ID
+     * Returns the Datastore name
      */
     const string& get_ds_name() const
     {
         return ds_name;
+    };
+
+    /**
+     * Updates the Datastore name
+     */
+    void set_ds_name(const string& name)
+    {
+        ds_name = name;
     };
 
     /**
@@ -544,7 +569,7 @@ private:
     /**
      *  Size of the image in MB
      */
-    unsigned int size_mb;
+    long long size_mb;
 
      /**
       *  Image state

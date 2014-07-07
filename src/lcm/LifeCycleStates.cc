@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -47,6 +47,9 @@ void  LifeCycleManager::save_success_action(int vid)
 
         vm->delete_snapshots();
 
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
+
         vmpool->update(vm);
 
         vm->set_previous_etime(the_time);
@@ -85,6 +88,9 @@ void  LifeCycleManager::save_success_action(int vid)
 
         vm->delete_snapshots();
 
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
+
         vmpool->update(vm);
 
         vm->set_running_etime(the_time);
@@ -114,6 +120,9 @@ void  LifeCycleManager::save_success_action(int vid)
         vm->set_state(VirtualMachine::EPILOG_STOP);
 
         vm->delete_snapshots();
+
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
 
         vmpool->update(vm);
 
@@ -509,6 +518,9 @@ void  LifeCycleManager::shutdown_success_action(int vid)
 
         vm->delete_snapshots();
 
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
+
         vmpool->update(vm);
 
         vm->set_epilog_stime(the_time);
@@ -532,6 +544,9 @@ void  LifeCycleManager::shutdown_success_action(int vid)
         //----------------------------------------------------
 
         vm->delete_snapshots();
+
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
 
         vmpool->update(vm);
 
@@ -558,6 +573,9 @@ void  LifeCycleManager::shutdown_success_action(int vid)
         vm->set_state(VirtualMachine::EPILOG_UNDEPLOY);
 
         vm->delete_snapshots();
+
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
 
         vmpool->update(vm);
 
@@ -987,6 +1005,9 @@ void  LifeCycleManager::cancel_success_action(int vid)
 
         vm->delete_snapshots();
 
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
+
         vmpool->update(vm);
 
         vm->set_reason(History::USER);
@@ -1013,6 +1034,9 @@ void  LifeCycleManager::cancel_success_action(int vid)
 
         vm->delete_snapshots();
 
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
+
         vmpool->update(vm);
 
         vm->set_epilog_stime(the_time);
@@ -1036,6 +1060,9 @@ void  LifeCycleManager::cancel_success_action(int vid)
         //----------------------------------------------------
 
         vm->delete_snapshots();
+
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
 
         vmpool->update(vm);
 
@@ -1172,6 +1199,9 @@ void  LifeCycleManager::monitor_suspend_action(int vid)
 
         vm->delete_snapshots();
 
+        map<string, string> empty;
+        vm->update_info(0, 0, -1, -1, empty);
+
         vmpool->update(vm);
 
         vm->set_running_etime(the_time);
@@ -1255,6 +1285,9 @@ void  LifeCycleManager::failure_action(VirtualMachine * vm)
 
     vm->delete_snapshots();
 
+    map<string, string> empty;
+    vm->update_info(0, 0, -1, -1, empty);
+
     vmpool->update(vm);
 
     vm->set_etime(the_time);
@@ -1307,7 +1340,7 @@ void LifeCycleManager::attach_success_action(int vid)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-void LifeCycleManager::attach_failure_action(int vid)
+void LifeCycleManager::attach_failure_action(int vid, bool release_save_as)
 {
     VirtualMachine *  vm;
     VectorAttribute * disk;
@@ -1346,11 +1379,31 @@ void LifeCycleManager::attach_failure_action(int vid)
 
             tmpl.set(disk);
 
-            Quotas::quota_del(Quotas::IMAGE, uid, gid, &tmpl);
-
             if ( disk->vector_value("IMAGE_ID", image_id) == 0 )
             {
+                // Disk using an Image
+                Quotas::quota_del(Quotas::IMAGE, uid, gid, &tmpl);
+
                 imagem->release_image(oid, image_id, false);
+
+                // Release non-persistent images in the detach event
+                if (release_save_as)
+                {
+                    int save_as_id;
+
+                    if ( disk->vector_value("SAVE_AS", save_as_id) == 0 )
+                    {
+                        imagem->release_image(oid, save_as_id, false);
+                    }
+                }
+            }
+            else // Volatile disk
+            {
+                // It is an update of the volatile counter without
+                // shutting destroying a VM
+                tmpl.add("VMS", 0);
+
+                Quotas::quota_del(Quotas::VM, uid, gid, &tmpl);
             }
         }
     }
@@ -1366,7 +1419,7 @@ void LifeCycleManager::attach_failure_action(int vid)
 
 void LifeCycleManager::detach_success_action(int vid)
 {
-    attach_failure_action(vid);
+    attach_failure_action(vid, true);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -22,6 +22,8 @@ if [ -z "$ONE_LOCATION" ]; then
     ONE_CONF=/etc/one/oned.conf
     ONE_DB=/var/lib/one/one.db
     ONE_LOG=/var/log/one/oned.log
+    ONE_SCHED_LOG=/var/log/one/sched.log
+    ONE_XMLRPC_LOG=/var/log/one/one_xmlrpc.log
 
     ONED=/usr/bin/oned
     ONE_SCHEDULER=/usr/bin/mm_sched
@@ -33,6 +35,8 @@ else
     ONE_CONF=$ONE_LOCATION/etc/oned.conf
     ONE_DB=$ONE_LOCATION/var/one.db
     ONE_LOG=$ONE_LOCATION/var/oned.log
+    ONE_SCHED_LOG=$ONE_LOCATION/var/sched.log
+    ONE_XMLRPC_LOG=$ONE_LOCATION/var/one_xmlrpc.log
 
     ONED=$ONE_LOCATION/bin/oned
     ONE_SCHEDULER=$ONE_LOCATION/bin/mm_sched
@@ -44,10 +48,19 @@ KILL_9_SECONDS=5
 BACKUP="true"
 
 #------------------------------------------------------------------------------
-# Function that checks for running daemons 
+# Function that checks for running daemons
 #------------------------------------------------------------------------------
 setup()
 {
+    ONE_PID_DIR=`dirname $ONE_PID`
+
+    mkdir -p $ONE_PID_DIR
+
+    if [ ! -w $ONE_PID_DIR ]; then
+        echo "$ONE_PID_DIR is not writable, cannot start oned or scheduler."
+        exit 1
+    fi
+
     if [ -f $LOCK_FILE ]; then
         if [ -f  $ONE_PID ]; then
             ONEPID=`cat $ONE_PID`
@@ -134,11 +147,6 @@ start()
         fi
     fi
 
-    # Backup oned.log
-    if [ "$BACKUP" = "true" ];then
-        [ -f "$ONE_LOG" ] && cp $ONE_LOG{,.$(date '+%Y%m%d%H%M%S')}
-    fi
-
     # Start the one daemon
     start_oned
 
@@ -146,7 +154,7 @@ start()
     start_sched
 
     # Wait for the daemons to warm up
-    sleep 2
+    sleep 3
 
     STARTED="true"
 
@@ -172,6 +180,10 @@ start()
 
 start_oned()
 {
+    if [ "$BACKUP" = "true" ];then
+        [ -f "$ONE_LOG" ] && mv $ONE_LOG{,.$(date '+%Y%m%d%H%M%S')}
+        [ -f "$ONE_XMLRPC_LOG" ] && mv $ONE_XMLRPC_LOG{,.$(date '+%Y%m%d%H%M%S')}
+    fi
     $ONED -f 2>&1 &
 
     LASTRC=$?
@@ -187,6 +199,9 @@ start_oned()
 
 start_sched()
 {
+    if [ "$BACKUP" = "true" ];then
+        [ -f "$ONE_SCHED_LOG" ] && mv $ONE_SCHED_LOG{,.$(date '+%Y%m%d%H%M%S')}
+    fi
     $ONE_SCHEDULER&
 
     LASTRC=$?
@@ -217,6 +232,12 @@ case "$1" in
         stop
         echo "oned and scheduler stopped"
         ;;
+    restart)
+        stop
+        setup
+        start
+        echo "oned and scheduler restarted"
+        ;;
     start-sched)
         start_sched
         ;;
@@ -229,9 +250,9 @@ case "$1" in
         start_sched
         ;;
     *)
-        echo "Usage: one [-f] {start|stop}" >&2
+        echo "Usage: one [-f] {start|stop|restart|start-sched|stop-sched|restart-sched}" >&2
         echo "Options:" >&2
-        echo "  -f  Do not backup log file." >&2
+        echo "  -f  Do not backup log files." >&2
         exit 3
         ;;
 esac

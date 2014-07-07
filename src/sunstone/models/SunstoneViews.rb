@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (C) 2013
+# Copyright (C) 2013-2014
 #
 # This file is part of ezilla.
 #
@@ -58,12 +58,50 @@ class SunstoneViews
 		end
 	end
 
+    # Return the name of the views avialable to a user. Those defined in the
+    # group template and configured in this sunstone.
+    #
     def available_views(user_name, group_name)
-        available_views = @views_config['users'][user_name] if @views_config['users']
-        available_views ||= @views_config['groups'][group_name] if @views_config['groups']
-        available_views ||= @views_config['default']
+        onec = $cloud_auth.client(user_name)
+        user = OpenNebula::User.new_with_id(OpenNebula::User::SELF, onec)
 
-        return available_views
+        user.info
+
+        available = Array.new
+
+        user.groups.each { |gid|
+            group = OpenNebula::Group.new_with_id(gid, onec)
+
+            group.info
+
+            if group["TEMPLATE/SUNSTONE_VIEWS"]
+                available << group["TEMPLATE/SUNSTONE_VIEWS"].split(",")
+            end
+
+            gadmins = group["TEMPLATE/GROUP_ADMINS"]
+
+            if gadmins && gadmins.split(',').include?(user_name) && group["TEMPLATE/GROUP_ADMIN_VIEWS"]
+                available << group["TEMPLATE/GROUP_ADMIN_VIEWS"].split(",")
+            end
+        }
+
+        available.flatten!
+
+        available.reject!{|v| !@views.has_key?(v)} #sanitize array views
+
+        return available.uniq if !available.empty?
+
+        # Fallback to default views if none is defined in templates
+
+        available << @views_config['users'][user_name] if @views_config['users']
+        available << @views_config['groups'][group_name] if @views_config['groups']
+        available << @views_config['default']
+
+        available.flatten!
+
+        available.reject!{|v| !@views.has_key?(v)} #sanitize array views
+
+        return available.uniq
     end
 
     def available_tabs

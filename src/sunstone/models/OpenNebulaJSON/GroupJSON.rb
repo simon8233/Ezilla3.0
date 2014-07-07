@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (C) 2013
+# Copyright (C) 2013-2014
 #
 # This file is part of ezilla.
 #
@@ -31,21 +31,12 @@ module OpenNebulaJSON
         include JSONUtils
 
         def create(template_json)
-            group_hash = parse_json(template_json,'group')
+            group_hash = parse_json_sym(template_json,:group)
             if OpenNebula.is_error?(group_hash)
                 return group_hash
             end
 
-            rc_alloc = self.allocate(group_hash['name'])
-
-            #create default ACL rules
-            if !OpenNebula.is_error?(rc_alloc)
-                rc_acl, msg = self.create_acls
-
-                puts msg if rc_acl == -1
-            end
-
-            return rc_alloc
+            super(group_hash)
         end
 
         def perform_action(template_json)
@@ -56,7 +47,12 @@ module OpenNebulaJSON
 
             rc = case action_hash['perform']
                  when "chown"       then self.chown(action_hash['params'])
+                 when "update"       then self.update_json(action_hash['params'])
                  when "set_quota"   then self.set_quota(action_hash['params'])
+                 when "add_provider" then 
+                                   self.add_provider_json(action_hash['params'])
+                 when "del_provider" then 
+                                   self.del_provider_json(action_hash['params'])
                  else
                      error_msg = "#{action_hash['perform']} action not " <<
                          " available for this resource"
@@ -68,10 +64,22 @@ module OpenNebulaJSON
             super(params['owner_id'].to_i)
         end
 
+        def update_json(params=Hash.new)
+            update(params['template_raw'])
+        end
+
         def set_quota(params=Hash.new)
             quota_json = params['quotas']
             quota_template = template_to_str(quota_json)
             super(quota_template)
+        end
+
+        def add_provider_json(params=Hash.new)
+            add_provider(params['zone_id'].to_i, params['cluster_id'].to_i)
+        end
+
+        def del_provider_json(params=Hash.new)
+            del_provider(params['zone_id'].to_i, params['cluster_id'].to_i)
         end
     end
 end

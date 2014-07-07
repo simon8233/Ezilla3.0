@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -25,7 +25,8 @@
 /*-------------------------------------------------------------------------------*/
 
 var system_tab = {
-    title: '<i class="icon-cogs"></i>'+tr("System")
+    title: '<i class="fa fa-lg fa-fw fa-cogs"></i>&emsp;'+tr("System"),
+    no_content: true
 }
 
 Sunstone.addMainTab('system-tab',system_tab);

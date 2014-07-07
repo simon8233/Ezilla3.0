@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -80,6 +80,8 @@ main_env.Append(LIBPATH=[
     cwd+'/src/acl',
     cwd+'/src/xml',
     cwd+'/src/document',
+    cwd+'/src/zone',
+    cwd+'/src/client',
 ])
 
 # Compile flags
@@ -117,6 +119,14 @@ if mysql=='yes':
     main_env.Append(LIBS=['mysqlclient'])
 else:
     main_env.Append(mysql='no')
+
+# Flag to compile with xmlrpc-c versions prior to 1.31 (September 2012)
+new_xmlrpc=ARGUMENTS.get('new_xmlrpc', 'no')
+if new_xmlrpc=='yes':
+    main_env.Append(new_xmlrpc='yes')
+else:
+    main_env.Append(new_xmlrpc='no')
+    main_env.Append(CPPFLAGS=["-DOLD_XMLRPC"])
 
 # SysLog
 syslog=ARGUMENTS.get('syslog', 'no')
@@ -235,54 +245,14 @@ build_scripts=[
     'src/acl/SConstruct',
     'src/xml/SConstruct',
     'src/document/SConstruct',
+    'src/zone/SConstruct',
     'share/man/SConstruct',
     'src/sunstone/locale/languages/SConstruct',
     'share/scripts/context-packages/SConstruct',
-    'share/rubygems/SConstruct'
+    'share/rubygems/SConstruct',
+    'src/im_mad/collectd/SConstruct',
+    'src/client/SConstruct'
 ]
-
-# Testing
-testing=ARGUMENTS.get('tests', 'no')
-
-if testing=='yes':
-    main_env.Append(testing='yes')
-
-    main_env.ParseConfig('cppunit-config --cflags --libs')
-
-    main_env.Append(CPPPATH=[
-        cwd+'/include/test',
-        '/usr/include/cppunit/' #not provided by cppunit-config command
-    ])
-
-    main_env.Append(LIBPATH=[
-        cwd+'/src/test',
-    ])
-
-    main_env.Append(LIBS=[
-        'nebula_test_common',
-    ])
-
-    build_scripts.extend([
-        'src/authm/test/SConstruct',
-        'src/common/test/SConstruct',
-        'src/host/test/SConstruct',
-        'src/cluster/test/SConstruct',
-        'src/datastore/test/SConstruct',
-        'src/group/test/SConstruct',
-        'src/image/test/SConstruct',
-        'src/lcm/test/SConstruct',
-        'src/pool/test/SConstruct',
-        'src/template/test/SConstruct',
-        'src/test/SConstruct',
-        'src/um/test/SConstruct',
-        'src/vm/test/SConstruct',
-        'src/vnm/test/SConstruct',
-        'src/xml/test/SConstruct',
-        'src/vm_template/test/SConstruct',
-    ])
-else:
-    main_env.Append(testing='no')
-
 
 for script in build_scripts:
     env=main_env.Clone()

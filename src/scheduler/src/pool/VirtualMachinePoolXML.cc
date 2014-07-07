@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -16,13 +16,12 @@
 
 #include "VirtualMachinePoolXML.h"
 #include <stdexcept>
+#include <iomanip>
 
 int VirtualMachinePoolXML::set_up()
 {
-    ostringstream   oss;
-    int             rc;
 
-    rc = PoolXML::set_up();
+    int rc = PoolXML::set_up();
 
     if ( rc == 0 )
     {
@@ -31,17 +30,44 @@ int VirtualMachinePoolXML::set_up()
             return -2;
         }
 
-        oss.str("");
-        oss << "Pending and rescheduling VMs:" << endl;
-
-        map<int,ObjectXML*>::iterator it;
-
-        for (it=objects.begin();it!=objects.end();it++)
+        if (NebulaLog::log_level() == Log::DEBUG)
         {
-            oss << " " << it->first;
-        }
+            ostringstream   oss;
+            oss << "Pending/rescheduling VM and capacity requirements:" << endl;
 
-        NebulaLog::log("VM",Log::DEBUG,oss);
+            oss << right << setw(8)  << "VM"        << " "
+                << right << setw(4)  << "CPU"       << " "
+                << right << setw(11) << "Memory"    << " "
+                << right << setw(11) << "System DS" << " "
+                << " Image DS"
+                << endl << setw(60) << setfill('-') << "-" << setfill(' ');
+
+            for (map<int,ObjectXML*>::iterator it=objects.begin();it!=objects.end();it++)
+            {
+                int cpu, mem;
+                long long disk;
+
+                VirtualMachineXML * vm = static_cast<VirtualMachineXML *>(it->second);
+
+                vm->get_requirements(cpu, mem, disk);
+
+                oss << endl
+                    << right << setw(8)  << it->first   << " "
+                    << right << setw(4)  << cpu         << " "
+                    << right << setw(11) << mem         << " "
+                    << right << setw(11) << disk        << " ";
+
+                map<int,long long> ds_usage = vm->get_storage_usage();
+
+                for (map<int,long long>::const_iterator ds_it = ds_usage.begin();
+                        ds_it != ds_usage.end(); ds_it++)
+                {
+                    oss << " DS " << ds_it->first << ": " << ds_it->second << " ";
+                }
+            }
+
+            NebulaLog::log("VM",Log::DEBUG,oss);
+        }
     }
 
     return rc;
@@ -96,21 +122,20 @@ int VirtualMachinePoolXML::load_info(xmlrpc_c::value &result)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int VirtualMachinePoolXML::dispatch(int vid, int hid, bool resched) const
+int VirtualMachinePoolXML::dispatch(int vid, int hid, int dsid, bool resched) const
 {
     ostringstream               oss;
     xmlrpc_c::value             deploy_result;
 
     if (resched == true)
     {
-        oss << "Rescheduling ";
+        oss << "Rescheduling " << "VM " << vid << " to host " << hid;
     }
     else
     {
-        oss << "Dispatching ";
+        oss << "Dispatching " << "VM " << vid << " to host " << hid
+            << " and datastore " << dsid;
     }
-
-    oss << "virtual machine " << vid << " to host " << hid;
 
     NebulaLog::log("VM",Log::INFO,oss);
 
@@ -132,12 +157,13 @@ int VirtualMachinePoolXML::dispatch(int vid, int hid, bool resched) const
         {
             client->call(client->get_endpoint(),           // serverUrl
                          "one.vm.deploy",                  // methodName
-                         "siib",                           // arguments format
+                         "siibi",                          // arguments format
                          &deploy_result,                   // resultP
                          client->get_oneauth().c_str(),    // argument 0 (AUTH)
                          vid,                              // argument 1 (VM)
                          hid,                              // argument 2 (HOST)
-                         false);                           // argument 3 (ENFORCE)
+                         false,                            // argument 3 (ENFORCE)
+                         dsid);                            // argument 5 (SYSTEM SD)
         }
     }
     catch (exception const& e)
@@ -155,11 +181,11 @@ int VirtualMachinePoolXML::dispatch(int vid, int hid, bool resched) const
     vector<xmlrpc_c::value> values =
                     xmlrpc_c::value_array(deploy_result).vectorValueValue();
 
-    bool   success = xmlrpc_c::value_boolean( values[0] );
+    bool success = xmlrpc_c::value_boolean(values[0]);
 
     if ( !success )
     {
-        string message = xmlrpc_c::value_string(  values[1] );
+        string message = xmlrpc_c::value_string(values[1]);
 
         oss.str("");
         oss << "Error deploying virtual machine " << vid

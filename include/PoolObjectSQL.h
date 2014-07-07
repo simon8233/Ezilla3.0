@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -59,7 +59,8 @@ public:
         ACL         = 0x0000080000000000LL,
         DATASTORE   = 0x0000100000000000LL,
         CLUSTER     = 0x0000200000000000LL,
-        DOCUMENT    = 0x0000400000000000LL
+        DOCUMENT    = 0x0000400000000000LL,
+        ZONE        = 0x0000800000000000LL
     };
 
     static string type_to_str(ObjectType ob)
@@ -77,6 +78,7 @@ public:
             case DATASTORE: return "DATASTORE" ; break;
             case CLUSTER:   return "CLUSTER" ; break;
             case DOCUMENT:  return "DOCUMENT" ; break;
+            case ZONE:      return "ZONE" ; break;
             default:        return "";
         }
     };
@@ -337,7 +339,7 @@ public:
     }
 
     /**
-     *  Gets an removes a string based attribute (single)
+     *  Gets and removes a string based attribute (single)
      *    @param name of the attribute
      *    @param value of the attribute (a string), will be "" if not defined or
      *    not a single attribute
@@ -346,6 +348,51 @@ public:
     int erase_template_attribute(
         const char * name,
         string&      value)
+    {
+        obj_template->get(name,value);
+        return obj_template->erase(name);
+    }
+
+    /**
+     *  Gets and removes a float based attribute (single)
+     *    @param name of the attribute
+     *    @param value of the attribute (a float), will be 0 if not defined or
+     *    not a single attribute
+     *    @return the number of attributes erased
+     */
+    int erase_template_attribute(
+        const char * name,
+        float&       value)
+    {
+        obj_template->get(name,value);
+        return obj_template->erase(name);
+    }
+
+    /**
+     *  Gets and removes a long long based attribute (single)
+     *    @param name of the attribute
+     *    @param value of the attribute (a long long), will be 0 if not defined or
+     *    not a single attribute
+     *    @return the number of attributes erased
+     */
+    int erase_template_attribute(
+        const char * name,
+        long long&   value)
+    {
+        obj_template->get(name,value);
+        return obj_template->erase(name);
+    }
+
+    /**
+     *  Gets and removes a boolean based attribute (single)
+     *    @param name of the attribute
+     *    @param value of the attribute (a boolean), will be false if not defined or
+     *    not a single attribute
+     *    @return the number of attributes erased
+     */
+    int erase_template_attribute(
+        const char * name,
+        bool&        value)
     {
         obj_template->get(name,value);
         return obj_template->erase(name);
@@ -363,6 +410,22 @@ public:
     bool get_template_attribute(
         const char *    name,
         int&            value) const
+    {
+        return obj_template->get(name,value);
+    }
+
+    /**
+     *  Gets a long long based attribute (single)
+     *    @param name of the attribute
+     *    @param value of the attribute (long long), will be 0 if not defined or
+     *    not a single attribute
+     *
+     *    @return True if the Single attribute was found and is a valid integer
+     *    value
+     */
+    bool get_template_attribute(
+        const char *    name,
+        long long&      value) const
     {
         return obj_template->get(name,value);
     }

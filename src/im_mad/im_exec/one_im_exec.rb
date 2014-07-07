@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -49,10 +49,27 @@ class InformationManagerDriver < OpenNebulaDriver
 
         # register actions
         register_action(:MONITOR, method("action_monitor"))
+        register_action(:STOPMONITOR, method("stop_monitor"))
+
+        # collectd port
+        @collectd_port = 4124
+        begin
+            im_collectd = @config["IM_MAD"].select{|e| e.match(/collectd/)}[0]
+            @collectd_port = im_collectd.match(/-p (\d+)/)[1]
+        rescue
+        end
+
+        # monitor_push_interval
+        @monitor_push_interval = 20
+        begin
+            im_collectd = @config["IM_MAD"].select{|e| e.match(/collectd/)}[0]
+            @monitor_push_interval = im_collectd.match(/-i (\d+)/)[1].to_i
+        rescue
+        end
     end
 
     # Execute the run_probes in the remote host
-    def action_monitor(number, host, do_update)
+    def action_monitor(number, host, ds_location, do_update)
 
         if !action_is_local?(:MONITOR)
             if do_update == "1" || @options[:force_copy]
@@ -73,8 +90,15 @@ class InformationManagerDriver < OpenNebulaDriver
             end
         end
 
-        do_action("#{@hypervisor}", number, host, :MONITOR,
-            :script_name => 'run_probes', :base64 => true)
+        args = "#{@hypervisor} #{ds_location} #{@collectd_port}"
+        args << " #{@monitor_push_interval}"
+        do_action(args, number, host,:MONITOR, :script_name => 'run_probes',
+                  :base64 => true)
+    end
+
+    def stop_monitor(number, host)
+        do_action("#{@hypervisor}", number, host,
+                :STOPMONITOR, :script_name => 'stop_probes', :base64 => true)
     end
 end
 

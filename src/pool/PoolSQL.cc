@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -51,8 +51,8 @@ int PoolSQL::init_cb(void *nil, int num, char **values, char **names)
 
 /* -------------------------------------------------------------------------- */
 
-PoolSQL::PoolSQL(SqlDB * _db, const char * _table, bool cache_by_name):
-    db(_db), lastOID(-1), table(_table), uses_name_pool(cache_by_name)
+PoolSQL::PoolSQL(SqlDB * _db, const char * _table, bool _cache, bool cache_by_name):
+    db(_db), lastOID(-1), table(_table), cache(_cache), uses_name_pool(cache_by_name)
 {
     ostringstream   oss;
 
@@ -176,6 +176,11 @@ PoolObjectSQL * PoolSQL::get(
 
     lock();
 
+    if (!cache)
+    {
+        flush_cache(oid);
+    }
+
     index = pool.find(oid);
 
     if ( index != pool.end() )
@@ -252,11 +257,14 @@ PoolObjectSQL * PoolSQL::get(
             objectsql->lock();
         }
 
-        oid_queue.push(objectsql->oid);
-
-        if ( pool.size() > MAX_POOL_SIZE )
+        if (cache)
         {
-            replace();
+            oid_queue.push(objectsql->oid);
+
+            if ( pool.size() > MAX_POOL_SIZE )
+            {
+                replace();
+            }
         }
 
         unlock();
@@ -274,16 +282,23 @@ PoolObjectSQL * PoolSQL::get(const string& name, int ouid, bool olock)
 
     PoolObjectSQL *  objectsql;
     int              rc;
-
-    lock();
+    string           name_key;
 
     if ( uses_name_pool == false )
     {
-        unlock();
         return 0;
     }
 
-    index = name_pool.find(key(name,ouid));
+    lock();
+
+    name_key = key(name,ouid);
+
+    if (!cache)
+    {
+        flush_cache(name_key);
+    }
+
+    index = name_pool.find(name_key);
 
     if ( index != name_pool.end() && index->second->isValid() == true )
     {
@@ -342,11 +357,14 @@ PoolObjectSQL * PoolSQL::get(const string& name, int ouid, bool olock)
             objectsql->lock();
         }
 
-        oid_queue.push(objectsql->oid);
-
-        if ( pool.size() > MAX_POOL_SIZE )
+        if (cache)
         {
-            replace();
+            oid_queue.push(objectsql->oid);
+
+            if ( pool.size() > MAX_POOL_SIZE )
+            {
+                replace();
+            }
         }
 
         unlock();
@@ -446,6 +464,95 @@ void PoolSQL::replace()
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+void PoolSQL::flush_cache(int oid)
+{
+    int  rc;
+    PoolObjectSQL * tmp_ptr;
+
+    map<int,PoolObjectSQL *>::iterator  it;
+
+    for (it = pool.begin(); it != pool.end(); )
+    {
+        // The object we are looking for in ::get(). Will wait until it is
+        // unlocked()
+        if (it->second->oid == oid)
+        {
+            it->second->lock();
+        }
+        else
+        {
+            // Any other locked object is just ignored
+            rc = pthread_mutex_trylock(&(it->second->mutex));
+
+            if ( rc == EBUSY ) // In use by other thread
+            {
+                it++;
+                continue;
+            }
+        }
+
+        tmp_ptr = it->second;
+
+        // map::erase does not invalidate the iterator, except for the current
+        // one
+        pool.erase(it++);
+
+        if ( uses_name_pool )
+        {
+            string okey = key(tmp_ptr->name,tmp_ptr->uid);
+            name_pool.erase(okey);
+        }
+
+        delete tmp_ptr;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+void PoolSQL::flush_cache(const string& name_key)
+{
+    int  rc;
+    PoolObjectSQL * tmp_ptr;
+
+    map<string,PoolObjectSQL *>::iterator it;
+
+    for (it = name_pool.begin(); it != name_pool.end(); )
+    {
+        string okey = key(it->second->name, it->second->uid);
+
+        // The object we are looking for in ::get(). Will wait until it is
+        // unlocked()
+        if (name_key == okey)
+        {
+            it->second->lock();
+        }
+        else
+        {
+            // Any other locked object is just ignored
+            rc = pthread_mutex_trylock(&(it->second->mutex));
+
+            if ( rc == EBUSY ) // In use by other thread
+            {
+                it++;
+                continue;
+            }
+        }
+
+        tmp_ptr = it->second;
+
+        // map::erase does not invalidate the iterator, except for the current
+        // one
+        name_pool.erase(it++);
+        pool.erase(tmp_ptr->oid);
+
+        delete tmp_ptr;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
 void PoolSQL::clean()
 {
     map<int,PoolObjectSQL *>::iterator  it;
@@ -488,7 +595,8 @@ int PoolSQL::dump_cb(void * _oss, int num, char **values, char **names)
 int PoolSQL::dump(ostringstream& oss,
                   const string& elem_name,
                   const char * table,
-                  const string& where)
+                  const string& where,
+                  const string& limit)
 {
     ostringstream   cmd;
 
@@ -500,6 +608,11 @@ int PoolSQL::dump(ostringstream& oss,
     }
 
     cmd << " ORDER BY oid";
+
+    if ( !limit.empty() )
+    {
+        cmd << " LIMIT " << limit;
+    }
 
     return dump(oss, elem_name, cmd);
 }
@@ -579,14 +692,14 @@ int PoolSQL::search(
 /* -------------------------------------------------------------------------- */
 
 void PoolSQL::acl_filter(int                       uid,
-                         int                       gid,
+                         const set<int>&           user_groups,
                          PoolObjectSQL::ObjectType auth_object,
                          bool&                     all,
                          string&                   filter)
 {
     filter.clear();
 
-    if ( uid == 0 || gid == 0 )
+    if ( uid == UserPool::ONEADMIN_ID || user_groups.count( GroupPool::ONEADMIN_ID ) == 1 )
     {
         all = true;
         return;
@@ -603,7 +716,7 @@ void PoolSQL::acl_filter(int                       uid,
     vector<int> cids;
 
     aclm->reverse_search(uid,
-                         gid,
+                         user_groups,
                          auth_object,
                          AuthRequest::USE,
                          all,
@@ -631,14 +744,16 @@ void PoolSQL::acl_filter(int                       uid,
 
 /* -------------------------------------------------------------------------- */
 
-void PoolSQL::usr_filter(int           uid,
-                         int           gid,
-                         int           filter_flag,
-                         bool          all,
-                         const string& acl_str,
-                         string&       filter)
+void PoolSQL::usr_filter(int                uid,
+                         const set<int>&    user_groups,
+                         int                filter_flag,
+                         bool               all,
+                         const string&      acl_str,
+                         string&            filter)
 {
     ostringstream uid_filter;
+
+    set<int>::iterator g_it;
 
     if ( filter_flag == RequestManagerPoolInfoFilter::MINE )
     {
@@ -646,17 +761,26 @@ void PoolSQL::usr_filter(int           uid,
     }
     else if ( filter_flag == RequestManagerPoolInfoFilter::MINE_GROUP )
     {
-        uid_filter << " uid = " << uid
-                   << " OR ( gid = " << gid << " AND group_u = 1 )";
+        uid_filter << " uid = " << uid;
+
+        for (g_it = user_groups.begin(); g_it != user_groups.end(); g_it++)
+        {
+            uid_filter << " OR ( gid = " << *g_it << " AND group_u = 1 )";
+        }
     }
     else if ( filter_flag == RequestManagerPoolInfoFilter::ALL )
     {
         if (!all)
         {
             uid_filter << " uid = " << uid
-                       << " OR ( gid = " << gid << " AND group_u = 1 )"
-                       << " OR other_u = 1"
-                       << acl_str;
+                    << " OR other_u = 1";
+
+            for (g_it = user_groups.begin(); g_it != user_groups.end(); g_it++)
+            {
+                uid_filter << " OR ( gid = " << *g_it << " AND group_u = 1 )";
+            }
+
+            uid_filter << acl_str;
         }
     }
     else
@@ -665,11 +789,14 @@ void PoolSQL::usr_filter(int           uid,
 
         if ( filter_flag != uid && !all )
         {
-            uid_filter << " AND ("
-                       << " ( gid = " << gid << " AND group_u = 1)"
-                       << " OR other_u = 1"
-                       << acl_str
-                       << ")";
+            uid_filter << " AND ( other_u = 1";
+
+            for (g_it = user_groups.begin(); g_it != user_groups.end(); g_it++)
+            {
+                uid_filter << " OR ( gid = " << *g_it << " AND group_u = 1 )";
+            }
+
+            uid_filter << acl_str << ")";
         }
     }
 
@@ -684,7 +811,7 @@ void PoolSQL::oid_filter(int     start_id,
 {
     ostringstream idfilter;
 
-    if ( start_id != -1 )
+    if ( end_id >= -1 && start_id != -1 )
     {
         idfilter << "oid >= " << start_id;
 

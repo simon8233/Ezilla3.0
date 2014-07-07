@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -42,7 +42,8 @@ public:
     UserPool(SqlDB * db,
              time_t  __session_expiration_time,
              vector<const Attribute *> hook_mads,
-             const string&             remotes_location);
+             const string&             remotes_location,
+             bool                      is_federation_slave);
 
     ~UserPool(){};
 
@@ -60,6 +61,15 @@ public:
         const string& auth,
         bool    enabled,
         string& error_str);
+
+    /**
+     *  Drops the object's data in the data base. The object mutex SHOULD be
+     *  locked.
+     *    @param objsql a pointer to the object
+     *    @param error_msg Error reason, if any
+     *    @return 0 on success, -1 DB error
+     */
+    int drop(PoolObjectSQL * objsql, string& error_msg);
 
     /**
      *  Function to get a User from the pool, if the object is not in memory
@@ -99,14 +109,19 @@ public:
         return name;
     };
 
-    /** Update a particular User
+    /**
+     * Update a particular User. This method does not update the user's quotas
      *    @param user pointer to User
      *    @return 0 on success
      */
-    int update(User * user)
-    {
-        return user->update(db);
-    };
+    int update(User * user);
+
+    /**
+     * Update a particular User's Quotas
+     *    @param user pointer to User
+     *    @return 0 on success
+     */
+    int update_quotas(User * user);
 
     /**
      *  Bootstraps the database table(s) associated to the User pool
@@ -124,6 +139,7 @@ public:
      *   @param gid of the user if authN succeeded -1 otherwise
      *   @param uname of the user if authN succeeded "" otherwise
      *   @param gname of the group if authN succeeded "" otherwise
+     *   @param group_ids the user groups if authN succeeded, is empty otherwise
      *
      *   @return false if authn failed, true otherwise
      */
@@ -131,7 +147,8 @@ public:
                       int&          uid,
                       int&          gid,
                       string&       uname,
-                      string&       gname);
+                      string&       gname,
+                      set<int>&     group_ids);
     /**
      * Returns whether the operations described in a authorization request are
      * authorized ot not.
@@ -145,13 +162,11 @@ public:
      *  query
      *  @param oss the output stream to dump the pool contents
      *  @param where filter for the objects, defaults to all
+     *  @param limit parameters used for pagination
      *
      *  @return 0 on success
      */
-    int dump(ostringstream& oss, const string& where)
-    {
-        return PoolSQL::dump(oss, "USER_POOL", User::table, where);
-    };
+    int dump(ostringstream& oss, const string& where, const string& limit);
 
     /**
      *  Name for the OpenNebula core authentication process
@@ -189,16 +204,6 @@ public:
      */
     static const int ONEADMIN_ID;
 
-protected:
-
-    /**
-     * Adds the default quotas xml element, right after all the
-     * pool objects
-     *
-     * @param oss The output stream to dump the xml contents
-     */
-    virtual void add_extra_xml(ostringstream&  oss);
-
 private:
     //--------------------------------------------------------------------------
     // Configuration Attributes for Users
@@ -217,7 +222,8 @@ private:
                                int&          user_id,
                                int&          group_id,
                                string&       uname,
-                               string&       gname);
+                               string&       gname,
+                               set<int>&     group_ids);
 
     /**
      *  Function to authenticate internal users using a server driver
@@ -227,18 +233,20 @@ private:
                              int&          user_id,
                              int&          group_id,
                              string&       uname,
-                             string&       gname);
+                             string&       gname,
+                             set<int>&     group_ids);
 
 
     /**
      *  Function to authenticate external (not known) users
      */
-    bool authenticate_external(const string& username,
-                               const string& token,
-                               int&    user_id,
-                               int&    group_id,
-                               string& uname,
-                               string& gname);
+    bool authenticate_external(const string&    username,
+                               const string&    token,
+                               int&             user_id,
+                               int&             group_id,
+                               string&          uname,
+                               string&          gname,
+                               set<int>&        group_ids);
     /**
      *  Factory method to produce User objects
      *    @return a pointer to the new User
@@ -248,6 +256,17 @@ private:
         return new User(-1,-1,"","","",UserPool::CORE_AUTH,true);
     };
 
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+
+    /**
+     *  Callback function to get output in XML format
+     *    @param num the number of columns read from the DB
+     *    @param names the column names
+     *    @param vaues the column values
+     *    @return 0 on success
+     */
+    int dump_cb(void * _oss, int num, char **values, char **names);
 };
 
 #endif /*USER_POOL_H_*/

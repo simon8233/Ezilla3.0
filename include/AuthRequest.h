@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -18,6 +18,7 @@
 #define AUTH_REQUEST_H_
 
 #include <time.h>
+#include <set>
 
 #include "ActionManager.h"
 #include "PoolObjectAuth.h"
@@ -36,7 +37,7 @@ using namespace std;
 class AuthRequest : public SyncRequest
 {
 public:
-    AuthRequest(int _uid, int _gid): uid(_uid),gid(_gid),self_authorize(true){};
+    AuthRequest(int _uid, set<int> _gids): uid(_uid),gids(_gids),self_authorize(true){};
 
     ~AuthRequest(){};
 
@@ -84,18 +85,21 @@ public:
      *
      *        OBJECT:<-1|OBJECT_TMPL_XML64>:CREATE:UID:AUTH
      *
+     *    @param uid of the object owner
+     *    @param gid of the object group
      *    @param type of the object to be created
      *    @param txml template of the new object
      */
-     void add_create_auth(PoolObjectSQL::ObjectType type, const string& txml)
-     {
-         PoolObjectAuth perms; //oid & gid set to -1
+    void add_create_auth(int uid, int gid, PoolObjectSQL::ObjectType type, const string& txml)
+    {
+        PoolObjectAuth perms; //oid & gid set to -1
 
-         perms.uid      = uid;
-         perms.obj_type = type;
+        perms.uid      = uid;
+        perms.gid      = gid;
+        perms.obj_type = type;
 
-         add_auth(AuthRequest::CREATE, perms, txml);
-     }
+        add_auth(AuthRequest::CREATE, perms, txml);
+    }
 
     /**
      *  Adds a new authorization item to this request
@@ -158,9 +162,9 @@ private:
     int    uid;
 
     /**
-     *  The user group ID
+     *  The user groups ID set
      */
-    int    gid;
+    set<int> gids;
 
     /**
      *  Username to authenticate the user

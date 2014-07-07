@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -22,10 +22,10 @@
 #include <sstream>
 
 #include "Mad.h"
-#include "HostPool.h"
-
 
 using namespace std;
+
+class MonitorThreadPool;
 
 /**
  *  InformationManagerDriver provides a base class to implement IM
@@ -38,13 +38,12 @@ class InformationManagerDriver : public Mad
 public:
 
     InformationManagerDriver(
-        int                     userid,
-        const map<string,string>&     attrs,
-        bool                    sudo,
-        HostPool *              pool):
-            Mad(userid,attrs,sudo),hpool(pool){};
+        int                         userid,
+        const map<string,string>&   attrs,
+        bool                        sudo,
+        MonitorThreadPool *         mtpool);
 
-    virtual ~InformationManagerDriver(){};
+    virtual ~InformationManagerDriver();
 
     /**
      *  Implements the IM driver protocol.
@@ -57,21 +56,30 @@ public:
      */
     void recover();
 
-	/**
+    /**
      *  Sends a monitor request to the MAD: "MONITOR  ID  HOSTNAME -"
      *    @param oid the virtual machine id.
      *    @param host the hostname
+     *    @param ds_location DATASTORE_LOCATION for the host
      *    @param update the remotes directory in host
      */
-    void monitor(int oid, const string& host, bool update) const;
+    void monitor(int oid, const string& host, const string& ds_location,
+        bool update) const;
+
+    /**
+     *  Sends a stop monitor request to the MAD: "MONITOR  ID  HOSTNAME -"
+     *    @param oid the virtual machine id.
+     *    @param host the hostname
+     */
+    void stop_monitor(int oid, const string& host) const;
 
 private:
-    /**
-     *  Pointer to the Virtual Machine Pool, to access VMs
-     */
-    HostPool * hpool;
-
     friend class InformationManager;
+
+    /**
+     *  Pointer to the Monitor Thread Pool to process monitor messages
+     */
+    MonitorThreadPool * mtpool;
 };
 
 /* -------------------------------------------------------------------------- */

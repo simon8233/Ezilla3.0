@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (C) 2013
+# Copyright (C) 2013-2014
 #
 # This file is part of ezilla.
 #
@@ -98,7 +98,7 @@ module OpenNebulaJSON
         end
 
         def deploy(params=Hash.new)
-            super(params['host_id'])
+            super(params['host_id'], params['enforce'], params['ds_id'])
         end
 
         def undeploy(params=Hash.new)
@@ -109,13 +109,15 @@ module OpenNebulaJSON
             super(params['hard'])
         end
 
-        def migrate(params=Hash.new, live=false, enforce=false)
-            # TODO add enforce parameter
-            super(params['host_id'], live)
+        def migrate(params=Hash.new, live=false)
+            super(params['host_id'], live, params['enforce'])
         end
 
         def save_as(params=Hash.new)
-            super(params['disk_id'].to_i, params['image_name'], params['type'], params['hot'])
+            clone = params['clonetemplate']
+            clone = false if clone.nil?
+
+            disk_snapshot(params['disk_id'].to_i, params['image_name'], params['type'], params['hot'], clone)
         end
 
         def snapshot_create(params=Hash.new)

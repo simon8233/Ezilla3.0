@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -30,7 +30,8 @@ module OpenNebula
             :delete     => "host.delete",
             :enable     => "host.enable",
             :update     => "host.update",
-            :monitoring => "host.monitoring"
+            :monitoring => "host.monitoring",
+            :rename     => "host.rename"
         }
 
         HOST_STATES=%w{INIT MONITORING_MONITORED MONITORED ERROR DISABLED MONITORING_ERROR MONITORING_INIT MONITORING_DISABLED}
@@ -174,6 +175,16 @@ module OpenNebula
             return Error.new('ID not defined') if !@pe_id
 
             return @client.call(HOST_METHODS[:monitoring], @pe_id)
+        end
+
+        # Renames this Host
+        #
+        # @param name [String] New name for the Host.
+        #
+        # @return [nil, OpenNebula::Error] nil in case of success, Error
+        #   otherwise
+        def rename(name)
+            return call(HOST_METHODS[:rename], @pe_id, name)
         end
 
         #######################################################################

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-------------------------------------------------------------------------------
-# Copyright (C) 2013
+# Copyright (C) 2013-2014
 #
 # This file is part of ezilla.
 #
@@ -62,6 +62,8 @@ $: << SUNSTONE_ROOT_DIR+'/models'
 
 SESSION_EXPIRE_TIME = 60*60
 
+DISPLAY_NAME_XPATH = 'TEMPLATE/SUNSTONE_DISPLAY_NAME'
+
 ##############################################################################
 # Required libraries
 ##############################################################################
@@ -113,6 +115,8 @@ else
     exit(-1)
 end
 
+use Rack::Deflater
+
 # Enable logger
 
 include CloudLogger
@@ -142,6 +146,8 @@ configure do
     set :vnc, $vnc
     set :erb, :trim => '-'
 end
+
+DEFAULT_TABLE_ORDER = "desc"
 
 ##############################################################################
 # Helpers
@@ -173,17 +179,19 @@ helpers do
                 return [500, ""]
             end
 
-            session[:user]       = user['NAME']
-            session[:user_id]    = user['ID']
-            session[:user_gid]   = user['GID']
-            session[:user_gname] = user['GNAME']
-            session[:ip]         = request.ip
-            session[:remember]   = params[:remember]
+            session[:user]         = user['NAME']
+            session[:user_id]      = user['ID']
+            session[:user_gid]     = user['GID']
+            session[:user_gname]   = user['GNAME']
+            session[:ip]           = request.ip
+            session[:remember]     = params[:remember]
+            session[:display_name] = user[DISPLAY_NAME_XPATH] || user['NAME']
 
             #User IU options initialization
             #Load options either from user settings or default config.
             # - LANG
             # - WSS CONECTION
+            # - TABLE ORDER
 
             if user['TEMPLATE/LANG']
                 session[:lang] = user['TEMPLATE/LANG']
@@ -200,6 +208,12 @@ helpers do
                                  "yes" : "no")
             end
 
+            if user['TEMPLATE/TABLE_ORDER']
+                session[:table_order] = user['TEMPLATE/TABLE_ORDER']
+            else
+                session[:table_order] = $conf[:table_order] || DEFAULT_TABLE_ORDER
+            end
+
             if user['TEMPLATE/DEFAULT_VIEW']
                 session[:default_view] = user['TEMPLATE/DEFAULT_VIEW']
             else
@@ -209,8 +223,17 @@ helpers do
             #end user options
 
             if params[:remember] == "true"
-                env['rack.session.options'][:expire_after] = 30*60*60*24
+                env['rack.session.options'][:expire_after] = 30*60*60*24-1
             end
+
+            serveradmin_client = $cloud_auth.client()
+            rc = OpenNebula::System.new(serveradmin_client).get_configuration
+            return [500, rc.message] if OpenNebula.is_error?(rc)
+            return [500, "Couldn't find out zone identifier"] if !rc['FEDERATION/ZONE_ID']
+
+            zone = OpenNebula::Zone.new_with_id(rc['FEDERATION/ZONE_ID'].to_i, client)
+            zone.info
+            session[:zone_name] = zone.name
 
             return [204, ""]
         end
@@ -220,6 +243,10 @@ helpers do
         session.clear
         return [204, ""]
     end
+
+    def cloud_view_instance_types
+        $conf[:instance_types] || []
+    end
 end
 
 before do
@@ -227,12 +254,28 @@ before do
     content_type 'application/json', :charset => 'utf-8'
     unless request.path=='/login' || request.path=='/' || request.path=='/vnc'
         halt 401 unless authorized?
-
-        @SunstoneServer = SunstoneServer.new(
-                              $cloud_auth.client(session[:user]),
-                              $conf,
-                              logger)
     end
+
+    if env['HTTP_ZONE_NAME']
+        client=$cloud_auth.client(session[:user])
+        zpool = ZonePoolJSON.new(client)
+
+        rc = zpool.info
+
+        return [500, rc.to_json] if OpenNebula.is_error?(rc)
+
+        zpool.each{|z|
+            if z.name == env['HTTP_ZONE_NAME']
+              session[:active_zone_endpoint] = z['TEMPLATE/ENDPOINT']
+              session[:zone_name] = env['HTTP_ZONE_NAME']
+            end
+         }
+    end
+
+    client=$cloud_auth.client(session[:user],
+                              session[:active_zone_endpoint])
+
+    @SunstoneServer = SunstoneServer.new(client,$conf,logger)
 end
 
 after do
@@ -331,9 +374,11 @@ post '/config' do
         error 500, ""
     end
 
-    session[:lang] = user['TEMPLATE/LANG']
-    session[:vnc_wss] = user['TEMPLATE/VNC_WSS']
-    session[:default_view] = user['TEMPLATE/DEFAULT_VIEW']
+    session[:lang]         = user['TEMPLATE/LANG'] if user['TEMPLATE/LANG']
+    session[:vnc_wss]      = user['TEMPLATE/VNC_WSS'] if user['TEMPLATE/VNC_WSS']
+    session[:default_view] = user['TEMPLATE/DEFAULT_VIEW'] if user['TEMPLATE/DEFAULT_VIEW']
+    session[:table_order]  = user['TEMPLATE/TABLE_ORDER'] if user['TEMPLATE/TABLE_ORDER']
+    session[:display_name] = user[DISPLAY_NAME_XPATH] || user['NAME']
 
     [200, ""]
 end
@@ -343,7 +388,7 @@ get '/vm/:id/log' do
 end
 
 ##############################################################################
-# Accounting & Monitoring
+# Monitoring
 ##############################################################################
 
 get '/:resource/monitor' do
@@ -369,6 +414,15 @@ get '/:resource/:id/monitor' do
 end
 
 ##############################################################################
+# Accounting
+##############################################################################
+
+get '/vm/accounting' do
+    @SunstoneServer.get_vm_accounting(params)
+end
+
+
+##############################################################################
 # Marketplace
 ##############################################################################
 get '/marketplace' do
@@ -383,7 +437,20 @@ end
 # GET Pool information
 ##############################################################################
 get '/:pool' do
-    @SunstoneServer.get_pool(params[:pool], session[:user_gid])
+    zone_client = nil
+
+    if params[:zone_id]
+        zone = OpenNebula::Zone.new_with_id(params[:zone_id].to_i,
+                                            $cloud_auth.client(session[:user]))
+        rc   = zone.info
+        return [500, rc.message] if OpenNebula.is_error?(rc)
+        zone_client = $cloud_auth.client(session[:user],
+                                         zone['TEMPLATE/ENDPOINT'])
+    end
+
+    @SunstoneServer.get_pool(params[:pool],
+                             session[:user_gid],
+                             zone_client)
 end
 
 ##############################################################################
@@ -415,16 +482,21 @@ post '/upload'do
 
     if (rackinput.class == Tempfile)
         tmpfile = rackinput
-    elsif (rackinput.class == StringIO)
+    elsif rackinput.respond_to?('read')
         tmpfile = Tempfile.open('sunstone-upload')
         tmpfile.write rackinput.read
         tmpfile.flush
     else
         logger.error { "Unexpected rackinput class #{rackinput.class}" }
-        return [500, ""]
+        [500, ""]
     end
 
-    @SunstoneServer.upload(params[:img], tmpfile.path)
+    if tmpfile.size == 0
+        [500, OpenNebula::Error.new("There was a problem uploading the file, " \
+                "please check the permissions on the file").to_json]
+    else
+        @SunstoneServer.upload(params[:img], tmpfile.path)
+    end
 end
 
 ##############################################################################

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -31,6 +31,7 @@
 #include "DatastorePool.h"
 #include "ClusterPool.h"
 #include "DocumentPool.h"
+#include "ZonePool.h"
 
 #include "VirtualMachineManager.h"
 #include "LifeCycleManager.h"
@@ -116,6 +117,11 @@ public:
     DocumentPool * get_docpool()
     {
         return docpool;
+    };
+
+    ZonePool * get_zonepool()
+    {
+        return zonepool;
     };
 
     // --------------------------------------------------------------
@@ -280,14 +286,31 @@ public:
     };
 
     /**
-     *  Returns the default var location. When ONE_LOCATION is defined this path
-     *  points to $ONE_LOCATION/var, otherwise it is /var/lib/one.
-     *      @return the log location.
+     *
+     *
      */
-    const string& get_ds_location()
+    int get_ds_location(int cluster_id, string& dsloc)
     {
-        return ds_location;
-    };
+        if ( cluster_id != -1 )
+        {
+            Cluster * cluster = clpool->get(cluster_id, true);
+
+            if ( cluster == 0 )
+            {
+                return -1;
+            }
+
+            cluster->get_ds_location(dsloc);
+
+            cluster->unlock();
+        }
+        else
+        {
+            get_configuration_attribute("DATASTORE_LOCATION", dsloc);
+        }
+
+        return 0;
+    }
 
     /**
      *  Returns the default vms location. When ONE_LOCATION is defined this path
@@ -340,18 +363,75 @@ public:
      */
     static string version()
     {
-        return "OpenNebula 4.2.0";
+        return "OpenNebula " + code_version();
     };
 
-    static string db_version()
+    /**
+     *  Returns the version of oned
+     * @return
+     */
+    static string code_version()
     {
-        return "4.2.0";
+        return "4.6.1"; // bump version
+    }
+
+    /**
+     * Version needed for the DB, shared tables
+     * @return
+     */
+    static string shared_db_version()
+    {
+        return "4.6.0";
+    }
+
+    /**
+     * Version needed for the DB, local tables
+     * @return
+     */
+    static string local_db_version()
+    {
+        return "4.5.80";
     }
 
     /**
      *  Starts all the modules and services for OpenNebula
      */
-    void start();
+    void start(bool bootstrap_only=false);
+
+    /**
+     *  Initialize the database
+     */
+    void bootstrap_db();
+
+    // --------------------------------------------------------------
+    // Federation
+    // --------------------------------------------------------------
+
+    bool is_federation_enabled()
+    {
+        return federation_enabled;
+    };
+
+    bool is_federation_master()
+    {
+        return federation_master;
+
+    };
+
+    bool is_federation_slave()
+    {
+        return federation_enabled && !federation_master;
+    };
+
+    int get_zone_id()
+    {
+        return zone_id;
+    };
+
+    const string& get_master_oned()
+    {
+        return master_oned;
+    };
 
     // -----------------------------------------------------------------------
     // Configuration attributes (read from oned.conf)
@@ -372,6 +452,20 @@ public:
     };
 
     /**
+     *  Gets a configuration attribute for oned
+     *    @param name of the attribute
+     *    @param value of the attribute
+     */
+    void get_configuration_attribute(
+        const char * name,
+        long long& value) const
+    {
+        string _name(name);
+
+        nebula_configuration->Template::get(_name, value);
+    };
+
+    /**
      *  Gets a configuration attribute for oned, bool version
      */
     void get_configuration_attribute(
@@ -382,6 +476,38 @@ public:
 
         nebula_configuration->Template::get(_name, value);
     };
+
+    /**
+     *  Gets a TM configuration attribute
+     */
+    int get_tm_conf_attribute(
+        const string& tm_name,
+        const VectorAttribute* &value) const
+    {
+        vector<const Attribute*>::const_iterator it;
+        vector<const Attribute*> values;
+
+        nebula_configuration->Template::get("TM_MAD_CONF", values);
+
+        for (it = values.begin(); it != values.end(); it ++)
+        {
+            value = dynamic_cast<const VectorAttribute*>(*it);
+
+            if (value == 0)
+            {
+                continue;
+            }
+
+            if (value->vector_value("NAME") == tm_name)
+            {
+                return 0;
+            }
+        }
+
+        value = 0;
+        return -1;
+    };
+
 
     /**
      *  Gets an XML document with all of the configuration attributes
@@ -510,9 +636,10 @@ private:
                             "/DEFAULT_GROUP_QUOTAS/NETWORK_QUOTA",
                             "/DEFAULT_GROUP_QUOTAS/IMAGE_QUOTA",
                             "/DEFAULT_GROUP_QUOTAS/VM_QUOTA"),
-        system_db(0), db(0), vmpool(0), hpool(0), vnpool(0),
-        upool(0), ipool(0), gpool(0), tpool(0), dspool(0), clpool(0),
-        docpool(0), lcm(0), vmm(0), im(0), tm(0), dm(0), rm(0), hm(0), authm(0),
+        system_db(0), db(0),
+        vmpool(0), hpool(0), vnpool(0), upool(0), ipool(0), gpool(0), tpool(0),
+        dspool(0), clpool(0), docpool(0), zonepool(0),
+        lcm(0), vmm(0), im(0), tm(0), dm(0), rm(0), hm(0), authm(0),
         aclm(0), imagem(0)
     {
         const char * nl = getenv("ONE_LOCATION");
@@ -526,7 +653,6 @@ private:
             log_location     = "/var/log/one/";
             var_location     = "/var/lib/one/";
             remotes_location = "/var/lib/one/remotes/";
-            ds_location      = "/var/lib/one/datastores/";
             vms_location     = "/var/lib/one/vms/";
         }
         else
@@ -543,127 +669,36 @@ private:
             log_location     = nebula_location + "var/";
             var_location     = nebula_location + "var/";
             remotes_location = nebula_location + "var/remotes/";
-            ds_location      = nebula_location + "var/datastores/";
             vms_location     = nebula_location + "var/vms/";
         }
     };
 
     ~Nebula()
     {
-        if ( vmpool != 0)
-        {
-            delete vmpool;
-        }
-
-        if ( vnpool != 0)
-        {
-            delete vnpool;
-        }
-
-        if ( hpool != 0)
-        {
-            delete hpool;
-        }
-
-        if ( upool != 0)
-        {
-            delete upool;
-        }
-
-        if ( ipool != 0)
-        {
-            delete ipool;
-        }
-
-        if ( gpool != 0)
-        {
-            delete gpool;
-        }
-
-        if ( tpool != 0)
-        {
-            delete tpool;
-        }
-
-        if ( dspool != 0)
-        {
-            delete dspool;
-        }
-
-        if ( clpool != 0)
-        {
-            delete clpool;
-        }
-
-        if ( docpool != 0)
-        {
-            delete docpool;
-        }
-
-        if ( vmm != 0)
-        {
-            delete vmm;
-        }
-
-        if ( lcm != 0)
-        {
-            delete lcm;
-        }
-
-        if ( im != 0)
-        {
-            delete im;
-        }
-
-        if ( tm != 0)
-        {
-            delete tm;
-        }
-
-        if ( dm != 0)
-        {
-            delete dm;
-        }
-
-        if ( rm != 0)
-        {
-            delete rm;
-        }
-
-        if ( hm != 0)
-        {
-            delete hm;
-        }
-
-        if ( authm != 0)
-        {
-            delete authm;
-        }
-
-        if ( aclm != 0)
-        {
-            delete aclm;
-        }
-
-        if ( imagem != 0)
-        {
-            delete imagem;
-        }
-
-        if ( nebula_configuration != 0)
-        {
-            delete nebula_configuration;
-        }
-
-        if ( db != 0 )
-        {
-            delete db;
-        }
-
-        if ( system_db != 0 )
-        {
-            delete system_db;
-        }
+        delete vmpool;
+        delete vnpool;
+        delete hpool;
+        delete upool;
+        delete ipool;
+        delete gpool;
+        delete tpool;
+        delete dspool;
+        delete clpool;
+        delete docpool;
+        delete zonepool;
+        delete vmm;
+        delete lcm;
+        delete im;
+        delete tm;
+        delete dm;
+        delete rm;
+        delete hm;
+        delete authm;
+        delete aclm;
+        delete imagem;
+        delete nebula_configuration;
+        delete db;
+        delete system_db;
     };
 
     Nebula& operator=(Nebula const&){return *this;};
@@ -680,7 +715,6 @@ private:
     string	var_location;
     string  hook_location;
     string  remotes_location;
-    string  ds_location;
     string  vms_location;
 
     string	hostname;
@@ -690,6 +724,15 @@ private:
     // ---------------------------------------------------------------
 
     OpenNebulaTemplate * nebula_configuration;
+
+    // ---------------------------------------------------------------
+    // Federation
+    // ---------------------------------------------------------------
+
+    bool    federation_enabled;
+    bool    federation_master;
+    int     zone_id;
+    string  master_oned;
 
     // ---------------------------------------------------------------
     // Default quotas
@@ -719,6 +762,7 @@ private:
     DatastorePool      * dspool;
     ClusterPool        * clpool;
     DocumentPool       * docpool;
+    ZonePool           * zonepool;
 
     // ---------------------------------------------------------------
     // Nebula Managers

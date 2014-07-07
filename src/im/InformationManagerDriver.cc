@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -19,8 +19,21 @@
 #include "Nebula.h"
 #include "NebulaUtil.h"
 #include "VirtualMachineManagerDriver.h"
+#include "MonitorThread.h"
+
 #include <sstream>
 
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+InformationManagerDriver::InformationManagerDriver(
+        int                       userid,
+        const map<string,string>& attrs,
+        bool                      sudo,
+        MonitorThreadPool *       _mtpool):
+            Mad(userid,attrs,sudo), mtpool(_mtpool){};
+
+InformationManagerDriver::~InformationManagerDriver(){};
 
 /* ************************************************************************** */
 /* Driver ASCII Protocol Implementation                                       */
@@ -28,11 +41,21 @@
 
 void InformationManagerDriver::monitor(int           oid,
                                        const string& host,
+                                       const string& dsloc,
                                        bool          update) const
 {
     ostringstream os;
 
-    os << "MONITOR " << oid << " " << host << " " << update << endl;
+    os << "MONITOR " << oid << " " << host << " " << dsloc << " " << update << endl;
+
+    write(os);
+}
+
+void InformationManagerDriver::stop_monitor(int oid, const string& host) const
+{
+    ostringstream os;
+
+    os << "STOPMONITOR " << oid << " " << host << " " << endl;
 
     write(os);
 }
@@ -52,12 +75,7 @@ void InformationManagerDriver::protocol(const string& message) const
 
     ostringstream   ess;
 
-    Host *          host;
-
     set<int>        vm_ids;
-
-    string  hinfo64;
-    string* hinfo;
 
     // Parse the driver message
 
@@ -88,92 +106,22 @@ void InformationManagerDriver::protocol(const string& message) const
         goto error_parse;
     }
 
-    // -----------------------
+    // -------------------------------------------------------------------------
     // Protocol implementation
-    // -----------------------
+    // -------------------------------------------------------------------------
 
     if ( action == "MONITOR" )
     {
-        bool vm_poll;
-
-        set<int>        lost;
-        map<int,string> found;
-
-        int rc;
-
-        host = hpool->get(id,true);
-
-        if ( host == 0 )
-        {
-            goto error_host;
-        }
+        string  hinfo64;
 
         getline (is, hinfo64);
 
-        hinfo = one_util::base64_decode(hinfo64);
-
-        if (result != "SUCCESS")
+        if (hinfo64.empty())
         {
-            set<int> vm_ids;
-
-            host->error_info(*hinfo, vm_ids);
-
-            Nebula           &ne  = Nebula::instance();
-            LifeCycleManager *lcm = ne.get_lcm();
-
-            for (set<int>::iterator it = vm_ids.begin(); it != vm_ids.end(); it++)
-            {
-                lcm->trigger(LifeCycleManager::MONITOR_DONE, *it);
-            }
-
-            delete hinfo;
-
-            hpool->update(host);
-            host->unlock();
-
             return;
         }
 
-        rc = host->update_info(*hinfo, vm_poll, lost, found);
-
-        delete hinfo;
-
-        hpool->update(host);
-
-        if (rc != 0)
-        {
-            host->unlock();
-
-            return;
-        }
-
-        hpool->update_monitoring(host);
-
-        ess << "Host " << host->get_name() << " (" << host->get_oid() << ")"
-            << " successfully monitored.";
-
-        NebulaLog::log("InM", Log::DEBUG, ess);
-
-        host->unlock();
-
-        if (vm_poll)
-        {
-            set<int>::iterator         its;
-            map<int,string>::iterator  itm;
-
-            Nebula           &ne  = Nebula::instance();
-            LifeCycleManager *lcm = ne.get_lcm();
-
-            for (its = lost.begin(); its != lost.end(); its++)
-            {
-                lcm->trigger(LifeCycleManager::MONITOR_DONE, *its);
-            }
-
-            for (itm = found.begin(); itm != found.end(); itm++)
-            {
-                VirtualMachineManagerDriver::process_poll(itm->first, itm->second);
-            }
-        }
+        mtpool->do_message(id, result, hinfo64);
     }
     else if (action == "LOG")
     {
@@ -182,12 +130,21 @@ void InformationManagerDriver::protocol(const string& message) const
         getline(is,info);
         NebulaLog::log("InM",log_type(result[0]),info.c_str());
     }
+    else if (action == "STOPMONITOR")
+    {
+        string error;
 
-    return;
+        if (result != "SUCCESS")
+        {
+            ostringstream oss;
+            string info;
 
-error_host:
-    ess << "Could not get host " << id;
-    NebulaLog::log("InM",Log::ERROR,ess);
+            getline (is, info);
+
+            oss << "Could not stop monitor on host " << id << " " << info;
+            NebulaLog::log("InM", Log::ERROR, oss.str());
+        }
+    }
 
     return;
 

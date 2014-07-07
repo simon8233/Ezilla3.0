@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -15,7 +15,6 @@
 /* -------------------------------------------------------------------------- */
 
 #include "RequestManagerUser.h"
-#include "NebulaUtil.h"
 
 using namespace std;
 
@@ -70,11 +69,6 @@ int UserChangePassword::user_action(int     user_id,
         return -1;
     }
 
-    if (user->get_auth_driver() == UserPool::CORE_AUTH)
-    {
-        new_pass = one_util::sha1_digest(new_pass);
-    }
-
     int rc = user->set_password(new_pass, error_str);
 
     if ( rc == 0 )
@@ -125,20 +119,20 @@ int UserChangeAuth::user_action(int     user_id,
         return -1;
     }
 
-    if ( !new_pass.empty() )
-    {
-        if ( new_auth == UserPool::CORE_AUTH)
-        {
-            new_pass = one_util::sha1_digest(new_pass);
-        }
+    string old_auth = user->get_auth_driver();
 
-        // The password may be invalid, try to change it first
+    rc = user->set_auth_driver(new_auth, error_str);
+
+    if ( rc == 0 && !new_pass.empty() )
+    {
         rc = user->set_password(new_pass, error_str);
-    }
 
-    if ( rc == 0 )
-    {
-        rc = user->set_auth_driver(new_auth, error_str);
+        if (rc != 0)
+        {
+            string tmp_str;
+
+            user->set_auth_driver(old_auth, tmp_str);
+        }
     }
 
     if ( rc == 0 )
@@ -204,9 +198,192 @@ int UserSetQuota::user_action(int     user_id,
 
     rc = user->quota.set(&quota_tmpl, error_str);
 
-    pool->update(user);
+    static_cast<UserPool *>(pool)->update_quotas(user);
 
     user->unlock();
 
     return rc;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+void UserEditGroup::
+    request_execute(xmlrpc_c::paramList const& paramList,
+                    RequestAttributes& att)
+{
+    int user_id  = xmlrpc_c::value_int(paramList.getInt(1));
+    int group_id = xmlrpc_c::value_int(paramList.getInt(2));
+
+    int rc;
+
+    string error_str;
+
+    string gname;
+    string uname;
+
+    PoolObjectAuth uperms;
+    PoolObjectAuth gperms;
+
+    rc = get_info(upool, user_id, PoolObjectSQL::USER, att, uperms, uname,true);
+
+    if ( rc == -1 )
+    {
+        return;
+    }
+
+    rc = get_info(gpool,group_id,PoolObjectSQL::GROUP,att,gperms,gname,true);
+
+    if ( rc == -1 )
+    {
+        return;
+    }
+
+    if ( att.uid != UserPool::ONEADMIN_ID )
+    {
+        AuthRequest ar(att.uid, att.group_ids);
+
+        ar.add_auth(AuthRequest::MANAGE, uperms);   // MANAGE USER
+        ar.add_auth(AuthRequest::MANAGE, gperms);   // MANAGE GROUP
+
+        if (UserPool::authorize(ar) == -1)
+        {
+            failure_response(AUTHORIZATION,
+                             authorization_error(ar.message, att),
+                             att);
+
+            return;
+        }
+    }
+
+    if ( secondary_group_action(user_id, group_id, paramList, error_str) < 0 )
+    {
+        failure_response(ACTION, request_error(error_str,""), att);
+        return;
+    }
+
+    success_response(user_id, att);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int UserAddGroup::secondary_group_action(
+            int                        user_id,
+            int                        group_id,
+            xmlrpc_c::paramList const& _paramList,
+            string&                    error_str)
+{
+    User *  user;
+    Group * group;
+
+    int rc;
+
+    user = upool->get(user_id,true);
+
+    if ( user == 0 )
+    {
+        return -1;
+    }
+
+    rc = user->add_group(group_id);
+
+    if ( rc != 0 )
+    {
+        user->unlock();
+
+        error_str = "User is already in this group";
+        return -1;
+    }
+
+    upool->update(user);
+
+    user->unlock();
+
+    group = gpool->get(group_id, true);
+
+    if( group == 0 )
+    {
+        user = upool->get(user_id,true);
+
+        if ( user != 0 )
+        {
+            user->del_group(group_id);
+
+            upool->update(user);
+
+            user->unlock();
+        }
+
+        error_str = "Group does not exist";
+        return -1;
+    }
+
+    group->add_user(user_id);
+
+    gpool->update(group);
+
+    group->unlock();
+
+    return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int UserDelGroup::secondary_group_action(
+            int                        user_id,
+            int                        group_id,
+            xmlrpc_c::paramList const& _paramList,
+            string&                    error_str)
+{
+    User *  user;
+    Group * group;
+
+    int rc;
+
+    user = upool->get(user_id,true);
+
+    rc = user->del_group(group_id);
+
+    if ( rc != 0 )
+    {
+        user->unlock();
+
+        if ( rc == -1 )
+        {
+            error_str = "User is not part of this group";
+        }
+        else if ( rc == -2 )
+        {
+            error_str = "Cannot remove user from the primary group";
+        }
+        else
+        {
+            error_str = "Cannot remove user from group";
+        }
+
+        return rc;
+    }
+
+    upool->update(user);
+
+    user->unlock();
+
+    group = gpool->get(group_id, true);
+
+    if( group == 0 )
+    {
+        //Group does not exist, should never occur
+        error_str = "Cannot remove user from group";
+        return -1;
+    }
+
+    group->del_user(user_id);
+
+    gpool->update(group);
+
+    group->unlock();
+
+    return 0;
 }

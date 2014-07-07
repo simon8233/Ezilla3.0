@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -77,6 +77,14 @@ void  DispatchManager::stop_success_action(int vid)
 
         vm->set_state(VirtualMachine::LCM_INIT);
 
+        //Set history action field to perform the right TM command on resume
+        if (vm->get_action() == History::NONE_ACTION)
+        {
+            vm->set_action(History::STOP_ACTION);
+
+            vmpool->update_history(vm);
+        }
+
         vmpool->update(vm);
 
         vm->log("DiM", Log::INFO, "New VM state is STOPPED");
@@ -116,6 +124,14 @@ void  DispatchManager::undeploy_success_action(int vid)
         vm->set_state(VirtualMachine::UNDEPLOYED);
 
         vm->set_state(VirtualMachine::LCM_INIT);
+
+        //Set history action field to perform the right TM command on resume
+        if (vm->get_action() == History::NONE_ACTION)
+        {
+            vm->set_action(History::UNDEPLOY_ACTION);
+
+            vmpool->update_history(vm);
+        }
 
         vmpool->update(vm);
 
@@ -203,6 +219,10 @@ void  DispatchManager::done_action(int vid)
            lcm_state == VirtualMachine::CANCEL ||
            lcm_state == VirtualMachine::CLEANUP_DELETE))
     {
+        vm->release_network_leases();
+
+        vm->release_disk_images();
+
         vm->set_state(VirtualMachine::DONE);
 
         vm->set_state(VirtualMachine::LCM_INIT);
@@ -212,10 +232,6 @@ void  DispatchManager::done_action(int vid)
         vmpool->update(vm);
 
         vm->log("DiM", Log::INFO, "New VM state is DONE");
-
-        vm->release_network_leases();
-
-        vm->release_disk_images();
 
         uid  = vm->get_uid();
         gid  = vm->get_gid();

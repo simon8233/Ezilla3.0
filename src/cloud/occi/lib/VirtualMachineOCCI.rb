@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -68,7 +68,7 @@ class VirtualMachineOCCI < VirtualMachine
     OCCI_ACTION = {
         "STOPPED"   => { :from => ["ACTIVE"], :action => :stop},
         "SUSPENDED" => { :from => ["ACTIVE"], :action => :suspend},
-        "RESUME"    => { :from => ["STOPPED", "SUSPENDED"], :action => :resume},
+        "RESUME"    => { :from => ["STOPPED", "SUSPENDED", "POWEROFF"], :action => :resume},
         "CANCEL"    => { :from => ["ACTIVE"], :action => :cancel},
         "REBOOT"    => { :from => ["ACTIVE"], :action => :reboot},
         "RESET"     => { :from => ["ACTIVE"], :action => :reset},

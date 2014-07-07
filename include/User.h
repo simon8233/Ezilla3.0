@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -19,7 +19,10 @@
 
 #include "PoolSQL.h"
 #include "UserTemplate.h"
-#include "Quotas.h"
+#include "ObjectCollection.h"
+#include "QuotasSQL.h"
+
+class UserQuotas;
 
 using namespace std;
 
@@ -29,7 +32,7 @@ using namespace std;
 /**
  *  The User class.
  */
-class User : public PoolObjectSQL
+class User : public PoolObjectSQL, public ObjectCollection
 {
 public:
 
@@ -109,22 +112,7 @@ public:
      *    @param error_str Returns the error reason, if any
      *    @returns -1 if the password is not valid
      */
-    int set_password(const string& passwd, string& error_str)
-    {
-        int rc = 0;
-
-        if (pass_is_valid(passwd, error_str))
-        {
-            password = passwd;
-            invalidate_session();
-        }
-        else
-        {
-            rc = -1;
-        }
-
-        return rc;
-    };
+    int set_password(const string& passwd, string& error_str);
 
     /**
      *  Returns user password
@@ -170,7 +158,7 @@ public:
     /**
      *  Object quotas, provides set and check interface
      */
-    Quotas quota;
+    UserQuotas quota;
 
     /**
      * Returns the UMASK template attribute (read as an octal number), or the
@@ -179,6 +167,61 @@ public:
      * @return the UMASK to create new objects
      */
     int get_umask() const;
+
+    /**
+     *  Returns a copy of the groups for the user
+     */
+    set<int> get_groups()
+    {
+        return get_collection_copy();
+    };
+
+    // *************************************************************************
+    // Group IDs set Management
+    // *************************************************************************
+
+    /**
+     *  Adds a group ID to the groups set.
+     *
+     *    @param id The new id
+     *    @return 0 on success, -1 if the ID was already in the set
+     */
+    int add_group(int group_id)
+    {
+        return add_collection_id(group_id);
+    }
+
+    /**
+     *  Deletes a group ID from the groups set.
+     *
+     *    @param id The id
+     *    @return   0 on success,
+     *              -1 if the ID was not in the set,
+     *              -2 if the group to delete is the main group
+     */
+    int del_group(int group_id)
+    {
+        if( group_id == gid )
+        {
+            return -2;
+        }
+
+        return del_collection_id(group_id);
+    }
+
+    // *************************************************************************
+    // Quotas
+    // *************************************************************************
+
+    /**
+     *  Writes/updates the User quotas fields in the database.
+     *    @param db pointer to the db
+     *    @return 0 on success
+     */
+    int update_quotas(SqlDB *db)
+    {
+        return quota.update(oid, db);
+    };
 
 private:
     // -------------------------------------------------------------------------
@@ -280,6 +323,30 @@ private:
     };
 
     /**
+     *  Reads the User (identified with its OID) from the database.
+     *    @param db pointer to the db
+     *    @return 0 on success
+     */
+    int select(SqlDB * db);
+
+    /**
+     *  Reads the User (identified with its OID) from the database.
+     *    @param db pointer to the db
+     *    @param name of the user
+     *    @param uid of the owner
+     *
+     *    @return 0 on success
+     */
+    int select(SqlDB * db, const string& name, int uid);
+
+    /**
+     *  Drops the user from the database
+     *    @param db pointer to the db
+     *    @return 0 on success
+     */
+    int drop(SqlDB *db);
+
+    /**
      *  Rebuilds the object from an xml formatted string
      *    @param xml_str The xml-formatted string
      *
@@ -310,10 +377,8 @@ protected:
          const string& _auth_driver,
          bool          _enabled):
         PoolObjectSQL(id,USER,_uname,-1,_gid,"",_gname,table),
-        quota("/USER/DATASTORE_QUOTA",
-            "/USER/NETWORK_QUOTA",
-            "/USER/IMAGE_QUOTA",
-            "/USER/VM_QUOTA"),
+        ObjectCollection("GROUPS"),
+        quota(),
         password(_password),
         auth_driver(_auth_driver),
         enabled(_enabled),
@@ -325,10 +390,7 @@ protected:
 
     virtual ~User()
     {
-        if (obj_template != 0)
-        {
-            delete obj_template;
-        }
+        delete obj_template;
     };
 
     // *************************************************************************
@@ -346,13 +408,11 @@ protected:
      *    @param db pointer to the db
      *    @return 0 on success
      */
-    int insert(SqlDB *db, string& error_str)
-    {
-        return insert_replace(db, false, error_str);
-    };
+    int insert(SqlDB *db, string& error_str);
 
     /**
-     *  Writes/updates the User data fields in the database.
+     *  Writes/updates the User data fields in the database. This method does
+     *  not update the user's quotas
      *    @param db pointer to the db
      *    @return 0 on success
      */
@@ -360,7 +420,8 @@ protected:
     {
         string error_str;
         return insert_replace(db, true, error_str);
-    }
+    };
+
 };
 
 #endif /*USER_H_*/

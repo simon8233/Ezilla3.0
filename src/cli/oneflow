@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2010-2013, C12G Labs S.L.                                        #
+# Copyright 2010-2014, C12G Labs S.L.                                        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -251,7 +251,7 @@ def show_service(client, args, options)
                 puts str % ["ROLE STATE", Role.state_str(role['state'])]
                 puts str % ["PARENTS", role['parents'].join(', ')] if role['parents']
                 puts str % ["VM TEMPLATE", role['vm_template']]
-                puts str % ["CARNIDALITY", role['cardinality']]
+                puts str % ["CARDINALITY", role['cardinality']]
                 puts str % ["MIN VMS", role['min_vms']] if role['min_vms']
                 puts str % ["MAX VMS", role['max_vms']] if role['max_vms']
                 puts str % ["COOLDOWN", "#{role['cooldown']}s"] if role['cooldown']

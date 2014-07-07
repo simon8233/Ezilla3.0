@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -372,11 +372,11 @@ void VirtualMachineManagerDriver::protocol(const string& message) const
     {
         if (result == "SUCCESS")
         {
-            vm->log("VMM",Log::INFO,"VM successfully reset.");
+            vm->log("VMM",Log::INFO,"VM successfully rebooted-hard.");
         }
         else
         {
-            log_error(vm,os,is,"Error resetting VM, assume it's still running");
+            log_error(vm,os,is,"Error rebooting-hard VM, assume it's still running");
             vmpool->update(vm);
         }
     }
@@ -635,7 +635,7 @@ void VirtualMachineManagerDriver::process_poll(
     }
 
     oss << "VM " << vm->get_oid() << " successfully monitored: " << monitor_str;
-    NebulaLog::log("VMM", Log::INFO, oss);
+    NebulaLog::log("VMM", Log::DEBUG, oss);
 
     vm->update_info(memory, cpu, net_tx, net_rx, custom);
 
@@ -681,7 +681,7 @@ void VirtualMachineManagerDriver::process_poll(
 
         case 'd': //The VM was not found
             vm->log("VMM", Log::INFO, "VM running but it was not found."
-                    " Restart and delete actions available or try to"
+                    " Boot and delete actions available or try to"
                     " recover it manually");
 
             lcm->trigger(LifeCycleManager::MONITOR_DONE, vm->get_oid());
@@ -693,7 +693,7 @@ void VirtualMachineManagerDriver::process_poll(
 /* -------------------------------------------------------------------------- */
 
 int VirtualMachineManagerDriver::parse_vm_info(
-    const string&   monitor_str,
+    const string       &monitor_str,
     int                &cpu,
     int                &memory,
     long long          &net_tx,

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright 2010-2013, C12G Labs S.L                                           #
+# Copyright 2010-2014, C12G Labs S.L                                           #
 #                                                                              #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may      #
 # not use this file except in compliance with the License. You may obtain      #
@@ -104,7 +104,8 @@ def self.poll_host_and_vms
       str_info =  @@host.info
       vms_info =  @@host.all_vms_info
 
-      str_info << "\nVM_POLL=YES\n#{vms_info}" if !vms_info.empty?
+      str_info << "\nVM_POLL=YES\n"
+      str_info << "#{vms_info}" if !vms_info.empty?
 
     rescue Exception => e
       STDERR.puts e.message
@@ -253,7 +254,7 @@ class VIVm
 
         host        = VIDriver::host
         cpuMhz      = host.cpuMhz.to_f
-        @used_cpu   = 
+        @used_cpu   =
                 ((@summary.quickStats.overallCpuUsage.to_f / cpuMhz) * 100).to_s
         @used_cpu   = sprintf('%.2f',@used_cpu).to_s
 
@@ -369,6 +370,9 @@ class VIHost
         @used_cpu    = 0 if @used_cpu.to_i < 0
         @net_rx      = 0 if @net_rx.to_i < 0
         @net_tx      = 0 if @net_tx.to_i < 0
+
+        # Check free datastore space
+        @free_ds_info = VIDriver::retrieve_free_ds(@host)
     end
 
     ########################################################################
@@ -391,7 +395,17 @@ class VIHost
 
         # Networking
         str_info << "NETRX=" << @net_rx.to_s << "\n"
-        str_info << "NETTX=" << @net_tx.to_s
+        str_info << "NETTX=" << @net_tx.to_s << "\n"
+
+        # Datastores
+        @free_ds_info.each{|k,v|
+            used_space = v[:capacity].to_i - v[:free_space].to_i
+            str_info << "DS=[ID=\"#{k}\",USED_MB=#{used_space},"
+            str_info << "TOTAL_MB=#{v[:capacity]},"
+            str_info << "FREE_MB=#{v[:free_space]}]\n"
+        }
+
+        str_info.strip
     end
 
     ########################################################################
@@ -416,7 +430,7 @@ class VIHost
 
             str_info << "VM = ["
             str_info << "ID=#{number},"
-            str_info << "DEPLOY_ID=#{name},"
+            str_info << "DEPLOY_ID=\"#{name}\","
             str_info << "POLL=\"#{vivm.info}\"]\n"
         }
 
@@ -453,6 +467,25 @@ def self.retrieve_stats(objects,metrics)
 
     return perfManager.retrieve_stats(objects, metrics, stat_opts)
 end
+
+def self.retrieve_free_ds(host)
+    pc = @@client.serviceContent.propertyCollector
+    hds = host.configManager.datastoreSystem
+    datastore_props = pc.collectMultiple(hds.datastore, 'summary', 'name')
+
+    free_ds_info=Hash.new
+
+    hds.datastore.each{|ds|
+        free_ds_info[datastore_props[ds]['name']]=Hash.new
+        free_ds_info[datastore_props[ds]['name']][:free_space] =
+            datastore_props[ds]['summary'].freeSpace.to_i / 1024 / 1024
+        free_ds_info[datastore_props[ds]['name']][:capacity] =
+            datastore_props[ds]['summary'].capacity.to_i / 1024 / 1024
+    }
+
+    free_ds_info
+end
+
 
 def self.root
     @@root

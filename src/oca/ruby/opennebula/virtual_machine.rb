@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -216,11 +216,15 @@ module OpenNebula
         # @param enforce [true|false] If it is set to true, the host capacity
         #   will be checked, and the deployment will fail if the host is
         #   overcommited. Defaults to false
+        # @param ds_id [Integer] The System Datastore where to deploy the VM. To
+        #   use the default, set it to -1
         #
         # @return [nil, OpenNebula::Error] nil in case of success, Error
         #   otherwise
-        def deploy(host_id, enforce=false)
-            return call(VM_METHODS[:deploy], @pe_id, host_id.to_i, enforce)
+        def deploy(host_id, enforce=false, ds_id=-1)
+            enforce ||= false
+            ds_id ||= -1
+            return call(VM_METHODS[:deploy], @pe_id, host_id.to_i, enforce, ds_id.to_i)
         end
 
         # Shutdowns an already deployed VM
@@ -387,10 +391,13 @@ module OpenNebula
         #   to use the default type
         # @param hot [true|false] True to save the disk immediately, false will
         #   perform the operation when the VM shuts down
+        # @param do_template [true|false] True to clone also the VM originating
+        # template and replace the disk with the saved image
         #
         # @return [Integer, OpenNebula::Error] the new Image ID in case of
         #   success, error otherwise
-        def disk_snapshot(disk_id, image_name, image_type="", hot=false)
+        def disk_snapshot(disk_id, image_name, image_type="", hot=false,
+            do_template=false)
             return Error.new('ID not defined') if !@pe_id
 
             rc = @client.call(VM_METHODS[:savedisk],
@@ -398,8 +405,8 @@ module OpenNebula
                               disk_id,
                               image_name,
                               image_type,
-                              hot)
-
+                              hot,
+                              do_template)
             return rc
         end
 

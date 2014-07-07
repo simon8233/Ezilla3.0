@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs
+ * Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,6 +68,7 @@ public class Acl extends PoolElement{
         tmpResources.put("DATASTORE", 0x0000100000000000L);
         tmpResources.put("CLUSTER"  , 0x0000200000000000L);
         tmpResources.put("DOCUMENT" , 0x0000400000000000L);
+        tmpResources.put("ZONE"     , 0x0000800000000000L);
 
         RESOURCES = Collections.unmodifiableMap(tmpResources);
 
@@ -113,6 +114,23 @@ public class Acl extends PoolElement{
      * Allocates a new ACl rule in OpenNebula
      *
      * @param client XML-RPC Client.
+     * @param user A string containing a hex number, e.g. 0x100000001
+     * @param resource A string containing a hex number, e.g. 0x2100000001
+     * @param rights A string containing a hex number, e.g. 0x10
+     * @param zone A string containing a hex number, e.g. 0x10
+     * @return If successful the message contains the associated
+     * id generated for this rule.
+     */
+    public static OneResponse allocate(Client client, String user,
+            String resource, String rights, String zone)
+    {
+        return client.call(ADDRULE, user, resource, rights, zone);
+    }
+
+    /**
+     * Allocates a new ACl rule in OpenNebula
+     *
+     * @param client XML-RPC Client.
      * @param user 64b encoded user
      * @param resource 64b encoded user
      * @param rights 64b encoded user
@@ -132,6 +150,27 @@ public class Acl extends PoolElement{
      * Allocates a new ACl rule in OpenNebula
      *
      * @param client XML-RPC Client.
+     * @param user 64b encoded user
+     * @param resource 64b encoded
+     * @param rights 64b encoded
+     * @param zone 64b encoded
+     * @return If successful the message contains the associated
+     * id generated for this rule.
+     */
+    public static OneResponse allocate(Client client, long user, long resource,
+            long rights, long zone)
+    {
+        return allocate(client,
+                Long.toHexString(user),
+                Long.toHexString(resource),
+                Long.toHexString(rights),
+                Long.toHexString(zone));
+    }
+
+    /**
+     * Allocates a new ACl rule in OpenNebula
+     *
+     * @param client XML-RPC Client.
      * @param rule a rule string, e.g. "#5 HOST+VM/@12 INFO+CREATE+DELETE"
      * @return If successful the message contains the associated
      * id generated for this rule.
@@ -141,7 +180,16 @@ public class Acl extends PoolElement{
             throws RuleParseException
     {
         String[] components = parseRule(rule);
-        return allocate(client, components[0], components[1], components[2]);
+
+        if (components.length > 3)
+        {
+            return allocate(client, components[0], components[1],
+                components[2], components[3]);
+        }
+        else
+        {
+            return allocate(client, components[0], components[1], components[2]);
+        }
     }
 
     /**
@@ -216,6 +264,20 @@ public class Acl extends PoolElement{
         return ret;
     }
 
+    public long zone()
+    {
+        long ret = 0;
+
+        try
+        {
+            ret = Long.parseLong( xpath("ZONE"), 16 );
+        }
+        catch (NumberFormatException e)
+        {}
+
+        return ret;
+    }
+
     public String toString()
     {
         String st = xpath("STRING");
@@ -236,24 +298,30 @@ public class Acl extends PoolElement{
      * Parses a rule string, e.g. "#5 HOST+VM/@12 INFO+CREATE+DELETE"
      *
      * @param rule an ACL rule in string format
-     * @return an Array containing 3 Strings (hex 64b numbers)
+     * @return an Array containing 4 Strings (hex 64b numbers). 3 if the rule
+     * does not have the zone component, for compatibility
      * @throws RuleParseException If the rule syntax is wrong.
      */
     public static String[] parseRule(String rule) throws RuleParseException
     {
-        String [] ret = new String[3];
-
         String [] components = rule.split(" ");
 
-        if( components.length != 3 )
+        if( components.length != 3 && components.length != 4 )
         {
             throw new RuleParseException(
                     "String needs three components: User, Resource, Rights");
         }
 
+        String [] ret = new String[components.length];
+
         ret[0] = parseUsers(components[0]);
         ret[1] = parseResources(components[1]);
         ret[2] = parseRights(components[2]);
+
+        if(components.length > 3)
+        {
+            ret[3] = parseZone(components[3]);
+        }
 
         return ret;
     }
@@ -329,6 +397,17 @@ public class Acl extends PoolElement{
         }
 
         return Long.toHexString(ret);
+    }
+
+    /**
+     * Converts a string in the form [#<id>, *] to a hex. number
+     *
+     * @param zone Zone component string
+     * @return A string containing a hex number
+     */
+    private static String parseZone(String zone) throws RuleParseException
+    {
+        return Long.toHexString( calculateIds(zone) );
     }
 
     /**

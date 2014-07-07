@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (C) 2013
+# Copyright (C) 2013-2014
 #
 # This file is part of ezilla.
 #
@@ -68,7 +68,6 @@ module OpenNebulaJSON
         end
 
         def update(params=Hash.new)
-            STDERR.puts params
             template_hash = parse_json(params, 'vmtemplate')
             if template_hash['template_raw']
                 template = template_hash['template_raw']

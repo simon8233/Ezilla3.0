@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -170,6 +170,15 @@ public:
     };
 
     /**
+     *    Gets used leases
+     *    @return number of network leases in used
+     */
+    unsigned int get_used()
+    {
+        return leases->n_used;
+    };
+
+    /**
      * Function to print the VirtualNetwork object into a string in
      * XML format
      *  @param xml the resulting XML string
@@ -201,9 +210,21 @@ public:
      *  * BRIDGE: for this virtual network
      *  @param nic attribute for the VM template
      *  @param vid of the VM getting the lease
+     *  @param inherit_attrs Attributes to be inherited from the vnet template
+     *      into the nic
      *  @return 0 on success
      */
-    int nic_attribute(VectorAttribute * nic, int vid);
+    int nic_attribute(
+            VectorAttribute *       nic,
+            int                     vid,
+            const vector<string>&   inherit_attrs);
+
+    /**
+     *  Replace the template of the virtual network it also updates the BRIDGE,
+     *  PHY_DEV, VLAN_ID and VLAN attributes.
+     *    @param tmpl string representation of the template
+     */
+    int replace_template(const string& tmpl_str, string& error);
 
 private:
 

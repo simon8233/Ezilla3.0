@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -203,10 +203,38 @@ string * one_util::aes256cbc_encrypt(const string& in, const string password)
 
 string one_util::random_password()
 {
+    static bool init = false;
+
     ostringstream  sstr;
 
-    srand(time(0));
+    if (!init)
+    {
+        srand(time(0) + rand());
+        init = true;
+    }
+
     sstr << rand();
 
     return sha1_digest(sstr.str());
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+vector<string> one_util::split(const string& st, char delim, bool clean_empty)
+{
+    vector<string>  parts;
+    string          part;
+
+    stringstream    ss(st);
+
+    while (getline(ss, part, delim))
+    {
+        if (!(clean_empty && part.empty()))
+        {
+            parts.push_back(part);
+        }
+    }
+
+    return parts;
 }

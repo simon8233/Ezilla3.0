@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -27,23 +27,45 @@
 /* -------------------------------------------------------------------------- */
 string ImagePool::_default_type;
 string ImagePool::_default_dev_prefix;
+string ImagePool::_default_cdrom_dev_prefix;
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-ImagePool::ImagePool(SqlDB *       db,
-                     const string& __default_type,
-                     const string& __default_dev_prefix,
-                     vector<const Attribute *>& restricted_attrs,
-                     vector<const Attribute *> hook_mads,
-                     const string&             remotes_location)
-    :PoolSQL(db, Image::table, true)
+ImagePool::ImagePool(
+        SqlDB *                             db,
+        const string&                       __default_type,
+        const string&                       __default_dev_prefix,
+        const string&                       __default_cdrom_dev_prefix,
+        vector<const Attribute *>&          restricted_attrs,
+        vector<const Attribute *>           hook_mads,
+        const string&                       remotes_location,
+        const vector<const Attribute *>&    _inherit_image_attrs,
+        const vector<const Attribute *>&    _inherit_datastore_attrs)
+    :PoolSQL(db, Image::table, true, true)
 {
-    ostringstream sql;
-
     // Init static defaults
     _default_type       = __default_type;
     _default_dev_prefix = __default_dev_prefix;
+
+    _default_cdrom_dev_prefix = __default_cdrom_dev_prefix;
+
+    // Init inherit attributes
+    vector<const Attribute *>::const_iterator it;
+
+    for (it = _inherit_image_attrs.begin(); it != _inherit_image_attrs.end(); it++)
+    {
+        const SingleAttribute* sattr = static_cast<const SingleAttribute *>(*it);
+
+        inherit_image_attrs.push_back(sattr->value());
+    }
+
+    for (it = _inherit_datastore_attrs.begin(); it != _inherit_datastore_attrs.end(); it++)
+    {
+        const SingleAttribute* sattr = static_cast<const SingleAttribute *>(*it);
+
+        inherit_datastore_attrs.push_back(sattr->value());
+    }
 
     // Set default type
     if (_default_type != "OS"       &&
@@ -357,6 +379,17 @@ int ImagePool::disk_attribute(int               vm_id,
             return -1;
         }
 
+        int rc;
+        long long size;
+
+        rc = disk->vector_value("SIZE", size);
+
+        if ( rc != 0 || size <= 0 )
+        {
+            error_str = "SIZE attribute must be a positive integer value.";
+            return -1;
+        }
+
         img_type   = Image::DATABLOCK;
         dev_prefix = disk->vector_value("DEV_PREFIX");
 
@@ -374,7 +407,7 @@ int ImagePool::disk_attribute(int               vm_id,
         Datastore *     ds;
 
         iid = img->get_oid();
-        rc  = img->disk_attribute(disk, img_type, dev_prefix);
+        rc  = img->disk_attribute(disk, img_type, dev_prefix, inherit_image_attrs);
 
         image_id     = img->get_oid();
         datastore_id = img->get_ds_id();
@@ -399,7 +432,7 @@ int ImagePool::disk_attribute(int               vm_id,
             return -1;
         }
 
-        ds->disk_attribute(disk);
+        ds->disk_attribute(disk, inherit_datastore_attrs);
 
         ds->unlock();
     }

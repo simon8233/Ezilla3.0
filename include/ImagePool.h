@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -39,12 +39,16 @@ class ImagePool : public PoolSQL
 {
 public:
 
-    ImagePool(SqlDB *       db,
-              const string& _default_type,
-              const string& _default_dev_prefix,
-              vector<const Attribute *>& restricted_attrs,
-              vector<const Attribute *> hook_mads,
-              const string&             remotes_location);
+    ImagePool(
+            SqlDB *                             db,
+            const string&                       __default_type,
+            const string&                       __default_dev_prefix,
+            const string&                       __default_cdrom_dev_prefix,
+            vector<const Attribute *>&          restricted_attrs,
+            vector<const Attribute *>           hook_mads,
+            const string&                       remotes_location,
+            const vector<const Attribute *>&    _inherit_image_attrs,
+            const vector<const Attribute *>&    _inherit_datastore_attrs);
 
     ~ImagePool(){};
 
@@ -135,11 +139,13 @@ public:
      *  query
      *  @param oss the output stream to dump the pool contents
      *  @param where filter for the objects, defaults to all
+     *  @param limit parameters used for pagination
+     *
      *  @return 0 on success
      */
-    int dump(ostringstream& oss, const string& where)
+    int dump(ostringstream& oss, const string& where, const string& limit)
     {
-        return PoolSQL::dump(oss, "IMAGE_POOL", Image::table, where);
+        return PoolSQL::dump(oss, "IMAGE_POOL", Image::table, where, limit);
     }
 
     /**
@@ -182,6 +188,11 @@ public:
         return _default_dev_prefix;
     };
 
+    static const string& default_cdrom_dev_prefix()
+    {
+        return _default_cdrom_dev_prefix;
+    };
+
     /**
      *  Get the effective uid to get an image. Used in VM parsers
      *    @param disk a vector attribute with the image data
@@ -211,6 +222,21 @@ private:
      * Default device prefix
      **/
     static string  _default_dev_prefix;
+
+    /**
+     * Default device prefix for cdrom disks
+     **/
+    static string _default_cdrom_dev_prefix;
+
+    /**
+     * Image attributes to be inherited into the VM disk
+     */
+    vector<string> inherit_image_attrs;
+
+    /**
+     * Datastore attributes to be inherited into the VM disk
+     */
+    vector<string> inherit_datastore_attrs;
 
     //--------------------------------------------------------------------------
     // Pool Attributes

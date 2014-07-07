@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -83,23 +83,12 @@ VirtualMachine::~VirtualMachine()
 {
     for (unsigned int i=0 ; i < history_records.size() ; i++)
     {
-            delete history_records[i];
+        delete history_records[i];
     }
 
-    if (_log != 0)
-    {
-        delete _log;
-    }
-
-    if (obj_template != 0)
-    {
-        delete obj_template;
-    }
-
-    if (user_obj_template != 0)
-    {
-        delete user_obj_template;
-    }
+    delete _log;
+    delete obj_template;
+    delete user_obj_template;
 }
 
 /* ************************************************************************** */
@@ -392,7 +381,10 @@ int VirtualMachine::insert(SqlDB * db, string& error_str)
         goto error_requirements;
     }
 
-    parse_graphics();
+    if ( parse_graphics(error_str) != 0 )
+    {
+        goto error_graphics;
+    }
 
     parse_well_known_attributes();
 
@@ -416,6 +408,9 @@ error_context:
     goto error_rollback;
 
 error_requirements:
+    goto error_rollback;
+
+error_graphics:
     goto error_rollback;
 
 error_rollback:
@@ -457,9 +452,12 @@ int VirtualMachine::set_os_file(VectorAttribute *  os,
     Nebula& nd = Nebula::instance();
 
     ImagePool * ipool = nd.get_ipool();
-    Image  *    img   = 0;
+    Image *     img   = 0;
 
-    Image::ImageType type;
+    int img_id;
+
+    Image::ImageType  type;
+    Image::ImageState state;
 
     DatastorePool * ds_pool = nd.get_dspool();
     Datastore *     ds;
@@ -472,6 +470,8 @@ int VirtualMachine::set_os_file(VectorAttribute *  os,
     string base_name_ds_id  = base_name + "_DS_DSID";
     string base_name_tm     = base_name + "_DS_TM";
     string base_name_cluster= base_name + "_DS_CLUSTER_ID";
+
+    string type_str;
 
     attr = os->vector_value(base_name_ds.c_str());
 
@@ -491,13 +491,17 @@ int VirtualMachine::set_os_file(VectorAttribute *  os,
         return -1;
     }
 
-    img = ipool->get(img_ids.back(), true);
+    img_id = img_ids.back();
+
+    img = ipool->get(img_id, true);
 
     if ( img == 0 )
     {
         error_str = "Image no longer exists in attribute: " + attr;
         return -1;
     }
+
+    state = img->get_state();
 
     ds_id = img->get_ds_id();
     type  = img->get_type();
@@ -510,13 +514,25 @@ int VirtualMachine::set_os_file(VectorAttribute *  os,
 
     img->unlock();
 
+    type_str = Image::type_to_str(type);
+
     if ( type != base_type )
     {
         ostringstream oss;
 
         oss << base_name << " needs an image of type "
             << Image::type_to_str(base_type) << " and not "
-            << Image::type_to_str(type);
+            << type_str;
+
+        error_str = oss.str();
+        return -1;
+    }
+
+    if ( state != Image::READY )
+    {
+        ostringstream oss;
+
+        oss << type_str << " Image '" << img_id << " 'not in READY state.";
 
         error_str = oss.str();
         return -1;
@@ -665,6 +681,7 @@ int VirtualMachine::parse_context(string& error_str)
 
             string name   = vatt->vector_value("NETWORK");
             string ip     = vatt->vector_value("IP");
+            string mac    = vatt->vector_value("MAC");
             string ip6    = vatt->vector_value("IP6_GLOBAL");
             string nic_id = vatt->vector_value("NIC_ID");
 
@@ -673,6 +690,11 @@ int VirtualMachine::parse_context(string& error_str)
 
             var << "ETH" << nic_id << "_IP";
             context->replace(var.str(), ip);
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_MAC";
+            context->replace(var.str(), mac);
 
             var.str(""); val.str("");
 
@@ -702,6 +724,12 @@ int VirtualMachine::parse_context(string& error_str)
 
             var << "ETH" << nic_id << "_DNS";
             val << "$NETWORK[DNS, NETWORK=\"" << name << "\"]";
+            context->replace(var.str(), val.str());
+
+            var.str(""); val.str("");
+
+            var << "ETH" << nic_id << "_SEARCH_DOMAIN";
+            val << "$NETWORK[SEARCH_DOMAIN, NETWORK=\"" << name << "\"]";
             context->replace(var.str(), val.str());
 
             if (!ip6.empty())
@@ -749,10 +777,7 @@ int VirtualMachine::parse_context(string& error_str)
 
     for (int i = 0; i < num ; i++)
     {
-        if (array_context[i] != 0)
-        {
-            delete array_context[i];
-        }
+        delete array_context[i];
     }
 
     // -------------------------------------------------------------------------
@@ -776,6 +801,7 @@ int VirtualMachine::parse_context(string& error_str)
             Image  *    img   = 0;
 
             Image::ImageType type;
+            Image::ImageState state;
 
             for ( it=img_ids.begin() ; it < img_ids.end(); it++ )
             {
@@ -786,7 +812,8 @@ int VirtualMachine::parse_context(string& error_str)
                     oss_parsed << img->get_source() << ":'"
                                << img->get_name() << "' ";
 
-                    type = img->get_type();
+                    type  = img->get_type();
+                    state = img->get_state();
 
                     img->unlock();
 
@@ -796,6 +823,19 @@ int VirtualMachine::parse_context(string& error_str)
                                     " FILE_DS attribute.";
                         return -1;
                     }
+
+                    if ( state != Image::READY )
+                    {
+                        ostringstream oss;
+
+                        oss << Image::type_to_str(type)
+                            << " Image '" << *it << "' not in READY state.";
+
+                        error_str = oss.str();
+
+                        return -1;
+                    }
+
                 }
             }
         }
@@ -857,10 +897,7 @@ int VirtualMachine::parse_context(string& error_str)
 error_cleanup:
     for (int i = 0; i < num ; i++)
     {
-        if (array_context[i] != 0)
-        {
-            delete array_context[i];
-        }
+        delete array_context[i];
     }
 
     return -1;
@@ -869,16 +906,14 @@ error_cleanup:
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-void VirtualMachine::parse_graphics()
+int VirtualMachine::parse_graphics(string& error_str)
 {
-    int num;
-
     vector<Attribute *> array_graphics;
     VectorAttribute *   graphics;
 
     vector<Attribute *>::iterator it;
 
-    num = user_obj_template->remove("GRAPHICS", array_graphics);
+    int num = user_obj_template->remove("GRAPHICS", array_graphics);
 
     for (it=array_graphics.begin(); it != array_graphics.end(); it++)
     {
@@ -887,17 +922,20 @@ void VirtualMachine::parse_graphics()
 
     if ( num == 0 )
     {
-        return;
+        return 0;
     }
 
     graphics = dynamic_cast<VectorAttribute * >(array_graphics[0]);
 
     if ( graphics == 0 )
     {
-        return;
+        return 0;
     }
 
     string port = graphics->vector_value("PORT");
+    int    port_i;
+
+    int rc = graphics->vector_value("PORT", port_i);
 
     if ( port.empty() )
     {
@@ -909,13 +947,22 @@ void VirtualMachine::parse_graphics()
         int           base_port;
         string        base_port_s;
 
+        int limit = 65535;
+
         nd.get_configuration_attribute("VNC_BASE_PORT",base_port_s);
         iss.str(base_port_s);
         iss >> base_port;
 
-        oss << ( base_port + oid );
+        oss << ( base_port + ( oid % (limit - base_port) ));
         graphics->replace("PORT", oss.str());
     }
+    else if ( rc == -1 || port_i < 0 )
+    {
+        error_str = "Wrong PORT number in GRAPHICS attribute";
+        return -1;
+    }
+
+    return 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -978,10 +1025,7 @@ int VirtualMachine::parse_requirements(string& error_str)
 error_cleanup:
     for (int i = 0; i < num ; i++)
     {
-        if (array_reqs[i] != 0)
-        {
-            delete array_reqs[i];
-        }
+        delete array_reqs[i];
     }
 
     return -1;
@@ -1066,6 +1110,10 @@ int VirtualMachine::automatic_requirements(string& error_str)
     string          requirements;
     string          cluster_id = "";
 
+    vector<string> public_cloud_hypervisors;
+
+    int num_public = get_public_cloud_hypervisors(public_cloud_hypervisors);
+
     int incomp_id;
     int rc;
 
@@ -1143,11 +1191,28 @@ int VirtualMachine::automatic_requirements(string& error_str)
 
     if ( !cluster_id.empty() )
     {
-        oss.str("");
-        oss << "CLUSTER_ID = " << cluster_id;
-
-        obj_template->add("AUTOMATIC_REQUIREMENTS", oss.str());
+        oss << "CLUSTER_ID = " << cluster_id << " & !(PUBLIC_CLOUD = YES)";
     }
+    else
+    {
+        oss << "!(PUBLIC_CLOUD = YES)";
+    }
+
+    if (num_public != 0)
+    {
+        oss << " | (PUBLIC_CLOUD = YES & (";
+
+        oss << "HYPERVISOR = " << public_cloud_hypervisors[0];
+
+        for (int i = 1; i < num_public; i++)
+        {
+            oss << " | HYPERVISOR = " << public_cloud_hypervisors[i];
+        }
+
+        oss << "))";
+    }
+
+    obj_template->add("AUTOMATIC_REQUIREMENTS", oss.str());
 
     return 0;
 
@@ -1281,7 +1346,7 @@ int VirtualMachine::update_monitoring(SqlDB * db)
         goto error_xml;
     }
 
-    oss << "INSERT INTO " << monit_table << " ("<< monit_db_names <<") VALUES ("
+    oss << "REPLACE INTO " << monit_table << " ("<< monit_db_names <<") VALUES ("
         <<          oid             << ","
         <<          last_poll       << ","
         << "'" <<   sql_xml         << "')";
@@ -1316,6 +1381,7 @@ error_common:
 
 void VirtualMachine::add_history(
     int   hid,
+    int   cid,
     const string& hostname,
     const string& vmm_mad,
     const string& vnm_mad,
@@ -1344,6 +1410,7 @@ void VirtualMachine::add_history(
                           seq,
                           hid,
                           hostname,
+                          cid,
                           vmm_mad,
                           vnm_mad,
                           tm_mad,
@@ -1373,6 +1440,7 @@ void VirtualMachine::cp_history()
                        history->seq + 1,
                        history->hid,
                        history->hostname,
+                       history->cid,
                        history->vmm_mad_name,
                        history->vnm_mad_name,
                        history->tm_mad_name,
@@ -1405,6 +1473,7 @@ void VirtualMachine::cp_previous_history()
                        history->seq + 1,
                        previous_history->hid,
                        previous_history->hostname,
+                       previous_history->cid,
                        previous_history->vmm_mad_name,
                        previous_history->vnm_mad_name,
                        previous_history->tm_mad_name,
@@ -1601,7 +1670,14 @@ int VirtualMachine::get_disk_images(string& error_str)
             }
             else
             {
-                cdrom_disks.push(make_pair(ipool->default_dev_prefix(), disk));
+                dev_prefix = disk->vector_value("DEV_PREFIX");
+
+                if ( dev_prefix.empty() )
+                {
+                    dev_prefix = ipool->default_cdrom_dev_prefix();
+                }
+
+                cdrom_disks.push(make_pair(dev_prefix, disk));
             }
 
             // Disk IDs are 0..num-1, context disk is is num
@@ -1674,6 +1750,9 @@ int VirtualMachine::get_disk_images(string& error_str)
         }
         else
         {
+            oss << "DISK " << i << ": " << error_str;
+            error_str = oss.str();
+
             goto error_common;
         }
     }
@@ -1844,7 +1923,7 @@ VectorAttribute * VirtualMachine::set_up_attach_disk(
         {
             ostringstream oss;
 
-            oss << "Target " << target << "is already in use.";
+            oss << "Target " << target << " is already in use.";
             error_str = oss.str();
 
             imagem->release_image(vm_id, image_id, false);
@@ -1966,6 +2045,83 @@ VectorAttribute * VirtualMachine::delete_attach_disk()
     }
 
     return 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+bool VirtualMachine::isVolatile(const VectorAttribute * disk)
+{
+    string type = disk->vector_value("TYPE");
+
+    one_util::toupper(type);
+
+    return ( type == "SWAP" || type == "FS");
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+bool VirtualMachine::isVolatile(const Template * tmpl)
+{
+    vector<const Attribute*> disks;
+    int num_disks = tmpl->get("DISK", disks);
+
+    for (int i = 0 ; i < num_disks ; i++)
+    {
+        const VectorAttribute * disk = dynamic_cast<const VectorAttribute*>(disks[i]);
+
+        if (disk == 0)
+        {
+            continue;
+        }
+
+        if (VirtualMachine::isVolatile(disk))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+long long VirtualMachine::get_volatile_disk_size(Template * tmpl)
+{
+    long long size = 0;
+
+    vector<const Attribute*> disks;
+    int num_disks = tmpl->get("DISK", disks);
+
+    if (num_disks == 0)
+    {
+        return size;
+    }
+
+    for (int i = 0 ; i < num_disks ; i++)
+    {
+        long long disk_size;
+        const VectorAttribute * disk = dynamic_cast<const VectorAttribute*>(disks[i]);
+
+        if (disk == 0)
+        {
+            continue;
+        }
+
+        if (!VirtualMachine::isVolatile(disk))
+        {
+            continue;
+        }
+
+        if (disk->vector_value("SIZE", disk_size) == 0)
+        {
+            size += disk_size;
+        }
+    }
+
+    return size;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2186,7 +2342,7 @@ void VirtualMachine::release_disk_images()
 
         if ( rc == 0 )
         {
-            imagem->release_image(oid, save_as_id, (state == FAILED));
+            imagem->release_image(oid, save_as_id, (state != ACTIVE || lcm_state != EPILOG));
         }
     }
 }
@@ -2534,6 +2690,14 @@ int VirtualMachine::generate_context(string &files, int &disk_id, string& token_
     {
         files += " ";
         files += files_ds;
+    }
+
+    for (size_t i=0;i<files.length();i++)
+    {
+        if (files[i] == '\n')
+        {
+            files[i] = ' ';
+        }
     }
 
     context->vector_value("TOKEN", token);
@@ -3487,4 +3651,46 @@ void VirtualMachine::set_template_monitor_error(const string& message)
 void VirtualMachine::clear_template_monitor_error()
 {
     user_obj_template->erase("ERROR_MONITOR");
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int VirtualMachine::get_public_cloud_hypervisors(vector<string> &public_cloud_hypervisors) const
+{
+    vector<Attribute*>                  attrs;
+    vector<Attribute*>::const_iterator  it;
+
+    VectorAttribute *   vatt;
+
+    user_obj_template->get("PUBLIC_CLOUD", attrs);
+
+    for (it = attrs.begin(); it != attrs.end(); it++)
+    {
+        vatt = dynamic_cast<VectorAttribute * >(*it);
+
+        if ( vatt == 0 )
+        {
+            continue;
+        }
+
+        string type = vatt->vector_value("TYPE");
+
+        if (!type.empty())
+        {
+            public_cloud_hypervisors.push_back(type);
+        }
+    }
+
+    // Compatibility with old templates
+
+    attrs.clear();
+    user_obj_template->get("EC2", attrs);
+
+    if (!attrs.empty())
+    {
+        public_cloud_hypervisors.push_back("ec2");
+    }
+
+    return public_cloud_hypervisors.size();
 }

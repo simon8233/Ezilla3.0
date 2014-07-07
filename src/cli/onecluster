@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -195,6 +195,16 @@ cmd=CommandParser::CmdParser.new(ARGV) do
             end
 
             obj.update(str, options[:append])
+        end
+    end
+
+    rename_desc = <<-EOT.unindent
+        Renames the Cluster
+    EOT
+
+    command :rename, rename_desc, :clusterid, :name do
+        helper.perform_action(args[0],options,"renamed") do |o|
+            o.rename(args[1])
         end
     end
 end

@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -40,6 +40,8 @@ class OpenNebulaFirewall < OpenNebulaNetwork
 
             chain   = "one-#{vm_id}-#{nic[:network_id]}"
             tap     = nic[:tap]
+
+            next if chain_exists?(chain)
 
             if tap
                 #TCP
@@ -147,6 +149,12 @@ class OpenNebulaFirewall < OpenNebulaNetwork
 
     def new_chain(chain)
         rule "-N #{chain}"
+    end
+
+    def chain_exists?(chain)
+        iptables_nl =`#{COMMANDS[:iptables]} -nL`
+        chains = iptables_nl.scan(/(one-.*?) .*references/).flatten
+        chains.include? chain
     end
 
     def rule(rule)

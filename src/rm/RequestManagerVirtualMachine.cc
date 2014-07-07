@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -55,7 +55,7 @@ bool RequestManagerVirtualMachine::vm_authorization(
 
     object->unlock();
 
-    AuthRequest ar(att.uid, att.gid);
+    AuthRequest ar(att.uid, att.group_ids);
 
     ar.add_auth(op, vm_perms);
 
@@ -68,7 +68,7 @@ bool RequestManagerVirtualMachine::vm_authorization(
     {
         string t_xml;
 
-        ar.add_create_auth(PoolObjectSQL::IMAGE, tmpl->to_xml(t_xml));
+        ar.add_create_auth(att.uid, att.gid, PoolObjectSQL::IMAGE, tmpl->to_xml(t_xml));
     }
 
     if ( vtmpl != 0 )
@@ -96,26 +96,242 @@ bool RequestManagerVirtualMachine::vm_authorization(
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int RequestManagerVirtualMachine::get_host_information(int hid,
-                                                string& name,
-                                                string& vmm,
-                                                string& vnm,
-                                                string& tm,
-                                                string& ds_location,
-                                                int&    ds_id,
-                                                RequestAttributes& att,
-                                                PoolObjectAuth&    host_perms)
+bool RequestManagerVirtualMachine::quota_resize_authorization(
+        int                 oid,
+        Template *          deltas,
+        RequestAttributes&  att)
+{
+    PoolObjectAuth      vm_perms;
+    VirtualMachine *    vm = Nebula::instance().get_vmpool()->get(oid, true);
+
+    if (vm == 0)
+    {
+        failure_response(NO_EXISTS,
+                get_error(object_name(PoolObjectSQL::VM),oid),
+                att);
+
+        return false;
+    }
+
+    vm->get_permissions(vm_perms);
+
+    vm->unlock();
+
+    return quota_resize_authorization(deltas, att, vm_perms);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+bool RequestManagerVirtualMachine::quota_resize_authorization(
+        Template *          deltas,
+        RequestAttributes&  att,
+        PoolObjectAuth&     vm_perms)
+{
+    int rc;
+
+    string   error_str;
+
+    Nebula&    nd    = Nebula::instance();
+    UserPool*  upool = nd.get_upool();
+    GroupPool* gpool = nd.get_gpool();
+
+    DefaultQuotas user_dquotas  = nd.get_default_user_quota();
+    DefaultQuotas group_dquotas = nd.get_default_group_quota();
+
+    if (vm_perms.uid != UserPool::ONEADMIN_ID)
+    {
+        User * user  = upool->get(vm_perms.uid, true);
+
+        if ( user != 0 )
+        {
+            rc = user->quota.quota_update(Quotas::VM, deltas, user_dquotas, error_str);
+
+            if (rc == false)
+            {
+                ostringstream oss;
+
+                oss << object_name(PoolObjectSQL::USER)
+                    << " [" << vm_perms.uid << "] "
+                    << error_str;
+
+                failure_response(AUTHORIZATION,
+                        request_error(oss.str(), ""),
+                        att);
+
+                user->unlock();
+
+                return false;
+            }
+
+            upool->update_quotas(user);
+
+            user->unlock();
+        }
+    }
+
+    if (vm_perms.gid != GroupPool::ONEADMIN_ID)
+    {
+        Group * group  = gpool->get(vm_perms.gid, true);
+
+        if ( group != 0 )
+        {
+            rc = group->quota.quota_update(Quotas::VM, deltas, group_dquotas, error_str);
+
+            if (rc == false)
+            {
+                ostringstream oss;
+                RequestAttributes att_tmp(vm_perms.uid, -1, att);
+
+                oss << object_name(PoolObjectSQL::GROUP)
+                    << " [" << vm_perms.gid << "] "
+                    << error_str;
+
+                failure_response(AUTHORIZATION,
+                                 request_error(oss.str(), ""),
+                                 att);
+
+                group->unlock();
+
+                quota_rollback(deltas, Quotas::VM, att_tmp);
+
+                return false;
+            }
+
+            gpool->update_quotas(group);
+
+            group->unlock();
+        }
+    }
+
+    return true;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int RequestManagerVirtualMachine::get_default_ds_information(
+    int cluster_id,
+    int& ds_id,
+    string& tm_mad,
+    RequestAttributes& att)
+{
+    Nebula& nd = Nebula::instance();
+
+    ClusterPool*    clpool = nd.get_clpool();
+    Cluster*        cluster;
+
+    ds_id = -1;
+
+    if (cluster_id == ClusterPool::NONE_CLUSTER_ID)
+    {
+        ds_id = DatastorePool::SYSTEM_DS_ID;
+    }
+    else
+    {
+        cluster = clpool->get(cluster_id, true);
+
+        if (cluster == 0)
+        {
+            failure_response(NO_EXISTS,
+                get_error(object_name(PoolObjectSQL::CLUSTER), cluster_id),
+                att);
+
+            return -1;
+        }
+
+        set<int> ds_ids = cluster->get_datastores();
+
+        cluster->unlock();
+
+        ds_id = Cluster::get_default_sysetm_ds(ds_ids);
+
+        if (ds_id == -1)
+        {
+            ostringstream oss;
+
+            oss << object_name(PoolObjectSQL::CLUSTER)
+                << " [" << cluster_id << "] does not have any "
+                << object_name(PoolObjectSQL::DATASTORE) << " of type "
+                << Datastore::type_to_str(Datastore::SYSTEM_DS) << ".";
+
+            failure_response(ACTION, request_error(oss.str(),""), att);
+
+            return -1;
+        }
+    }
+
+    return get_ds_information(ds_id, cluster_id, tm_mad, att);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int RequestManagerVirtualMachine::get_ds_information(int ds_id,
+    int& ds_cluster_id,
+    string& tm_mad,
+    RequestAttributes& att)
+{
+    Nebula& nd = Nebula::instance();
+
+    Datastore * ds = nd.get_dspool()->get(ds_id, true);
+
+    ds_cluster_id = -1;
+
+    if ( ds == 0 )
+    {
+        failure_response(NO_EXISTS,
+            get_error(object_name(PoolObjectSQL::DATASTORE), ds_id),
+            att);
+
+        return -1;
+    }
+
+    if ( ds->get_type() != Datastore::SYSTEM_DS )
+    {
+        ostringstream oss;
+
+        oss << "Trying to use " << object_name(PoolObjectSQL::DATASTORE)
+            << " [" << ds_id << "] to deploy the VM, but it is not of type"
+            << " system datastore.";
+
+        failure_response(INTERNAL, request_error(oss.str(),""), att);
+
+        ds->unlock();
+
+        return -1;
+    }
+
+    ds_cluster_id = ds->get_cluster_id();
+
+    tm_mad = ds->get_tm_mad();
+
+    ds->unlock();
+
+    return 0;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+int RequestManagerVirtualMachine::get_host_information(
+    int     hid,
+    string& name,
+    string& vmm,
+    string& vnm,
+    int&    cluster_id,
+    string& ds_location,
+    bool&   is_public_cloud,
+    PoolObjectAuth&    host_perms,
+    RequestAttributes& att)
+
+
 {
     Nebula&    nd    = Nebula::instance();
     HostPool * hpool = nd.get_hpool();
 
-    Host *      host;
-    Cluster *   cluster;
-    Datastore * ds;
-
-    int cluster_id;
-
-    host = hpool->get(hid,true);
+    Host *     host  = hpool->get(hid,true);
 
     if ( host == 0 )
     {
@@ -130,70 +346,22 @@ int RequestManagerVirtualMachine::get_host_information(int hid,
     vmm  = host->get_vmm_mad();
     vnm  = host->get_vnm_mad();
 
-    host->get_permissions(host_perms);
-
     cluster_id = host->get_cluster_id();
+
+    is_public_cloud = host->is_public_cloud();
+
+    host->get_permissions(host_perms);
 
     host->unlock();
 
-    if ( cluster_id != -1 )
-    {
-        cluster = nd.get_clpool()->get(cluster_id, true);
-
-        if ( cluster == 0 )
-        {
-            failure_response(NO_EXISTS,
-                    get_error(object_name(PoolObjectSQL::CLUSTER),cluster_id),
-                    att);
-
-            return -1;
-        }
-
-        ds_id = cluster->get_ds_id();
-
-        cluster->get_ds_location(ds_location);
-
-        cluster->unlock();
-    }
-    else
-    {
-        ds_id = DatastorePool::SYSTEM_DS_ID;
-
-        nd.get_configuration_attribute("DATASTORE_LOCATION", ds_location);
-    }
-
-    ds = nd.get_dspool()->get(ds_id, true);
-
-    if ( ds == 0 )
+    if (nd.get_ds_location(cluster_id, ds_location) == -1)
     {
         failure_response(NO_EXISTS,
-                get_error(object_name(PoolObjectSQL::DATASTORE),ds_id),
-                att);
+            get_error(object_name(PoolObjectSQL::CLUSTER),cluster_id),
+            att);
 
         return -1;
     }
-
-    if ( ds->get_type() != Datastore::SYSTEM_DS )
-    {
-        ostringstream oss;
-
-        ds->unlock();
-
-        oss << object_name(PoolObjectSQL::CLUSTER)
-            << " [" << cluster_id << "] has its SYSTEM_DS set to "
-            << object_name(PoolObjectSQL::DATASTORE)
-            << " [" << ds_id << "], but it is not a system one.";
-
-        failure_response(INTERNAL,
-                request_error(oss.str(),""),
-                att);
-
-        return -1;
-    }
-
-    tm = ds->get_tm_mad();
-
-    ds->unlock();
 
     return 0;
 }
@@ -262,6 +430,7 @@ VirtualMachine * RequestManagerVirtualMachine::get_vm(int id,
 
 int RequestManagerVirtualMachine::add_history(VirtualMachine * vm,
                                        int              hid,
+                                       int              cid,
                                        const string&    hostname,
                                        const string&    vmm_mad,
                                        const string&    vnm_mad,
@@ -275,7 +444,7 @@ int RequestManagerVirtualMachine::add_history(VirtualMachine * vm,
 
     VirtualMachinePool * vmpool = static_cast<VirtualMachinePool *>(pool);
 
-    vm->add_history(hid, hostname, vmm_mad, vnm_mad, tm_mad, ds_location, ds_id);
+    vm->add_history(hid, cid, hostname, vmm_mad, vnm_mad, tm_mad, ds_location, ds_id);
 
     rc = vmpool->update_history(vm);
 
@@ -451,38 +620,54 @@ void VirtualMachineDeploy::request_execute(xmlrpc_c::paramList const& paramList,
     DispatchManager *   dm = nd.get_dm();
 
     VirtualMachine * vm;
-    PoolObjectAuth host_perms;
 
     string hostname;
     string vmm_mad;
     string vnm_mad;
-    string tm_mad;
+    int    cluster_id;
     string ds_location;
-    int    ds_id;
+    bool   is_public_cloud;
+    PoolObjectAuth host_perms;
 
-    int id       = xmlrpc_c::value_int(paramList.getInt(1));
-    int hid      = xmlrpc_c::value_int(paramList.getInt(2));
-    bool enforce = false;
+    string tm_mad;
 
     bool auth = false;
+
+    // ------------------------------------------------------------------------
+    // Get request parameters and information about the target host
+    // ------------------------------------------------------------------------
+
+    int  id      = xmlrpc_c::value_int(paramList.getInt(1));
+    int  hid     = xmlrpc_c::value_int(paramList.getInt(2));
+    bool enforce = false;
+    int  ds_id   = -1;
 
     if ( paramList.size() > 3 )
     {
         enforce = xmlrpc_c::value_boolean(paramList.getBoolean(3));
     }
 
+    if ( paramList.size() > 4 )
+    {
+        ds_id = xmlrpc_c::value_int(paramList.getInt(4));
+    }
+
     if (get_host_information(hid,
                              hostname,
                              vmm_mad,
                              vnm_mad,
-                             tm_mad,
+                             cluster_id,
                              ds_location,
-                             ds_id,
-                             att,
-                             host_perms) != 0)
+                             is_public_cloud,
+                             host_perms,
+                             att) != 0)
     {
         return;
     }
+
+    // ------------------------------------------------------------------------
+    // Authorize request
+    // ------------------------------------------------------------------------
 
     auth = vm_authorization(id, 0, 0, att, &host_perms, 0, auth_op);
 
@@ -490,6 +675,68 @@ void VirtualMachineDeploy::request_execute(xmlrpc_c::paramList const& paramList,
     {
         return;
     }
+
+    if ((vm = get_vm(id, att)) == 0)
+    {
+        return;
+    }
+
+    if (vm->hasHistory() &&
+        (vm->get_action() == History::STOP_ACTION ||
+         vm->get_action() == History::UNDEPLOY_ACTION ||
+         vm->get_action() == History::UNDEPLOY_HARD_ACTION))
+    {
+        ds_id = vm->get_ds_id();
+    }
+
+    vm->unlock();
+
+    // ------------------------------------------------------------------------
+    // Get information about the system DS to use (tm_mad)
+    // ------------------------------------------------------------------------
+
+    if (is_public_cloud)
+    {
+        ds_id = -1;
+    }
+    else
+    {
+        if ( ds_id == -1 ) //Use default system DS for cluster
+        {
+            if (get_default_ds_information(cluster_id, ds_id, tm_mad, att) != 0)
+            {
+                return;
+            }
+        }
+        else //Get information from user selected system DS
+        {
+            int ds_cluster_id;
+
+            if (get_ds_information(ds_id, ds_cluster_id, tm_mad, att) != 0)
+            {
+                return;
+            }
+
+            if (ds_cluster_id != cluster_id)
+            {
+                ostringstream oss;
+
+                oss << object_name(PoolObjectSQL::DATASTORE)
+                    << " [" << ds_id << "] and " << object_name(PoolObjectSQL::HOST)
+                    << " [" << hid <<"] are not in the same cluster.";
+
+                failure_response(ACTION, request_error(oss.str(),""), att);
+
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Check request consistency:
+    // - VM States are right
+    // - Host capacity if required
+    // ------------------------------------------------------------------------
 
     if ((vm = get_vm(id, att)) == 0)
     {
@@ -528,8 +775,17 @@ void VirtualMachineDeploy::request_execute(xmlrpc_c::paramList const& paramList,
         }
     }
 
+
+
+
+
+    // ------------------------------------------------------------------------
+    // Add a new history record and deploy the VM
+    // ------------------------------------------------------------------------
+
     if (add_history(vm,
                     hid,
+                    cluster_id,
                     hostname,
                     vmm_mad,
                     vnm_mad,
@@ -559,19 +815,26 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
     DispatchManager *   dm = nd.get_dm();
 
     VirtualMachine * vm;
-    PoolObjectAuth host_perms;
 
     string hostname;
     string vmm_mad;
     string vnm_mad;
-    string tm_mad;
+    int    cluster_id;
     string ds_location;
-    int    ds_id;
+    bool   is_public_cloud;
+    PoolObjectAuth host_perms;
 
-    PoolObjectAuth aux_perms;
-    int     current_ds_id;
-    string  aux_st;
-    int     current_hid;
+    int    c_hid;
+    int    c_cluster_id;
+    int    c_ds_id;
+    string c_tm_mad;
+    bool   c_is_public_cloud;
+
+    bool auth = false;
+
+    // ------------------------------------------------------------------------
+    // Get request parameters and information about the target host
+    // ------------------------------------------------------------------------
 
     int  id      = xmlrpc_c::value_int(paramList.getInt(1));
     int  hid     = xmlrpc_c::value_int(paramList.getInt(2));
@@ -583,20 +846,22 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
         enforce = xmlrpc_c::value_boolean(paramList.getBoolean(4));
     }
 
-    bool auth = false;
-
     if (get_host_information(hid,
                              hostname,
                              vmm_mad,
                              vnm_mad,
-                             tm_mad,
+                             cluster_id,
                              ds_location,
-                             ds_id,
-                             att,
-                             host_perms) != 0)
+                             is_public_cloud,
+                             host_perms,
+                             att) != 0)
     {
         return;
     }
+
+    // ------------------------------------------------------------------------
+    // Authorize request
+    // ------------------------------------------------------------------------
 
     auth = vm_authorization(id, 0, 0, att, &host_perms, 0, auth_op);
 
@@ -604,6 +869,15 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
     {
         return;
     }
+
+    // ------------------------------------------------------------------------
+    // Check request consistency:
+    // - VM States are right and there is at least a history record
+    // - New host is not the current one
+    // - Host capacity if required
+    // - New host and current one are in the same cluster
+    // - New or old host are not public cloud
+    // ------------------------------------------------------------------------
 
     if ((vm = get_vm(id, att)) == 0)
     {
@@ -622,14 +896,16 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
         return;
     }
 
-    current_hid = vm->get_hid();
+    // Check we are not migrating to the same host
 
-    if (current_hid == hid)
+    c_hid = vm->get_hid();
+
+    if (c_hid == hid)
     {
         ostringstream oss;
 
         oss << "VM is already running on "
-            << object_name(PoolObjectSQL::HOST) << " [" << current_hid << "]";
+            << object_name(PoolObjectSQL::HOST) << " [" << c_hid << "]";
 
         failure_response(ACTION,
                 request_error(oss.str(),""),
@@ -638,6 +914,10 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
         vm->unlock();
         return;
     }
+
+    // Get System DS information from current History record
+    c_ds_id  = vm->get_ds_id();
+    c_tm_mad = vm->get_tm_mad();
 
     if (enforce)
     {
@@ -659,28 +939,31 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
         vm->unlock();
     }
 
-    if (get_host_information(current_hid,
-                             aux_st,
-                             aux_st,
-                             aux_st,
-                             aux_st,
-                             aux_st,
-                             current_ds_id,
-                             att,
-                             aux_perms) != 0)
+    // Check we are in the same cluster
+
+    Host * host = nd.get_hpool()->get(c_hid, true);
+
+    if (host == 0)
     {
-        return;
+        failure_response(NO_EXISTS,
+                get_error(object_name(PoolObjectSQL::HOST), c_hid),
+                att);
     }
 
-    if ( current_ds_id != ds_id )
+    c_cluster_id = host->get_cluster_id();
+
+    c_is_public_cloud = host->is_public_cloud();
+
+    host->unlock();
+
+    if ( c_cluster_id != cluster_id )
     {
         ostringstream oss;
 
-        oss << "Cannot migrate to a different cluster with different system "
-        << "datastore. Current " << object_name(PoolObjectSQL::HOST)
-        << " [" << current_hid << "] uses system datastore [" << current_ds_id
-        << "], new " << object_name(PoolObjectSQL::HOST) << " [" << hid
-        << "] uses system datastore [" << ds_id << "]";
+        oss << "Cannot migrate to a different cluster. VM running in a host"
+            << " in " << object_name(PoolObjectSQL::CLUSTER) << " ["
+            << c_cluster_id << "] , and new host is in "
+            << object_name(PoolObjectSQL::CLUSTER) << " [" << cluster_id << "]";
 
         failure_response(ACTION,
                 request_error(oss.str(),""),
@@ -689,6 +972,19 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
         return;
     }
 
+    if ( is_public_cloud || c_is_public_cloud )
+    {
+        failure_response(ACTION,
+                request_error("Cannot migrate to or from a Public Cloud Host",""),
+                att);
+
+        return;
+    }
+
+    // ------------------------------------------------------------------------
+    // Add a new history record and migrate the VM
+    // ------------------------------------------------------------------------
+
     if ( (vm = get_vm(id, att)) == 0 )
     {
         return;
@@ -696,12 +992,13 @@ void VirtualMachineMigrate::request_execute(xmlrpc_c::paramList const& paramList
 
     if (add_history(vm,
                     hid,
+                    cluster_id,
                     hostname,
                     vmm_mad,
                     vnm_mad,
-                    tm_mad,
+                    c_tm_mad,
                     ds_location,
-                    ds_id,
+                    c_ds_id,
                     att) != 0)
     {
         vm->unlock();
@@ -733,22 +1030,30 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
     ImagePool *     ipool  = nd.get_ipool();
     DatastorePool * dspool = nd.get_dspool();
     UserPool *      upool  = nd.get_upool();
+    VMTemplatePool* tpool  = nd.get_tpool();
 
-    int    id       = xmlrpc_c::value_int(paramList.getInt(1));
-    int    disk_id  = xmlrpc_c::value_int(paramList.getInt(2));
-    string img_name = xmlrpc_c::value_string(paramList.getString(3));
-    string img_type = xmlrpc_c::value_string(paramList.getString(4));
-    bool   is_hot   = false; //Optional XML-RPC argument
+    int    id          = xmlrpc_c::value_int(paramList.getInt(1));
+    int    disk_id     = xmlrpc_c::value_int(paramList.getInt(2));
+    string img_name    = xmlrpc_c::value_string(paramList.getString(3));
+    string img_type    = xmlrpc_c::value_string(paramList.getString(4));
+    bool   is_hot      = false; //Optional XML-RPC argument
+    bool   do_template = false; //Optional XML-RPC argument
 
     if ( paramList.size() > 5 )
     {
         is_hot = xmlrpc_c::value_boolean(paramList.getBoolean(5));
     }
 
+    if ( paramList.size() > 6 )
+    {
+        do_template = xmlrpc_c::value_boolean(paramList.getBoolean(6));
+    }
+
     VirtualMachinePool * vmpool = static_cast<VirtualMachinePool *>(pool);
     VirtualMachine * vm;
     Datastore      * ds;
     int              iid;
+    int              tid;
 
     string error_str;
 
@@ -788,7 +1093,7 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
 
         failure_response(INTERNAL,
                          request_error("VM has to be RUNNING, POWEROFF or"
-                         " SUSPENDED to saveas disks.",""), att);
+                         " SUSPENDED to snapshot disks.",""), att);
         return;
     }
 
@@ -802,6 +1107,18 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
 
         failure_response(INTERNAL,
                          request_error("Cannot use selected DISK", error_str),
+                         att);
+        return;
+    }
+
+    if (do_template && !vm->get_template_attribute("TEMPLATE_ID",tid))
+    {
+        vm->clear_saveas_state(disk_id, is_hot);
+
+        vm->unlock();
+
+        failure_response(ACTION,
+                         request_error("VM has no template to be saved",""),
                          att);
         return;
     }
@@ -832,10 +1149,12 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
         return;
     }
 
-    int    ds_id   = img->get_ds_id();
-    string ds_name = img->get_ds_name();
-    int    size    = img->get_size();
+    int       ds_id   = img->get_ds_id();
+    string    ds_name = img->get_ds_name();
+    long long size    = img->get_size();
 
+    string iname_orig  = img->get_name();
+    string iuname_orig = img->get_uname();
     Image::ImageType type = img->get_type();
 
     img->get_template_attribute("DRIVER", driver);
@@ -882,7 +1201,7 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
 
     string         ds_data;
     PoolObjectAuth ds_perms;
-    unsigned int   avail;
+    long long      avail;
     bool           ds_check;
 
     ds->get_permissions(ds_perms);
@@ -897,7 +1216,7 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
     // -------------------------------------------------------------------------
     // Check Datastore Capacity
     // -------------------------------------------------------------------------
-    if (ds_check && ((unsigned int) size > avail))
+    if (ds_check && (size > avail))
     {
         failure_response(ACTION, "Not enough space in datastore", att);
 
@@ -1030,6 +1349,95 @@ void VirtualMachineSaveDisk::request_execute(xmlrpc_c::paramList const& paramLis
     }
 
     // Return the new allocated Image ID
+    if (!do_template)
+    {
+        success_response(iid, att);
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Clone original template and replace disk with saved one
+    // -------------------------------------------------------------------------
+    int ntid;
+
+    PoolObjectAuth perms;
+    VMTemplate *   vm_tmpl = tpool->get(tid,true);
+
+    if ( vm_tmpl == 0 ) //Failed to get original template return saved image id
+    {
+        ostringstream error;
+
+        error << get_error(object_name(PoolObjectSQL::TEMPLATE), tid)
+              << "Image successfully saved with id: " << iid;
+
+        failure_response(NO_EXISTS, error.str(), att);
+        return;
+    }
+
+    VirtualMachineTemplate * tmpl = vm_tmpl->clone_template();
+
+    vm_tmpl->get_permissions(perms);
+
+    vm_tmpl->unlock();
+
+    //Setup the new template: name and replace disk
+
+    ostringstream tmpl_name;
+
+    tmpl_name << img_name << "-" << iid;
+
+    tmpl->replace("NAME", tmpl_name.str());
+    tmpl->replace("SAVED_TEMPLATE_ID", tid);
+    tmpl->replace("SAVED_TO_IMAGE_ID", iid);
+
+    tmpl->replace_disk_image(iid_orig, iname_orig, iuname_orig, img_name, att.uname);
+
+    //Authorize the template creation operation
+
+    if ( att.uid != 0 )
+    {
+        string tmpl_str = "";
+
+        AuthRequest ar(att.uid, att.group_ids);
+
+        ar.add_auth(AuthRequest::USE, perms);
+
+        tmpl->to_xml(tmpl_str);
+
+        ar.add_create_auth(att.uid, att.gid, PoolObjectSQL::TEMPLATE, tmpl_str);
+
+        if (UserPool::authorize(ar) == -1)
+        {
+            delete tmpl;
+
+            ostringstream error;
+
+            error << authorization_error(ar.message, att)
+                  << "Image successfully saved with id: " << iid;
+
+            failure_response(AUTHORIZATION, error.str(), att);
+
+            return;
+        }
+    }
+
+    //Allocate the template
+
+    rc = tpool->allocate(att.uid, att.gid, att.uname, att.gname, umask,
+                tmpl, &ntid, error_str);
+
+    if (rc < 0)
+    {
+        ostringstream error;
+
+        error << allocate_error(PoolObjectSQL::TEMPLATE, error_str)
+              << "Image successfully saved with id: " << iid;
+
+        failure_response(INTERNAL, error.str(), att);
+
+        return;
+    }
+
     success_response(iid, att);
 }
 
@@ -1075,10 +1483,15 @@ void VirtualMachineAttach::request_execute(xmlrpc_c::paramList const& paramList,
     DispatchManager * dm = nd.get_dm();
 
     VirtualMachineTemplate * tmpl = new VirtualMachineTemplate();
-    PoolObjectAuth           host_perms;
+    VirtualMachineTemplate * deltas = 0;
+    PoolObjectAuth           vm_perms;
+
+    VirtualMachinePool * vmpool = static_cast<VirtualMachinePool *>(pool);
+    VirtualMachine *     vm;
 
     int    rc;
     string error_str;
+    bool   volatile_disk;
 
     int     id       = xmlrpc_c::value_int(paramList.getInt(1));
     string  str_tmpl = xmlrpc_c::value_string(paramList.getString(2));
@@ -1107,17 +1520,59 @@ void VirtualMachineAttach::request_execute(xmlrpc_c::paramList const& paramList,
         return;
     }
 
-    if ( quota_authorization(tmpl, Quotas::IMAGE, att) == false )
+    vm = vmpool->get(id, true);
+
+    if (vm == 0)
     {
-        delete tmpl;
+        failure_response(NO_EXISTS,
+                get_error(object_name(PoolObjectSQL::VM),id),
+                att);
         return;
+    }
+
+    vm->get_permissions(vm_perms);
+
+    vm->unlock();
+
+    RequestAttributes att_quota(vm_perms.uid, vm_perms.gid, att);
+
+    volatile_disk = VirtualMachine::isVolatile(tmpl);
+
+    if ( volatile_disk )
+    {
+        deltas = new VirtualMachineTemplate(*tmpl);
+
+        deltas->add("VMS", 0);
+
+        if (quota_resize_authorization(id, deltas, att_quota) == false)
+        {
+            delete tmpl;
+            delete deltas;
+
+            return;
+        }
+    }
+    else
+    {
+        if ( quota_authorization(tmpl, Quotas::IMAGE, att_quota) == false )
+        {
+            delete tmpl;
+            return;
+        }
     }
 
     rc = dm->attach(id, tmpl, error_str);
 
     if ( rc != 0 )
     {
-        quota_rollback(tmpl, Quotas::IMAGE, att);
+        if ( volatile_disk )
+        {
+            quota_rollback(deltas, Quotas::VM, att_quota);
+        }
+        else
+        {
+            quota_rollback(tmpl, Quotas::IMAGE, att_quota);
+        }
 
         failure_response(ACTION,
                 request_error(error_str, ""),
@@ -1129,6 +1584,8 @@ void VirtualMachineAttach::request_execute(xmlrpc_c::paramList const& paramList,
     }
 
     delete tmpl;
+    delete deltas;
+
     return;
 }
 
@@ -1187,14 +1644,8 @@ void VirtualMachineResize::request_execute(xmlrpc_c::paramList const& paramList,
     int   nvcpu, ovcpu;
 
     Nebula&    nd    = Nebula::instance();
-    UserPool*  upool = nd.get_upool();
-    GroupPool* gpool = nd.get_gpool();
     HostPool * hpool = nd.get_hpool();
-
-    Quotas     user_dquotas  = nd.get_default_user_quota();
-    Quotas     group_dquotas = nd.get_default_group_quota();
-
-    Host * host;
+    Host *     host;
 
     Template deltas;
     string   error_str;
@@ -1343,70 +1794,12 @@ void VirtualMachineResize::request_execute(xmlrpc_c::paramList const& paramList,
     /*  Check quotas                                                          */
     /* ---------------------------------------------------------------------- */
 
-    if (vm_perms.uid != UserPool::ONEADMIN_ID)
+    if (quota_resize_authorization(&deltas, att, vm_perms) == false)
     {
-        User * user  = upool->get(vm_perms.uid, true);
-
-        if ( user != 0 )
-        {
-            rc = user->quota.quota_update(Quotas::VM, &deltas, user_dquotas, error_str);
-
-            if (rc == false)
-            {
-                ostringstream oss;
-
-                oss << object_name(PoolObjectSQL::USER)
-                    << " [" << vm_perms.uid << "] "
-                    << error_str;
-
-                failure_response(AUTHORIZATION,
-                        request_error(oss.str(), ""),
-                        att);
-
-                user->unlock();
-
-                return;
-            }
-
-            upool->update(user);
-
-            user->unlock();
-        }
+        return;
     }
 
-    if (vm_perms.gid != GroupPool::ONEADMIN_ID)
-    {
-        Group * group  = gpool->get(vm_perms.gid, true);
-
-        if ( group != 0 )
-        {
-            rc = group->quota.quota_update(Quotas::VM, &deltas, group_dquotas, error_str);
-
-            if (rc == false)
-            {
-                ostringstream oss;
-                RequestAttributes att_tmp(vm_perms.uid, -1, att);
-
-                oss << object_name(PoolObjectSQL::GROUP)
-                    << " [" << vm_perms.gid << "] "
-                    << error_str;
-
-                failure_response(AUTHORIZATION,
-                                 request_error(oss.str(), ""),
-                                 att);
-
-                group->unlock();
-
-                quota_rollback(&deltas, Quotas::VM, att_tmp);
-
-                return;
-            }
-
-            gpool->update(group);
-
-            group->unlock();
-        }
-    }
+    RequestAttributes att_rollback(vm_perms.uid, vm_perms.gid, att);
 
     /* ---------------------------------------------------------------------- */
     /*  Check & update host capacity                                          */
@@ -1425,7 +1818,7 @@ void VirtualMachineResize::request_execute(xmlrpc_c::paramList const& paramList,
                 get_error(object_name(PoolObjectSQL::HOST),hid),
                 att);
 
-            quota_rollback(&deltas, Quotas::VM, att);
+            quota_rollback(&deltas, Quotas::VM, att_rollback);
 
             return;
         }
@@ -1441,7 +1834,7 @@ void VirtualMachineResize::request_execute(xmlrpc_c::paramList const& paramList,
 
             host->unlock();
 
-            quota_rollback(&deltas, Quotas::VM, att);
+            quota_rollback(&deltas, Quotas::VM, att_rollback);
 
             return;
         }
@@ -1465,7 +1858,7 @@ void VirtualMachineResize::request_execute(xmlrpc_c::paramList const& paramList,
                 get_error(object_name(PoolObjectSQL::VM),id),
                 att);
 
-        quota_rollback(&deltas, Quotas::VM, att);
+        quota_rollback(&deltas, Quotas::VM, att_rollback);
 
         if (hid != -1)
         {
@@ -1516,7 +1909,7 @@ void VirtualMachineResize::request_execute(xmlrpc_c::paramList const& paramList,
 
             vm->unlock();
 
-            quota_rollback(&deltas, Quotas::VM, att);
+            quota_rollback(&deltas, Quotas::VM, att_rollback);
 
             if (hid != -1)
             {
@@ -1673,7 +2066,10 @@ void VirtualMachineAttachNic::request_execute(
     DispatchManager * dm = nd.get_dm();
 
     VirtualMachineTemplate tmpl;
-    PoolObjectAuth           host_perms;
+
+    PoolObjectAuth       vm_perms;
+    VirtualMachinePool * vmpool = static_cast<VirtualMachinePool *>(pool);
+    VirtualMachine *     vm;
 
     int    rc;
     string error_str;
@@ -1702,6 +2098,22 @@ void VirtualMachineAttachNic::request_execute(
         return;
     }
 
+    vm = vmpool->get(id, true);
+
+    if (vm == 0)
+    {
+        failure_response(NO_EXISTS,
+                get_error(object_name(PoolObjectSQL::VM),id),
+                att);
+        return;
+    }
+
+    vm->get_permissions(vm_perms);
+
+    vm->unlock();
+
+    RequestAttributes att_quota(vm_perms.uid, vm_perms.gid, att);
+
     if (att.uid != UserPool::ONEADMIN_ID && att.gid!=GroupPool::ONEADMIN_ID)
     {
         string aname;
@@ -1719,7 +2131,7 @@ void VirtualMachineAttachNic::request_execute(
         }
     }
 
-    if ( quota_authorization(&tmpl, Quotas::NETWORK, att) == false )
+    if ( quota_authorization(&tmpl, Quotas::NETWORK, att_quota) == false )
     {
         return;
     }
@@ -1728,7 +2140,7 @@ void VirtualMachineAttachNic::request_execute(
 
     if ( rc != 0 )
     {
-        quota_rollback(&tmpl, Quotas::NETWORK, att);
+        quota_rollback(&tmpl, Quotas::NETWORK, att_quota);
 
         failure_response(ACTION,
                 request_error(error_str, ""),

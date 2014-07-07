@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -408,6 +408,7 @@ public:
      */
     void add_history(
         int     hid,
+        int     cid,
         const string& hostname,
         const string& vmm_mad,
         const string& vnm_mad,
@@ -489,19 +490,14 @@ public:
         return previous_history->vnm_mad_name;
     };
 
-
     /**
      *  Returns the datastore ID of the system DS for the host. The hasHistory()
      *  function MUST be called before this one.
      *    @return the ds id
      */
-    string get_ds_id() const
+    int get_ds_id() const
     {
-        ostringstream oss;
-
-        oss << history->ds_id;
-
-        return oss.str();
+        return history->ds_id;
     };
 
     /**
@@ -509,13 +505,9 @@ public:
      *  The hasPreviousHistory() function MUST be called before this one.
      *    @return the TM mad name
      */
-    string get_previous_ds_id() const
+    int get_previous_ds_id() const
     {
-        ostringstream oss;
-
-        oss << previous_history->ds_id;
-
-        return oss.str();
+        return previous_history->ds_id;
     };
 
     /**
@@ -624,6 +616,16 @@ public:
     };
 
     /**
+     * Updates the current hostname. The hasHistory()
+     *  function MUST be called before this one.
+     * @param hostname New hostname
+     */
+    void set_hostname(const string& hostname)
+    {
+        history->hostname = hostname;
+    };
+
+    /**
      *  Returns the hostname for the previous host. The hasPreviousHistory()
      *  function MUST be called before this one.
      *    @return the hostname
@@ -640,6 +642,16 @@ public:
     const History::EndReason get_previous_reason() const
     {
         return previous_history->reason;
+    };
+
+    /**
+     *  Returns the action that closed the current history record. The hasHistory()
+     *  function MUST be called before this one.
+     *    @return the action that closed the current history record
+     */
+    const History::VMAction get_action() const
+    {
+        return history->action;
     };
 
     /**
@@ -738,6 +750,14 @@ public:
     {
         history->running_stime=_stime;
     };
+
+    /**
+     *  Gets the running start time for the VM
+     */
+    time_t get_running_stime()
+    {
+        return history->running_stime;
+    }
 
     /**
      *  Sets end time of VM running state.
@@ -1058,6 +1078,21 @@ public:
      */
     void release_disk_images();
 
+    /**
+     *  Check if the given disk is volatile
+     */
+    static bool isVolatile(const VectorAttribute * disk);
+
+    /**
+     *  Check if the template contains a volatile disk
+     */
+    static bool isVolatile(const Template * tmpl);
+
+    /**
+     *  Return the total SIZE of volatile disks
+     */
+    static long long get_volatile_disk_size(Template * tmpl);
+
     // ------------------------------------------------------------------------
     // Context related functions
     // ------------------------------------------------------------------------
@@ -1334,6 +1369,17 @@ public:
      */
     void delete_snapshots();
 
+    // ------------------------------------------------------------------------
+    // Public cloud templates related functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Gets the list of public cloud hypervisors for which this VM has definitions
+     * @param list to store the cloud hypervisors in the template
+     * @return the number of public cloud hypervisors
+     */
+    int get_public_cloud_hypervisors(vector<string> &cloud_hypervisors) const;
+
 private:
 
     // -------------------------------------------------------------------------
@@ -1578,7 +1624,7 @@ private:
      *  Parse the "GRAPHICS" attribute and generates a default PORT if not
      *  defined
      */
-    void parse_graphics();
+    int parse_graphics(string& error_str);
 
     /**
      * Searches the meaningful attributes and moves them from the user template

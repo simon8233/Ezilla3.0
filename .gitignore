@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 src/sunstone/public/images/vncsnapshot/
 src/sunstone/public/locale
 src/sunstone/public/vendor_ln
@@ -220,3 +221,23 @@ src/xml/expr_arith.o
 src/xml/expr_bool.o
 src/xml/expr_parser.o
 src/xml/libnebula_xml.a
+=======
+*.a
+*.o
+*.pyc
+.xmlrpc_test/
+.sconsign.dblite
+share/man/*.gz
+src/im_mad/collectd/collectd
+src/scheduler/src/sched/.xmlrpc_test/
+src/scheduler/src/sched/mm_sched
+src/sunstone/locale/languages/*.js
+src/mad/utils/tty_expect
+src/nebula/.xmlrpc_test/
+src/nebula/oned
+share/doc/one/html
+
+*.class
+src/oca/java/jar
+src/oca/java/share/doc
+>>>>>>> one-master

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -398,7 +398,7 @@ int ImageManager::delete_image(int iid, const string& ds_data, string& error_str
     string   img_tmpl;
     string * drv_msg;
 
-    int size;
+    long long size;
     int ds_id;
 
     int uid;
@@ -770,7 +770,16 @@ int ImageManager::stat_image(Template*     img_tmpl,
 
             if (!res.empty())
             {
-                res = "0";
+                long long size_l;
+
+                if (!img_tmpl->get("SIZE", size_l))
+                {
+                    res = "Wrong number or missing SIZE attribute.";
+                    return -1;
+                }
+
+                img_tmpl->get("SIZE", res);
+
                 return 0;
             }
 
@@ -790,13 +799,15 @@ int ImageManager::stat_image(Template*     img_tmpl,
 
             if (res.empty())//no PATH
             {
-                img_tmpl->get("SIZE", res);
+                long long size_l;
 
-                if (res.empty())
+                if (!img_tmpl->get("SIZE", size_l))
                 {
-                    res = "Either SIZE or PATH are mandatory for DATABLOCK.";
+                    res = "Wrong number or missing SIZE attribute.";
                     return -1;
                 }
+
+                img_tmpl->get("SIZE", res);
 
                 return 0;
             }

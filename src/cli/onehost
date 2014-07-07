@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -20,8 +20,10 @@ ONE_LOCATION=ENV["ONE_LOCATION"]
 
 if !ONE_LOCATION
     RUBY_LIB_LOCATION="/usr/lib/one/ruby"
+    REMOTES_LOCATION="/var/lib/one/remotes/"
 else
     RUBY_LIB_LOCATION=ONE_LOCATION+"/lib/ruby"
+    REMOTES_LOCATION=ONE_LOCATION+"/var/remotes/"
 end
 
 $: << RUBY_LIB_LOCATION
@@ -71,7 +73,22 @@ cmd=CommandParser::CmdParser.new(ARGV) do
     :format => String
     }
 
+    FORCE = {
+        :name   => "force",
+        :large  => "--force" ,
+        :description => "Force probe upgrade in onehost sync"
+    }
+
+    RSYNC = {
+        :name   => "rsync",
+        :large  => "--rsync" ,
+        :description => "Use rsync to synchronize remotes. In case some " <<
+            "probes are no longer in the fronted are deleted in the hosts." <<
+            " rsync command must be installed in the frontend and nodes."
+    }
+
     CREAT_OPTIONS = [ IM, VMM, VNET, OneClusterHelper::CLUSTER ]
+    SYNC_OPTIONS  = [ OneClusterHelper::CLUSTER, FORCE, RSYNC ]
 
     ########################################################################
     # Formatters for arguments
@@ -164,16 +181,15 @@ cmd=CommandParser::CmdParser.new(ARGV) do
     sync_desc = <<-EOT.unindent
         Synchronizes probes in /var/lib/one/remotes ($ONE_LOCATION/var/remotes
         in self-contained installations) with Hosts.
-        The copy is performed the next time the Host is monitored
+        Examples:
+            onehost sync
+            onehost sync -c myCluster
+            onehost sync host01,host02,host03
     EOT
 
-    command :sync, sync_desc do
-        if ONE_LOCATION
-            FileUtils.touch "#{ONE_LOCATION}/var/remotes"
-        else
-            FileUtils.touch "/var/lib/one/remotes"
-        end
-        0
+    command :sync, sync_desc, [:range, :hostid_list, nil],
+            :options=>SYNC_OPTIONS do
+        helper.sync(args[0], options)
     end
 
     list_desc = <<-EOT.unindent
@@ -211,6 +227,16 @@ cmd=CommandParser::CmdParser.new(ARGV) do
     command :flush, flush_desc, [:range,:hostid_list] do
         helper.perform_actions(args[0],options,"flush") do |host|
             host.flush
+        end
+    end
+
+    rename_desc = <<-EOT.unindent
+        Renames the Host
+    EOT
+
+    command :rename, rename_desc, :hostid, :name do
+        helper.perform_action(args[0],options,"renamed") do |o|
+            o.rename(args[1])
         end
     end
 end

@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -28,40 +28,64 @@ class OneDBBacKEnd
     def read_db_version
         connect_db
 
-        version   = "2.0"
-        timestamp = 0
-        comment   = ""
-
-        @db.fetch("SELECT version, timestamp, comment FROM db_versioning " +
-                  "WHERE oid=(SELECT MAX(oid) FROM db_versioning)") do |row|
-            version   = row[:version]
-            timestamp = row[:timestamp]
-            comment   = row[:comment]
-        end
-
-        return [version, timestamp, comment]
-
-    rescue Exception => e
-        if e.class == Sequel::DatabaseConnectionError
-            raise e
-        elsif !db_exists?
-            # If the DB doesn't have db_version table, it means it is empty or a 2.x
-            raise "Database schema does not look to be created by " <<
-                  "OpenNebula: table user_pool is missing or empty."
-        end
+        ret = {}
 
         begin
-            # Table image_pool is present only in 2.X DBs
-            @db.fetch("SELECT * FROM image_pool") { |row| }
-        rescue
-            raise "Database schema looks to be created by OpenNebula 1.X." <<
-                  "This tool only works with databases created by 2.X versions."
+            ret[:version]   = "2.0"
+            ret[:timestamp] = 0
+            ret[:comment]   = ""
+
+            @db.fetch("SELECT version, timestamp, comment FROM db_versioning " +
+                      "WHERE oid=(SELECT MAX(oid) FROM db_versioning)") do |row|
+                ret[:version]   = row[:version]
+                ret[:timestamp] = row[:timestamp]
+                ret[:comment]   = row[:comment]
+            end
+
+            ret[:local_version]   = ret[:version]
+            ret[:local_timestamp] = ret[:timestamp]
+            ret[:local_comment]   = ret[:comment]
+            ret[:is_slave]        = false
+
+            begin
+               @db.fetch("SELECT version, timestamp, comment, is_slave FROM "+
+                        "local_db_versioning WHERE oid=(SELECT MAX(oid) "+
+                        "FROM local_db_versioning)") do |row|
+                    ret[:local_version]   = row[:version]
+                    ret[:local_timestamp] = row[:timestamp]
+                    ret[:local_comment]   = row[:comment]
+                    ret[:is_slave]        = row[:is_slave]
+               end 
+            rescue Exception => e
+                if e.class == Sequel::DatabaseConnectionError
+                    raise e
+                end
+            end
+
+            return ret
+
+        rescue Exception => e
+            if e.class == Sequel::DatabaseConnectionError
+                raise e
+            elsif !db_exists?
+                # If the DB doesn't have db_version table, it means it is empty or a 2.x
+                raise "Database schema does not look to be created by " <<
+                      "OpenNebula: table user_pool is missing or empty."
+            end
+
+            begin
+                # Table image_pool is present only in 2.X DBs
+                @db.fetch("SELECT * FROM image_pool") { |row| }
+            rescue
+                raise "Database schema looks to be created by OpenNebula 1.X." <<
+                      "This tool only works with databases created by 2.X versions."
+            end
+
+            comment = "Could not read any previous db_versioning data, " <<
+                      "assuming it is an OpenNebula 2.0 or 2.2 DB."
+
+            return ret
         end
-
-        comment = "Could not read any previous db_versioning data, " <<
-                  "assuming it is an OpenNebula 2.0 or 2.2 DB."
-
-        return [version, timestamp, comment]
     end
 
     def history
@@ -108,6 +132,41 @@ class OneDBBacKEnd
         puts comment
     end
 
+    def update_local_db_version(version)
+        comment = "Database migrated from #{version} to #{db_version}"+
+                  " (#{one_version}) by onedb command."
+
+        max_oid = nil
+        @db.fetch("SELECT MAX(oid) FROM local_db_versioning") do |row|
+            max_oid = row[:"MAX(oid)"].to_i
+        end
+
+        max_oid = 0 if max_oid.nil?
+
+        is_slave = 0
+
+        @db.fetch("SELECT is_slave FROM local_db_versioning "<<
+                  "WHERE oid=#{max_oid}") do |row|
+            is_slave = row[:is_slave]
+        end
+
+        @db.run(
+            "INSERT INTO local_db_versioning (oid, version, timestamp, comment, is_slave) "<<
+            "VALUES ("                                                     <<
+                "#{max_oid+1}, "                                           <<
+                "'#{db_version}', "                                        <<
+                "#{Time.new.to_i}, "                                       <<
+                "'#{comment}',"                                            <<
+                "#{is_slave})"
+        )
+
+        puts comment
+    end
+
+    def db()
+        return @db
+    end
+
     private
 
     def db_exists?
@@ -122,6 +181,20 @@ class OneDBBacKEnd
         end
 
         return found
+    end
+
+    def init_log_time()
+        @block_n = 0
+        @time0 = Time.now
+    end
+
+    def log_time()
+        if LOG_TIME
+            @time1 = Time.now
+            puts "    > #{db_version} Time for block #{@block_n}: #{"%0.02f" % (@time1 - @time0).to_s}s"
+            @time0 = Time.now
+            @block_n += 1
+        end
     end
 end
 
@@ -160,7 +233,7 @@ class BackEndMySQL < OneDBBacKEnd
     end
 
     def backup(bck_file)
-        cmd = "mysqldump -u #{@user} -p#{@passwd} -h #{@server} " +
+        cmd = "mysqldump -u #{@user} -p'#{@passwd}' -h #{@server} " +
               "-P #{@port} #{@db_name} > #{bck_file}"
 
         rc = system(cmd)
@@ -171,6 +244,7 @@ class BackEndMySQL < OneDBBacKEnd
         puts "MySQL dump stored in #{bck_file}"
         puts "Use 'onedb restore' or restore the DB using the mysql command:"
         puts "mysql -u user -h server -P port db_name < backup_file"
+        puts
     end
 
     def restore(bck_file, force=nil)
@@ -181,7 +255,7 @@ class BackEndMySQL < OneDBBacKEnd
                   " use -f to overwrite."
         end
 
-        mysql_cmd = "mysql -u #{@user} -p#{@passwd} -h #{@server} -P #{@port} "
+        mysql_cmd = "mysql -u #{@user} -p'#{@passwd}' -h #{@server} -P #{@port} "
 
         drop_cmd = mysql_cmd + "-e 'DROP DATABASE IF EXISTS #{@db_name};'"
         rc = system(drop_cmd)
@@ -222,10 +296,6 @@ class BackEndSQLite < OneDBBacKEnd
 
     def initialize(file)
         @sqlite_file = file
-
-        if !File.exists?(@sqlite_file)
-            raise "File #{@sqlite_file} doesn't exist"
-        end
     end
 
     def bck_file
@@ -236,10 +306,11 @@ class BackEndSQLite < OneDBBacKEnd
         FileUtils.cp(@sqlite_file, "#{bck_file}")
         puts "Sqlite database backup stored in #{bck_file}"
         puts "Use 'onedb restore' or copy the file back to restore the DB."
+        puts
     end
 
     def restore(bck_file, force=nil)
-        if !force
+        if File.exists?(@sqlite_file) && !force
             raise "File #{@sqlite_file} exists, use -f to overwrite."
         end
 
@@ -250,8 +321,13 @@ class BackEndSQLite < OneDBBacKEnd
     private
 
     def connect_db
+        if !File.exists?(@sqlite_file)
+            raise "File #{@sqlite_file} doesn't exist"
+        end
+
         begin
             @db = Sequel.sqlite(@sqlite_file)
+            @db.integer_booleans = true
         rescue Exception => e
             raise "Error connecting to DB: " + e.message
         end

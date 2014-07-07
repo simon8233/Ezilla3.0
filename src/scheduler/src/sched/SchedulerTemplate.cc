@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -35,17 +35,24 @@ void SchedulerTemplate::set_conf_default()
 #*******************************************************************************
 # Daemon configuration attributes
 #-------------------------------------------------------------------------------
+#  XML_RPC_MESSAGE_SIZE
 #  ONED_PORT
 #  SCHED_INTERVAL
 #  MAX_VM
 #  MAX_DISPATCH
 #  MAX_HOST
 #  DEFAULT_SCHED
+#  DEFAULT_DS_SCHED
 #  LIVE_RESCHEDS
-#  HYPERVISOR_MEM
 #  LOG
 #-------------------------------------------------------------------------------
 */
+    // XML_RPC_MESSAGE_SIZE
+    value = "1073741824";
+
+    attribute = new SingleAttribute("MESSAGE_SIZE",value);
+    conf_default.insert(make_pair(attribute->name(),attribute));
+
     // ONED_PORT
     value = "2633";
 
@@ -89,11 +96,12 @@ void SchedulerTemplate::set_conf_default()
     vattribute = new VectorAttribute("DEFAULT_SCHED",vvalue);
     conf_default.insert(make_pair(vattribute->name(),vattribute));
 
-    //HYPERVISOR_MEM
-    value = "0.1";
+    //DEFAULT_DS_SCHED
+    vvalue.clear();
+    vvalue.insert(make_pair("POLICY","1"));
 
-    attribute = new SingleAttribute("HYPERVISOR_MEM",value);
-    conf_default.insert(make_pair(attribute->name(),attribute));
+    vattribute = new VectorAttribute("DEFAULT_DS_SCHED",vvalue);
+    conf_default.insert(make_pair(vattribute->name(),vattribute));
 
     //LOG CONFIGURATION
     vvalue.clear();
@@ -119,6 +127,11 @@ string SchedulerTemplate::get_policy() const
 
     get("DEFAULT_SCHED", vsched);
 
+    if (vsched.empty())
+    {
+        return "";
+    }
+
     sched = static_cast<const VectorAttribute *> (vsched[0]);
 
     iss.str(sched->vector_value("POLICY"));
@@ -140,6 +153,60 @@ string SchedulerTemplate::get_policy() const
 
         case 3: //Custom
             rank = sched->vector_value("RANK");
+        break;
+
+        case 4: //Fixed
+            rank = "PRIORITY";
+        break;
+
+        default:
+            rank = "";
+    }
+
+    return rank;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+string SchedulerTemplate::get_ds_policy() const
+{
+    int    policy;
+    string rank;
+
+    istringstream iss;
+
+    vector<const Attribute *> vsched;
+    const  VectorAttribute *  sched;
+
+    get("DEFAULT_DS_SCHED", vsched);
+
+    if (vsched.empty())
+    {
+        return "";
+    }
+
+    sched = static_cast<const VectorAttribute *> (vsched[0]);
+
+    iss.str(sched->vector_value("POLICY"));
+    iss >> policy;
+
+    switch (policy)
+    {
+        case 0: //Packing
+            rank = "- FREE_MB";
+        break;
+
+        case 1: //Striping
+            rank = "FREE_MB";
+        break;
+
+        case 2: //Custom
+            rank = sched->vector_value("RANK");
+        break;
+
+        case 3: //Fixed
+            rank = "PRIORITY";
         break;
 
         default:

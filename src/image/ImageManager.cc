@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -47,7 +47,7 @@ extern "C" void * image_action_loop(void *arg)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-void ImageManager::load_mads(int uid)
+int ImageManager::load_mads(int uid)
 {
     ImageManagerDriver *    imagem_mad;
     ostringstream           oss;
@@ -64,7 +64,7 @@ void ImageManager::load_mads(int uid)
     if ( vattr == 0 )
     {
         NebulaLog::log("ImM",Log::INFO,"Failed to load Image Manager driver.");
-        return;
+        return -1;
     }
 
     VectorAttribute image_conf("IMAGE_MAD",vattr->value());
@@ -82,6 +82,8 @@ void ImageManager::load_mads(int uid)
 
         NebulaLog::log("ImM",Log::INFO,oss);
     }
+
+    return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -221,7 +223,7 @@ void ImageManager::monitor_datastore(int ds_id)
 
     oss << "Monitoring datastore " << ds->get_name() << " (" << ds_id << ")";
 
-    NebulaLog::log("InM", Log::INFO, oss);
+    NebulaLog::log("InM", Log::DEBUG, oss);
 
     ds->unlock();
 

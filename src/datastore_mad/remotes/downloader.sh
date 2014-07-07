@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -35,7 +35,7 @@ function get_decompressor
     type=$1
 
     case "$type" in
-    "application/x-gzip")
+    "application/x-gzip"|"application/gzip")
         echo "gunzip -c -"
         ;;
     "application/x-bzip2")
@@ -191,6 +191,10 @@ http://*|https://*)
     command="curl $curl_args"
     ;;
 *)
+    if [ ! -r $FROM ]; then
+        echo "Cannot read from $FROM" >&2
+        exit -1
+    fi
     command="cat $FROM"
     ;;
 esac
@@ -198,8 +202,7 @@ esac
 file_type=$(get_type "$command")
 decompressor=$(get_decompressor "$file_type")
 
-$command | tee >( decompress "$decompressor" "$TO" ) \
-    >( hasher $HASH_TYPE ) >/dev/null
+$command | tee >( hasher $HASH_TYPE) | decompress "$decompressor" "$TO"
 
 if [ "$?" != "0" ]; then
     echo "Error copying" >&2

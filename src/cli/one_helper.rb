@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -16,13 +16,19 @@
 
 require 'cli_helper'
 
-require 'opennebula'
+begin
+    require 'opennebula'
+rescue Exception => e
+    puts "Error: "+e.message.to_s
+    exit(-1)
+end
+
 include OpenNebula
 
 module OpenNebulaHelper
     ONE_VERSION=<<-EOT
 OpenNebula #{OpenNebula::VERSION}
-Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs
+Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may
 not use this file except in compliance with the License. You may obtain
@@ -94,18 +100,83 @@ EOT
             :name   => 'user',
             :large  => '--user name',
             :description => 'User name used to connect to OpenNebula',
-            :format => String
+            :format => String,
+            :proc => lambda do |o, options|
+                OneHelper.set_user(o)
+                [0, o]
+            end
         },
         {
             :name   => 'password',
             :large  => '--password password',
             :description => 'Password to authenticate with OpenNebula',
-            :format => String
+            :format => String,
+            :proc => lambda do |o, options|
+                OneHelper.set_password(o)
+                [0, o]
+            end
         },
         {
             :name   => 'endpoint',
             :large  => '--endpoint endpoint',
             :description => 'URL of OpenNebula xmlrpc frontend',
+            :format => String,
+            :proc => lambda do |o, options|
+                OneHelper.set_endpoint(o)
+                [0, o]
+            end
+        }
+    ]
+
+    GROUP_OPTIONS=[
+        {
+            :name   => 'name',
+            :large  => '--name name',
+            :short => "-n",
+            :description =>
+                'Name for the new group',
+            :format => String
+        },
+        {
+            :name   => 'admin_user',
+            :large  => '--admin_user name',
+            :short => "-u",
+            :description =>
+                'Creates an admin user for the group with name',
+            :format => String
+        },
+        {
+            :name   => 'admin_password',
+            :large  => '--admin_password pass',
+            :short => "-p",
+            :description =>
+                'Password for the admin user of the group',
+            :format => String
+        },
+        {
+            :name   => 'admin_driver',
+            :large  => '--admin_driver driver',
+            :short => "-d",
+            :description =>
+                'Auth driver for the admin user of the group',
+            :format => String
+        },
+        {
+            :name   => 'resources',
+            :large  => '--resources res_str',
+            :short => "-r",
+            :description =>
+                "Which resources can be created by group users "<<
+                "(VM+NET+IMAGE+TEMPLATE by default)",
+            :format => String
+        },
+        {
+            :name   => 'admin_resources',
+            :large  => '--admin_resources res_str',
+            :short => "-o",
+            :description =>
+                "Which resources can be created by the admin user "<<
+                "(VM+NET+IMAGE+TEMPLATE by default)",
             :format => String
         }
     ]
@@ -187,6 +258,37 @@ EOT
             :description => 'Add VNC server to the VM'
         },
         {
+            :name   => 'vnc_password',
+            :large  => '--vnc-password password',
+            :format => String,
+            :description => 'VNC password'
+        },
+        {
+            :name   => 'vnc_listen',
+            :large  => '--vnc-listen ip',
+            :format => String,
+            :description => 'VNC IP where to listen for connections. '<<
+                'By default is 0.0.0.0 (all interfaces).'
+        },
+        {
+            :name   => 'spice',
+            :large  => '--spice',
+            :description => 'Add spice server to the VM'
+        },
+        {
+            :name   => 'spice_password',
+            :large  => '--spice-password password',
+            :format => String,
+            :description => 'spice password'
+        },
+        {
+            :name   => 'spice_listen',
+            :large  => '--spice-listen ip',
+            :format => String,
+            :description => 'spice IP where to listen for connections. '<<
+                'By default is 0.0.0.0 (all interfaces).'
+        },
+        {
             :name   => 'ssh',
             :large  => '--ssh [file]',
             :description => "Add an ssh public key to the context. If the \n"<<
@@ -217,6 +319,19 @@ EOT
             :large  => '--boot device',
             :description => 'Select boot device (hd|fd|cdrom|network)',
             :format => String
+        },
+        {
+            :name   => 'files_ds',
+            :large  => '--files_ds file1,file2',
+            :format => Array,
+            :description => 'Add files to the contextualization CD from the' <<
+                'files datastore'
+        },
+        {
+            :name   => 'init',
+            :large  => '--init script1,script2',
+            :format => Array,
+            :description => 'Script or scripts to start in context'
         }
     ]
 
@@ -229,18 +344,31 @@ EOT
     class OneHelper
         attr_accessor :client
 
-        def self.get_client(options)
-            if defined?(@@client)
+        def self.get_client(options={}, force=false)
+            if !force && defined?(@@client)
                 @@client
             else
+
                 secret=nil
-                user=options[:user]
+                password=nil
+
+                if defined?(@@user)
+                    user=@@user
+                    password=@@password if defined?(@@password)
+                else
+                    user=options[:user]
+                end
+
                 if user
-                    password=options[:password]||self.get_password
+                    password=password||options[:password]||self.get_password
                     secret="#{user}:#{password}"
                 end
 
-                endpoint=options[:endpoint]
+                if defined?(@@endpoint)
+                    endpoint=@@endpoint
+                else
+                    endpoint=options[:endpoint]
+                end
 
                 @@client=OpenNebula::Client.new(secret, endpoint)
             end
@@ -250,8 +378,20 @@ EOT
             if defined?(@@client)
                 @@client
             else
-                self.get_client({})
+                self.get_client
             end
+        end
+
+        def self.set_user(user)
+            @@user=user
+        end
+
+        def self.set_password(password)
+            @@password=password
+        end
+
+        def self.set_endpoint(endpoint)
+            @@endpoint=endpoint
         end
 
         if RUBY_VERSION>="1.9.3"
@@ -263,6 +403,7 @@ EOT
                 puts
 
                 pass.chop! if pass
+                @@password=pass
                 pass
             end
         else
@@ -270,8 +411,9 @@ EOT
             def self.get_password
                 print "Password: "
                 system("stty", "-echo")
+                @@password=gets.chop
                 begin
-                    return gets.chop
+                    return @@password
                 ensure
                     system("stty", "echo")
                     print "\n"
@@ -286,7 +428,7 @@ EOT
         end
 
         def set_client(options)
-            @client=OpenNebulaHelper::OneHelper.get_client(options)
+            @client=OpenNebulaHelper::OneHelper.get_client(options, true)
         end
 
         def create_resource(options, &block)
@@ -313,25 +455,30 @@ EOT
 
             pool = factory_pool(filter_flag)
 
-            rc = pool.info
-            return -1, rc.message if OpenNebula.is_error?(rc)
-
             if options[:xml]
+                # TODO: use paginated functions
+                rc=pool.info
+                return -1, rc.message if OpenNebula.is_error?(rc)
                 return 0, pool.to_xml(true)
             else
                 table = format_pool(options)
 
                 if top
                     table.top(options) {
-                        pool.info
-                        pool_to_array(pool)
+                        array=pool.get_hash
+                        return -1, array.message if OpenNebula.is_error?(array)
+
+                        array
                     }
                 else
-                    array=pool_to_array(pool)
+                    array=pool.get_hash
+                    return -1, array.message if OpenNebula.is_error?(array)
 
-                    if options[:ids]
-                        array=array.select do |element|
-                            options[:ids].include? element['ID'].to_i
+                    rname=self.class.rname
+                    elements=array["#{rname}_POOL"][rname]
+                    if options[:ids] && elements
+                        elements.reject! do |element|
+                            !options[:ids].include?(element['ID'].to_i)
                         end
                     end
 
@@ -451,6 +598,10 @@ EOT
         end
 
         def self.name_to_id(name, pool, ename)
+            if ename=="CLUSTER" and name.upcase=="ALL"
+                return 0, "ALL"
+            end
+
             objects=pool.select {|object| object.name==name }
 
             if objects.length>0
@@ -566,6 +717,7 @@ EOT
         when "IMAGE"     then OpenNebula::ImagePool.new(client)
         when "VMTEMPLATE" then OpenNebula::TemplatePool.new(client)
         when "VM"        then OpenNebula::VirtualMachinePool.new(client)
+        when "ZONE"      then OpenNebula::ZonePool.new(client)
         end
 
         rc = pool.info
@@ -743,7 +895,8 @@ EOT
     end
 
     def self.create_context(options)
-        if !(options.keys & [:ssh, :net_context, :context]).empty?
+        context_options = [:ssh, :net_context, :context, :init, :files_ds]
+        if !(options.keys & context_options).empty?
             lines=[]
 
             if options[:ssh]
@@ -761,10 +914,24 @@ EOT
             end
 
             if options[:net_context]
-                    lines << "NETWORK = \"YES\""
+                lines << "NETWORK = \"YES\""
             end
 
             lines+=options[:context] if options[:context]
+
+            if options[:files_ds]
+                text='FILES_DS="'
+                text << options[:files_ds].map do |file|
+                    %Q<$FILE[IMAGE=\\"#{file}\\"]>
+                end.join(' ')
+                text << '"'
+
+                lines << text
+            end
+
+            if options[:init]
+                lines << %Q<INIT_SCRIPTS="#{options[:init].join(' ')}">
+            end
 
             if !lines.empty?
                 "CONTEXT=[\n"<<lines.map{|l| "  "<<l }.join(",\n")<<"\n]\n"
@@ -813,7 +980,21 @@ EOT
         end
 
         if options[:vnc]
-            template<<'GRAPHICS=[ TYPE="vnc", LISTEN="0.0.0.0" ]'<<"\n"
+            vnc_listen=options[:vnc_listen] || "0.0.0.0"
+            template<<"GRAPHICS=[ TYPE=\"vnc\", LISTEN=\"#{vnc_listen}\""
+            if options[:vnc_password]
+                template << ", PASSWD=\"#{options[:vnc_password]}\""
+            end
+            template<<' ]'<<"\n"
+        end
+
+        if options[:spice]
+            spice_listen=options[:spice_listen] || "0.0.0.0"
+            template<<"GRAPHICS=[ TYPE=\"spice\", LISTEN=\"#{spice_listen}\""
+            if options[:spice_password]
+                template << ", PASSWD=\"#{options[:spice_password]}\""
+            end
+            template<<' ]'<<"\n"
         end
 
         context=create_context(options)

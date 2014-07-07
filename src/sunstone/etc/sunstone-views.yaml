@@ -16,10 +16,12 @@ available_tabs:
     - hosts-tab
     - datastores-tab
     - vnets-tab
+    - zones-tab
     - marketplace-tab
     - oneflow-dashboard
     - oneflow-services
     - oneflow-templates
+    - provision-tab
 groups:
     oneadmin:
         - admin
@@ -27,4 +29,4 @@ groups:
         - user
         - cloud
 default:
-    - user
+    - cloud

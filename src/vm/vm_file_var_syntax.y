@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -87,7 +87,9 @@ int get_image_path(VirtualMachine * vm,
     Nebula& nd = Nebula::instance();
 
     ImagePool * ipool = nd.get_ipool();
+    UserPool *  upool = nd.get_upool();
     Image  *    img   = 0;
+    User  *     user  = 0;
     int         iid   = -1;
 
     PoolObjectAuth  perm;
@@ -160,7 +162,21 @@ int get_image_path(VirtualMachine * vm,
 
     img->unlock();
 
-    AuthRequest ar(vm->get_uid(), vm->get_gid());
+    set<int> gids;
+
+    user = upool->get(vm->get_uid(), true);
+
+    if (user != 0)
+    {
+        gids = user->get_groups();
+        user->unlock();
+    }
+    else
+    {
+        gids.insert(vm->get_gid());
+    }
+
+    AuthRequest ar(vm->get_uid(), gids);
 
     ar.add_auth(AuthRequest::USE, perm);
 

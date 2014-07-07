@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -261,7 +261,7 @@ void Quotas::quota_del(QuotaType type, int uid, int gid, Template * tmpl)
         {
             user->quota.quota_del(type, tmpl);
 
-            upool->update(user);
+            upool->update_quotas(user);
 
             user->unlock();
         }
@@ -275,7 +275,7 @@ void Quotas::quota_del(QuotaType type, int uid, int gid, Template * tmpl)
         {
             group->quota.quota_del(type, tmpl);
 
-            gpool->update(group);
+            gpool->update_quotas(group);
 
             group->unlock();
         }

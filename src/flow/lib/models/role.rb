@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2010-2013, C12G Labs S.L.                                        #
+# Copyright 2010-2014, C12G Labs S.L.                                        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -239,7 +239,12 @@ module OpenNebula
             @body['last_vmname'] ||= 0
 
             n_nodes.times { |i|
-                vm_name = "#{@body['name']}_#{@body['last_vmname']}_(service_#{@service.id()})"
+                vm_name = @@vm_name_template.
+                    gsub("$SERVICE_ID",    @service.id().to_s).
+                    gsub("$SERVICE_NAME",  @service.name().to_s).
+                    gsub("$ROLE_NAME",     name().to_s).
+                    gsub("$VM_NUMBER",     @body['last_vmname'].to_s)
+
                 @body['last_vmname'] += 1
 
                 template_id = @body['vm_template']
@@ -250,7 +255,7 @@ module OpenNebula
                 template = OpenNebula::Template.new_with_id(template_id, @service.client)
 
                 extra_template = "SERVICE_ID = #{@service.id()}\n"\
-                    "ROLE_NAME = #{@body['name']}"
+                    "ROLE_NAME = \"#{@body['name']}\""
 
                 vm_id = template.instantiate(vm_name, false, extra_template)
 
@@ -543,6 +548,10 @@ module OpenNebula
             @@default_shutdown = shutdown_action
         end
 
+        def self.init_default_vm_name_template(vm_name_template)
+            @@vm_name_template = vm_name_template
+        end
+
         # Updates the role
         # @param [Hash] template
         # @return [nil, OpenNebula::Error] nil in case of success, Error
@@ -795,7 +804,7 @@ module OpenNebula
 
             shutdown_nodes(nodes_dispose, true)
 
-            set_cardinality( get_nodes.size() - n_dispose.size() )
+            set_cardinality( get_nodes.size() - nodes_dispose.size() )
         end
 
         # Deletes VMs in DONE or FAILED, and sends a boot action to VMs in UNKNOWN

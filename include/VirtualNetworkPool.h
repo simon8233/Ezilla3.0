@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -33,11 +33,12 @@ class VirtualNetworkPool : public PoolSQL
 {
 public:
 
-    VirtualNetworkPool(SqlDB *                   db,
-                       const string&             str_mac_prefix,
-                       int                       default_size,
-                       vector<const Attribute *> hook_mads,
-                       const string&             remotes_location);
+    VirtualNetworkPool(SqlDB *                          db,
+                       const string&                    str_mac_prefix,
+                       int                              default_size,
+                       vector<const Attribute *>        hook_mads,
+                       const string&                    remotes_location,
+                       const vector<const Attribute *>& _inherit_attrs);
 
     ~VirtualNetworkPool(){};
 
@@ -137,12 +138,14 @@ public:
      *  to the query
      *  @param oss the output stream to dump the pool contents
      *  @param where filter for the objects, defaults to all
+     *  @param limit parameters used for pagination
      *
      *  @return 0 on success
      */
-    int dump(ostringstream& oss, const string& where)
+    int dump(ostringstream& oss, const string& where, const string& limit)
     {
-        return PoolSQL::dump(oss, "VNET_POOL", VirtualNetwork::table,where);
+        return PoolSQL::dump(oss, "VNET_POOL", VirtualNetwork::table, where,
+                             limit);
     }
 
     /**
@@ -173,6 +176,11 @@ private:
      *  Default size for Virtual Networks
      */
     static unsigned int     _default_size;
+
+    /**
+     * VNet attributes to be injected into the VM nic
+     */
+    vector<string> inherit_attrs;
 
     /**
      *  Factory method to produce VN objects

@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------ */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs      */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs      */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may  */
 /* not use this file except in compliance with the License. You may obtain  */
@@ -30,17 +30,6 @@ using namespace std;
 class Cluster : public PoolObjectSQL
 {
 public:
-
-    /**
-     * Returns the SYSTEM_DS attribute
-     *
-     * @return the SYSTEM_DS attribute
-     */
-    int get_ds_id()
-    {
-        return system_ds;
-    }
-
     /**
      * Returns the DATASTORE_LOCATION for the hosts of the cluster. If not
      * defined that in oned.conf is returned.
@@ -108,6 +97,20 @@ public:
     int del_datastore(int id, string& error_msg);
 
     /**
+     *  Returns a copy of the datastore IDs set
+     */
+    set<int> get_datastores()
+    {
+        return datastores.get_collection_copy();
+    };
+
+    /**
+     *  Returns a system DS for the cluster when none is set at the API level
+     *    @return the ID of the System
+     */
+    static int get_default_sysetm_ds(const set<int>& ds_collection);
+
+    /**
      *  Adds this vnet ID to the set.
      *    @param id to be added to the cluster
      *    @param error_msg Error message, if any
@@ -141,6 +144,43 @@ public:
         }
 
         return rc;
+    }
+
+    /**
+     *  Returns a copy of the host IDs set
+     */
+    set<int> get_host_ids()
+    {
+        return hosts.get_collection_copy();
+    }
+
+    /**
+     *  Returns a copy of the datastore IDs set
+     */
+    set<int> get_datastore_ids()
+    {
+        return datastores.get_collection_copy();
+    }
+
+    /**
+     *  Returns a copy of the vnet IDs set
+     */
+    set<int> get_vnet_ids()
+    {
+        return vnets.get_collection_copy();
+    }
+
+    /**
+     *  Get the default reserved capacity for hosts in the cluster. It can be
+     *  overridden if defined in the host template.
+     *    @param cpu reserved cpu (in percentage)
+     *    @param mem reserved mem (in KB)
+     */
+    void get_reserved_capacity(long long &cpu, long long& mem)
+    {
+        get_template_attribute("RESERVED_CPU", cpu);
+
+        get_template_attribute("RESERVED_MEM", mem);
     }
 
     // *************************************************************************
@@ -187,11 +227,6 @@ private:
     ObjectCollection hosts;
     ObjectCollection datastores;
     ObjectCollection vnets;
-
-    /**
-     * System datastore id
-     */
-    int system_ds;
 
     // *************************************************************************
     // DataBase implementation (Private)

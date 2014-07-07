@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -21,10 +21,12 @@
 #include <stdexcept>
 #include <sstream>
 
+#include "Nebula.h"
 #include "HostPool.h"
 #include "HostHook.h"
 #include "NebulaLog.h"
 #include "GroupPool.h"
+#include "ClusterPool.h"
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
@@ -39,7 +41,7 @@ HostPool::HostPool(SqlDB*                    db,
                    const string&             hook_location,
                    const string&             remotes_location,
                    time_t                    expire_time)
-                        : PoolSQL(db, Host::table, true)
+                        : PoolSQL(db, Host::table, true, true)
 {
 
     _monitor_expiration = expire_time;
@@ -79,7 +81,7 @@ HostPool::HostPool(SqlDB*                    db,
 
             oss << "Empty ON or COMMAND attribute in HOST_HOOK. Hook "
                 << "not registered!";
-            NebulaLog::log("VM",Log::WARNING,oss);
+            NebulaLog::log("ONE",Log::WARNING,oss);
 
             continue;
         }

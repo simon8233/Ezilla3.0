@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -34,6 +34,7 @@ VirtualMachineManager::VirtualMachineManager(
     HostPool *                      _hpool,
     time_t                          _timer_period,
     time_t                          _poll_period,
+    bool                            _do_vm_poll,
     int                             _vm_limit,
     vector<const Attribute*>&       _mads):
         MadManager(_mads),
@@ -41,6 +42,7 @@ VirtualMachineManager::VirtualMachineManager(
         hpool(_hpool),
         timer_period(_timer_period),
         poll_period(_poll_period),
+        do_vm_poll(_do_vm_poll),
         vm_limit(_vm_limit)
 {
     am.addListener(this);
@@ -63,15 +65,7 @@ extern "C" void * vmm_action_loop(void *arg)
 
     NebulaLog::log("VMM",Log::INFO,"Virtual Machine Manager started.");
 
-    if ( vmm->poll_period == 0 )
-    {
-        NebulaLog::log("VMM",Log::INFO,"VM monitoring is disabled.");
-        vmm->am.loop(0,0);
-    }
-    else
-    {
-        vmm->am.loop(vmm->timer_period,0);
-    }
+    vmm->am.loop(vmm->timer_period, 0);
 
     NebulaLog::log("VMM",Log::INFO,"Virtual Machine Manager stopped.");
 
@@ -352,6 +346,7 @@ string * VirtualMachineManager::format_message(
     const string& rdfile,
     const string& cfile,
     const string& tm_command,
+    const string& tm_command_rollback,
     const string& disk_target_path,
     const string& tmpl)
 {
@@ -402,11 +397,21 @@ string * VirtualMachineManager::format_message(
 
     if ( !tm_command.empty() )
     {
-        oss << "<TM_COMMAND><![CDATA[" << tm_command   << "]]></TM_COMMAND>";
+        oss << "<TM_COMMAND><![CDATA[" << tm_command << "]]></TM_COMMAND>";
     }
     else
     {
         oss << "<TM_COMMAND/>";
+    }
+
+    if (!tm_command_rollback.empty())
+    {
+        oss << "<TM_COMMAND_ROLLBACK><![CDATA[" << tm_command_rollback
+            << "]]></TM_COMMAND_ROLLBACK>";
+    }
+    else
+    {
+        oss << "<TM_COMMAND_ROLLBACK/>";
     }
 
     if ( !disk_target_path.empty() )
@@ -480,6 +485,7 @@ void VirtualMachineManager::deploy_action(int vid)
         "",
         vm->get_deployment_file(),
         vm->get_remote_deployment_file(),
+        "",
         "",
         "",
         "",
@@ -582,6 +588,7 @@ void VirtualMachineManager::save_action(
         vm->get_checkpoint_file(),
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->save(vid, *drv_msg);
@@ -663,6 +670,7 @@ void VirtualMachineManager::shutdown_action(
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->shutdown(vid, *drv_msg);
@@ -739,6 +747,7 @@ void VirtualMachineManager::reboot_action(
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->reboot(vid, *drv_msg);
@@ -805,6 +814,7 @@ void VirtualMachineManager::reset_action(
         "",
         "",
         vm->get_deploy_id(),
+        "",
         "",
         "",
         "",
@@ -882,6 +892,7 @@ void VirtualMachineManager::cancel_action(
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->cancel(vid, *drv_msg);
@@ -954,6 +965,7 @@ void VirtualMachineManager::cancel_previous_action(
         "",
         "",
         vm->get_deploy_id(),
+        "",
         "",
         "",
         "",
@@ -1051,6 +1063,7 @@ void VirtualMachineManager::cleanup_action(
         "",
         os.str(),
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->cleanup(vid, *drv_msg);
@@ -1135,6 +1148,7 @@ void VirtualMachineManager::cleanup_previous_action(
         "",
         os.str(),
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->cleanup(vid, *drv_msg);
@@ -1213,6 +1227,7 @@ void VirtualMachineManager::migrate_action(
         "",
         "",
         os.str(),
+        "",
         "",
         vm->to_xml(vm_tmpl));
 
@@ -1296,6 +1311,7 @@ void VirtualMachineManager::restore_action(
         vm->get_checkpoint_file(),
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->restore(vid, *drv_msg);
@@ -1368,6 +1384,7 @@ void VirtualMachineManager::poll_action(
         "",
         "",
         vm->get_deploy_id(),
+        "",
         "",
         "",
         "",
@@ -1459,11 +1476,11 @@ void VirtualMachineManager::timer_action()
     static int mark        = 0;
     static int timer_start = time(0);
 
-    VirtualMachine *        vm;
-    vector<int>             oids;
-    vector<int>::iterator   it;
-    int                     rc;
-    ostringstream           os;
+    VirtualMachine *      vm;
+    vector<int>           oids;
+    vector<int>::iterator it;
+    int                   rc;
+    ostringstream         os;
 
     time_t thetime = time(0);
 
@@ -1484,8 +1501,8 @@ void VirtualMachineManager::timer_action()
     vmpool->clean_expired_monitoring();
 
     // Skip monitoring the first poll_period to allow the Host monitoring to
-    // gather the VM info
-    if ( timer_start + poll_period > thetime )
+    // gather the VM info (or if it is disabled)
+    if ( timer_start + poll_period > thetime || !do_vm_poll)
     {
         return;
     }
@@ -1517,10 +1534,18 @@ void VirtualMachineManager::timer_action()
             continue;
         }
 
+        // Skip monitoring the first poll_period to allow the Host monitoring to
+        // gather the VM info
+        if (vm->get_running_stime() + poll_period > thetime)
+        {
+            vm->unlock();
+            continue;
+        }
+
         os.str("");
 
         os << "Monitoring VM " << *it << ".";
-        NebulaLog::log("VMM", Log::INFO, os);
+        NebulaLog::log("VMM", Log::DEBUG, os);
 
         vmd = get(vm->get_vmm_mad());
 
@@ -1536,6 +1561,7 @@ void VirtualMachineManager::timer_action()
             "",
             "",
             vm->get_deploy_id(),
+            "",
             "",
             "",
             "",
@@ -1572,13 +1598,15 @@ void VirtualMachineManager::attach_action(
     string  vm_tm_mad;
     string  opennebula_hostname;
     string  prolog_cmd;
+    string  epilog_cmd;
     string  disk_path;
 
     const VectorAttribute * disk;
     int disk_id;
     int rc;
 
-    Nebula& nd = Nebula::instance();
+    Nebula& nd           = Nebula::instance();
+    TransferManager * tm = nd.get_tm();
 
     // Get the VM from the pool
     vm = vmpool->get(vid,true);
@@ -1609,9 +1637,10 @@ void VirtualMachineManager::attach_action(
     }
 
     vm_tm_mad = vm->get_tm_mad();
+
     opennebula_hostname = nd.get_nebula_hostname();
 
-    rc = nd.get_tm()->prolog_transfer_command(
+    rc = tm->prolog_transfer_command(
             vm,
             disk,
             vm_tm_mad,
@@ -1625,6 +1654,12 @@ void VirtualMachineManager::attach_action(
     {
         goto error_no_tm_command;
     }
+
+    os.str("");
+
+    tm->epilog_transfer_command(vm, disk, os);
+
+    epilog_cmd = os.str();
 
     os.str("");
 
@@ -1645,6 +1680,7 @@ void VirtualMachineManager::attach_action(
         "",
         "",
         prolog_cmd,
+        epilog_cmd,
         disk_path,
         vm->to_xml(vm_tmpl));
 
@@ -1765,6 +1801,7 @@ void VirtualMachineManager::detach_action(
         "",
         "",
         epilog_cmd,
+        "",
         disk_path,
         vm->to_xml(vm_tmpl));
 
@@ -1847,6 +1884,7 @@ void VirtualMachineManager::snapshot_create_action(int vid)
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->snapshot_create(vid, *drv_msg);
@@ -1924,6 +1962,7 @@ void VirtualMachineManager::snapshot_revert_action(int vid)
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->snapshot_revert(vid, *drv_msg);
@@ -1996,6 +2035,7 @@ void VirtualMachineManager::snapshot_delete_action(int vid)
         "",
         "",
         vm->get_deploy_id(),
+        "",
         "",
         "",
         "",
@@ -2080,6 +2120,7 @@ void VirtualMachineManager::attach_nic_action(
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->attach_nic(vid, *drv_msg);
@@ -2159,6 +2200,7 @@ void VirtualMachineManager::detach_nic_action(
         "",
         "",
         "",
+        "",
         vm->to_xml(vm_tmpl));
 
     vmd->detach_nic(vid, *drv_msg);
@@ -2194,7 +2236,7 @@ error_common:
 /* MAD Loading                                                                */
 /* ************************************************************************** */
 
-void VirtualMachineManager::load_mads(int uid)
+int VirtualMachineManager::load_mads(int uid)
 {
     unsigned int                    i;
     ostringstream                   oss;
@@ -2263,5 +2305,11 @@ void VirtualMachineManager::load_mads(int uid)
 
             NebulaLog::log("VMM",Log::INFO,oss);
         }
+        else
+        {
+            return rc;
+        }
     }
+
+    return 0;
 }

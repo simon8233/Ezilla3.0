@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -24,195 +24,115 @@
 /*         CHI-MING Chen <jonchen _at_ nchc narl org tw>                         */
 /*-------------------------------------------------------------------------------*/
 
-/*Files tab plugin*/
-
-var files_tab_content = '\
-<form class="custom" id="file_form" action="">\
-<div class="panel">\
-<div class="row">\
-  <div class="twelve columns">\
-    <h4 class="subheader header">\
-      <span class="header-resource">\
-        <i class="icon-folder-open"></i> '+tr("Files & Kernels")+'\
-      </span>\
-      <span class="header-info">\
-        <span id="total_files"/> <small>'+tr("TOTAL")+'</small>&emsp;\
-        <span id="size_files"/> <small>'+tr("SIZE")+'</small>\
-      </span>\
-      <span class="user-login">\
-      </span>\
-    </h4>\
-  </div>\
-</div>\
-<div class="row">\
-  <div class="ten columns">\
-    <div class="action_blocks">\
+var create_file_tmpl ='<div class="row">\
+    <div class="large-5 columns">\
+      <h3 class="subheader">'+tr("Create File")+'</h3>'+
+    '</div>'+
+    '<div class="large-7 columns">'+
+      '<dl class="tabs right" data-tab>\
+        <dd class="active"><a href="#file_easyTab">'+tr("Wizard")+'</a></dd>\
+        <dd><a href="#file_manualTab">'+tr("Advanced mode")+'</a></dd>\
+      </dl>\
     </div>\
   </div>\
-  <div class="two columns">\
-    <input id="file_search" type="text" placeholder="'+tr("Search")+'" />\
-  </div>\
-</div>\
-</div>\
-  <div class="">\
-    <div class="twelve columns">\
-  <div id="files_upload_progress_bars"></div>\
-</div>\
-</div>\
-  <div class="row">\
-    <div class="twelve columns">\
-<table id="datatable_files" class="datatable twelve">\
-  <thead>\
-    <tr>\
-      <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
-      <th>'+tr("ID")+'</th>\
-      <th>'+tr("Owner")+'</th>\
-      <th>'+tr("Group")+'</th>\
-      <th>'+tr("Name")+'</th>\
-      <th>'+tr("Datastore")+'</th>\
-      <th>'+tr("Size")+'</th>\
-      <th>'+tr("Type")+'</th>\
-      <th>'+tr("Registration time")+'</th>\
-      <th>'+tr("Persistent")+'</th>\
-      <th>'+tr("Status")+'</th>\
-      <th>'+tr("#VMS")+'</th>\
-      <th>'+tr("Target")+'</th>\
-    </tr>\
-  </thead>\
-  <tbody id="tbodyfiles">\
-  </tbody>\
-</table>\
-</form>';
-
-var create_file_tmpl =
-  '<div class="panel">\
-    <h3><small>'+tr("Create File")+'</small></h3>\
-   </div>\
-   <div class="reveal-body">\
-   <form id="create_file_form_easy" action="" class="custom creation">\
-      <dl class="tabs">\
-          <dd class="active"><a href="#file_easy">'+tr("Wizard")+'</a></dd>\
-          <dd><a href="#file_manual">'+tr("Advanced mode")+'</a></dd>\
-      </dl>\
-      <ul class="tabs-content">\
-        <li id="file_easyTab" class="active">\
-            <div class="row vm_param">\
-              <div class="six columns">\
-                <div class="row">\
-                  <div class="four columns">\
-                    <label class="right inline" for="img_name">'+tr("Name")+':</label>\
+  <form id="create_file_form_easy" action="" class="custom creation">\
+      <div class="tabs-content">\
+        <div id="file_easyTab" class="content active">\
+              <div class="row vm_param">\
+                <div class="large-6 columns">\
+                  <div class="row">\
+                    <div class="large-12 columns">\
+                      <label for="file_name">'+tr("Name")+
+                        '<span class="tip">'+tr("Name that the File will get. Every file must have a unique name.")+'</span>\
+                      </label>\
+                      <input type="text" name="file_name" id="file_name" />\
+                    </div>\
                   </div>\
-                  <div class="seven columns">\
-                    <input type="text" name="img_name" id="img_name" />\
+                  <div class="row">\
+                    <div class="large-12 columns">\
+                      <label for="file_desc">'+tr("Description")+
+                        '<span class="tip">'+tr("Human readable description of the file for other users.")+'</span>\
+                      </label>\
+                      <textarea name="file_desc" id="file_desc" rows="4"></textarea>\
+                    </div>\
                   </div>\
-                  <div class="one columns tip">'+tr("Name that the File will get. Every file must have a unique name.")+'</div>\
                 </div>\
-                <div class="row">\
-                  <div class="four columns">\
-                    <label class="right inline" for="img_desc">'+tr("Description")+':</label>\
+                <div class="large-6 columns">\
+                  <div class="row">\
+                    <div class="large-12 columns">\
+                      <label for="file_type">'+tr("Type")+
+                        '<span class="tip">'+tr("Type of the file.")+'<br/><br/>'
+                          + tr(" KERNEL & RAMDISK files can be used in the OS Booting section of the Template wizard.")+'<br/><br/>'
+                          + tr(" CONTEXT files can be included in the context CD-ROM, from the Context/Files section of the Template wizard.")+
+                        '</span>'+
+                      '</label>\
+                       <select name="file_type" id="file_type">\
+                            <option value="KERNEL">'+tr("Kernel")+'</option>\
+                            <option value="RAMDISK">'+tr("Ramdisk")+'</option>\
+                            <option value="CONTEXT">'+tr("Context")+'</option>\
+                       </select>\
+                    </div>\
                   </div>\
-                  <div class="seven columns">\
-                    <textarea name="img_desc" id="img_desc" rows="4"></textarea>\
-                  </div>\
-                  <div class="one columns">\
-                    <div class="tip">'+tr("Human readable description of the file for other users.")+'</div>\
+                  <div class="row">\
+                    <div class="large-12 columns">\
+                      <label for="file_datastore">'+tr("Datastore")+
+                        '<span class="tip">'+tr("Select the datastore for this file")+'</span>'+
+                      '</label>\
+                       <div id="file_datastore" name="file_datastore">\
+                       </div>\
+                    </div>\
                   </div>\
                 </div>\
               </div>\
-              <div class="six columns">\
-                <div class="row">\
-                  <div class="four columns">\
-                    <label class="right inline" for="img_type">'+tr("Type")+':</label>\
+             <fieldset>\
+               <legend>'+tr("Image location")+':</legend>\
+               <div class="row" id="src_path_select">\
+                  <div class="large-12 columns text-center">\
+                       <input type="radio" name="src_path" id="path_file" value="path"><label for="path_file">'+ tr("Provide a path")+'</label> \
+                       <input type="radio" name="src_path" id="upload_file" value="upload"> <label for="upload_file">'+tr("Upload")+'</label> \
                   </div>\
-                  <div class="seven columns">\
-                   <select name="img_type" id="img_type">\
-                        <option value="KERNEL">'+tr("Kernel")+'</option>\
-                        <option value="RAMDISK">'+tr("Ramdisk")+'</option>\
-                        <option value="CONTEXT">'+tr("Context")+'</option>\
-                   </select>\
+               </div>\
+               <br>\
+               <div class="file_param row">\
+                 <div class="large-12 columns">\
+                    <label for="file_path">'+tr("Path")+
+                      '<span class="tip">'+tr("Path to the original file that will be copied to the file repository.")+'</span>'+
+                    '</label>\
+                    <input type="text" name="file_path" id="file_path" />\
                   </div>\
-                  <div class="one columns">\
-                    <div class="tip">'+tr("Type of the file, explained in detail in the following section. If omitted, the default value is the one defined in oned.conf (install default is OS).")+'</div>\
+               </div>\
+               <div class="row">\
+                  <div id="files_file-uploader" class="large-12 columns text-center">\
                   </div>\
-                </div>\
-                <div class="row">\
-                  <div class="four columns">\
-                    <label class="right inline" for="file_datastore">'+tr("Datastore")+':</label>\
-                  </div>\
-                  <div class="seven columns">\
-                   <select id="file_datastore" name="file_datastore">\
-                   </select>\
-                  </div>\
-                  <div class="one columns">\
-                    <div class="tip">'+tr("Select the datastore for this file")+'</div>\
-                  </div>\
-                </div>\
-              </div>\
+               </div>\
+            </fieldset>\
+            <div class="form_buttons">\
+              <button class="button success radius right" id="create_file_submit" type="button" value="file/create">'+tr("Create")+'</button>\
+              <button id="wizard_file_reset_button"  class="button secondary radius" type="reset" value="reset">'+tr("Reset")+'</button>\
             </div>\
-           <div class="row">\
-           <fieldset>\
-           <legend>'+tr("File location")+':</legend>\
-           <div class="row" id="src_path_select">\
-                  <div class="five columns centered">\
-                   <input type="radio" name="src_path" id="path_img" value="path">'+ tr("Provide a path")+'&emsp;</input> \
-                   <input type="radio" name="src_path" id="upload_img" value="upload"> '+tr("Upload")+'</input> &emsp;\
-                  </div>\
-           </div>\
-           <hr>\
-           <div class="img_param row">\
-             <div class="eight columns centered">\
-              <div class="two columns">\
-                <label class="right inline" for="img_path">'+tr("Path")+':</label>\
+        </div>\
+        <div id="file_manualTab" class="content">\
+              <div class="row">\
+                 <div class="columns large-12">\
+                   <label for="file_datastores_raw">'+tr("Datastore")+':</label>\
+                   <div id="file_datastore_raw" name="file_datastore_raw">\
+                   </div>\
+                 </div>\
               </div>\
-              <div class="nine columns">\
-               <input type="text" name="img_path" id="img_path" />\
-              </div>\
-              <div class="one columns">\
-                <div class="tip">'+tr("Path to the original file that will be copied to the file repository. If not specified for a DATABLOCK type file, an empty file will be created.")+'</div>\
-              </div>\
-           </div>\
-           </div>\
-           <div class="img_param" id="files_upload_div">\
-             <div class="row">\
-                <div class="columns eight centered">\
-                  <div id="files_file-uploader"></div>\
+              <div class="row">\
+                <div class="columns large-12">\
+                   <textarea id="template" rows="15" style="height:180px !important; width:100%;"></textarea>\
                 </div>\
-             </div>\
-            </div>\
-           </fieldset>\
-           </div>\
-      <div class="reveal-footer">\
-            <hr>\
-      <div class="form_buttons">\
-        <button class="button success radius right" id="create_file_submit" value="file/create">'+tr("Create")+'</button>\
-        <button class="button secondary radius" type="reset" value="reset">'+tr("Reset")+'</button>\
-        <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
-          </div>\
-      </div>\
-        </li>\
-        <li id="file_manualTab">\
-        <div class="reveal-body">\
-                 <div class="columns three">\
-                   <label class="inline left" for="file_datastores_raw">'+tr("Datastore")+':</label>\
-                 </div>\
-                 <div class="columns nine">\
-                   <select id="file_datastore_raw" name="file_datastore_raw"></select>\
-                 </div>\
-                 <textarea id="template" rows="15" style="width:100%;"></textarea>\
-          </div>\
-          <div class="reveal-footer">\
-               <hr>\
+              </div>\
                <div class="form_buttons">\
                  <button class="button success radius right" id="create_file_submit_manual" value="file/create">'+tr("Create")+'</button>\
-                 <button class="button secondary radius" type="reset" value="reset">'+tr("Reset")+'</button>\
-                 <button class="close-reveal-modal button secondary radius" type="button" value="close">' + tr("Close") + '</button>\
+                 <button  id="advanced_file_reset_button" class="button secondary radius" type="reset" value="reset">'+tr("Reset")+'</button>\
                </div>\
           </div>\
-        </li>\
-        </ul>\
-   <a class="close-reveal-modal">&#215;</a>\
-   </form>\
-  </div>';
+        </div>\
+        <a class="close-reveal-modal">&#215;</a>\
+  </form>\
+</div>';
 
 var dataTable_files;
 var $create_file_dialog;
@@ -222,9 +142,16 @@ var file_actions = {
     "File.create" : {
         type: "create",
         call: OpenNebula.Image.create,
-        callback: addFileElement,
-        error: onError,
-        notify:true
+        callback: function(request, response) {
+            // Reset the create wizard
+            $create_file_dialog.foundation('reveal', 'close');
+            $create_file_dialog.empty();
+            setupCreateFileDialog();
+
+            addFileElement(request, response);
+            notifyCustom(tr("File created"), " ID: " + response.IMAGE.ID, false);
+        },
+        error: onError
     },
 
     "File.create_dialog" : {
@@ -242,29 +169,30 @@ var file_actions = {
     "File.show" : {
         type : "single",
         call: OpenNebula.Image.show,
-        callback: updateFileElement,
-        error: onError
-    },
+        callback: function(request, response){
+            var tab = dataTable_files.parents(".tab");
 
-    "File.showinfo" : {
-        type: "single",
-        call: OpenNebula.Image.show,
-        callback: updateFileInfo,
+            if (Sunstone.rightInfoVisible(tab)) {
+                // individual view
+                updateFileInfo(request, response);
+            }
+
+            // datatable row
+            updateFileElement(request, response);
+        },
         error: onError
     },
 
     "File.refresh" : {
         type: "custom",
         call: function () {
+          var tab = dataTable_files.parents(".tab");
+          if (Sunstone.rightInfoVisible(tab)) {
+            Sunstone.runAction("File.show", Sunstone.rightInfoResourceId(tab))
+          } else {
             waitingNodes(dataTable_files);
-            Sunstone.runAction("File.list");
-        }
-    },
-
-    "File.autorefresh" : {
-        type: "custom",
-        call: function() {
-            OpenNebula.Image.list({timeout: true, success: updateFilesView, error: onError});
+            Sunstone.runAction("File.list", {force: true});
+          }
         }
     },
 
@@ -273,7 +201,7 @@ var file_actions = {
         call: OpenNebula.Image.update,
         callback: function(request) {
             notifyMessage("Template updated correctly");
-            Sunstone.runAction('Image.showinfo',request.request.data[0]);
+            Sunstone.runAction('File.show',request.request.data[0][0]);
         },
         error: onError
     },
@@ -314,7 +242,6 @@ var file_actions = {
         call: OpenNebula.Image.chown,
         callback:  function (req) {
             Sunstone.runAction("File.show",req.request.data[0][0]);
-            Sunstone.runAction('Image.showinfo',req.request.data[0]);
         },
         elements: fileElements,
         error: onError,
@@ -326,7 +253,6 @@ var file_actions = {
         call: OpenNebula.Image.chgrp,
         callback: function (req) {
             Sunstone.runAction("File.show",req.request.data[0][0]);
-            Sunstone.runAction('Image.showinfo',req.request.data[0]);
         },
         elements: fileElements,
         error: onError,
@@ -346,7 +272,6 @@ var file_actions = {
         call: OpenNebula.Image.chtype,
         callback: function (req) {
             Sunstone.runAction("File.show",req.request.data[0][0]);
-            Sunstone.runAction("File.list");
         },
         elements: fileElements,
         error: onError,
@@ -363,9 +288,8 @@ var file_actions = {
         type: "single",
         call: OpenNebula.Image.rename,
         callback: function(request) {
-            notifyMessage("File renamed correctly");
-            Sunstone.runAction('Image.showinfo',request.request.data[0]);
-            Sunstone.runAction('Image.list');
+            notifyMessage(tr("File renamed correctly"));
+            Sunstone.runAction('File.show',request.request.data[0]);
         },
         error: onError,
         notify: true
@@ -379,6 +303,11 @@ var file_buttons = {
         layout: "refresh",
         alwaysActive: true
     },
+//    "Sunstone.toggle_top" : {
+//        type: "custom",
+//        layout: "top",
+//        alwaysActive: true
+//    },
     "File.create_dialog" : {
         type: "create_dialog",
         layout: "create"
@@ -387,7 +316,7 @@ var file_buttons = {
         type: "confirm_with_select",
         text: tr("Change owner"),
         layout: "user_select",
-        select: users_sel,
+        select: "User",
         tip: tr("Select the new owner")+":",
         condition: mustBeAdmin
     },
@@ -395,7 +324,7 @@ var file_buttons = {
         type: "confirm_with_select",
         text: tr("Change group"),
         layout: "user_select",
-        select: groups_sel,
+        select: "Group",
         tip: tr("Select the new group")+":",
         condition: mustBeAdmin
     },
@@ -413,12 +342,7 @@ var file_buttons = {
         type: "confirm",
         layout: "del",
         text: tr("Delete")
-    },
-    //"File.help" : {
-    //    type: "action",
-    //    text: '?',
-    //    alwaysActive: true
-    //}
+    }
 }
 
 var file_info_panel = {
@@ -430,10 +354,39 @@ var file_info_panel = {
 
 var files_tab = {
     title: tr("Files & Kernels"),
-    content: files_tab_content,
+    resource: 'File',
     buttons: file_buttons,
     tabClass: 'subTab',
-    parentTab: 'vresources-tab'
+    parentTab: 'vresources-tab',
+    content: '<div class="large-12 columns">\
+      <div id="files_upload_progress_bars"></div>\
+    </div>',
+    search_input: '<input id="file_search" type="text" placeholder="'+tr("Search")+'" />',
+    list_header: '<i class="fa fa-fw fa-folder-open"></i>&emsp;'+tr("Files & Kernels"),
+    info_header: '<i class="fa fa-fw fa-folder-open"></i>&emsp;'+tr("File"),
+    subheader: '<span class="total_files"/> <small>'+tr("TOTAL")+'</small>&emsp;\
+        <span class="size_files"/> <small>'+tr("SIZE")+'</small>',
+    table: '<table id="datatable_files" class="datatable twelve">\
+      <thead>\
+        <tr>\
+          <th class="check"><input type="checkbox" class="check_all" value=""></input></th>\
+          <th>'+tr("ID")+'</th>\
+          <th>'+tr("Owner")+'</th>\
+          <th>'+tr("Group")+'</th>\
+          <th>'+tr("Name")+'</th>\
+          <th>'+tr("Datastore")+'</th>\
+          <th>'+tr("Size")+'</th>\
+          <th>'+tr("Type")+'</th>\
+          <th>'+tr("Registration time")+'</th>\
+          <th>'+tr("Persistent")+'</th>\
+          <th>'+tr("Status")+'</th>\
+          <th>'+tr("#VMS")+'</th>\
+          <th>'+tr("Target")+'</th>\
+        </tr>\
+      </thead>\
+      <tbody id="tbodyfiles">\
+      </tbody>\
+    </table>'
 }
 
 Sunstone.addActions(file_actions);
@@ -511,149 +464,121 @@ function updateFilesView(request, files_list){
 
     var size = humanize_size_from_mb(size_files)
 
-    $("#total_files", $dashboard).text(file_list_array.length);
-    $("#size_files", $dashboard).text(size);
-
-    var form = $("#file_form");
-
-    $("#total_files", form).text(file_list_array.length);
-    $("#size_files", form).text(size);
+    $(".total_files").text(file_list_array.length);
+    $(".size_files").text(size);
 }
 
 // Callback to update the information panel tabs and pop it up
-function updateFileInfo(request,img){
-    var img_info = img.IMAGE;
+function updateFileInfo(request,file){
+    var file_info = file.IMAGE;
     var info_tab = {
-        title: tr("Information"),
+        title : tr("Info"),
+        icon: "fa-info-circle",
         content:
-        '<form class="custom"><div class="">\
-        <div class="six columns">\
-        <table id="info_img_table" class="twelve datatable extended_table">\
+        '<div class="row">\
+        <div class="large-6 columns">\
+        <table id="info_file_table" class="dataTable extended_table">\
            <thead>\
-            <tr><th colspan="3">'+tr("File")+' - '+img_info.NAME+'</th></tr>\
+            <tr><th colspan="3">'+tr("File")+' - '+file_info.NAME+'</th></tr>\
            </thead>\
            <tr>\
               <td class="key_td">'+tr("ID")+'</td>\
-              <td class="value_td">'+img_info.ID+'</td>\
+              <td class="value_td">'+file_info.ID+'</td>\
               <td></td>\
-           </tr>\
-           <tr>\
-            <td class="key_td">'+tr("Name")+'</td>\
-            <td class="value_td_rename">'+img_info.NAME+'</td>\
-            <td><div id="div_edit_rename">\
-                   <a id="div_edit_rename_link_files" class="edit_e" href="#"><i class="icon-edit right"/></a>\
-                </div>\
-            </td>\
-          </tr>\
-           <tr>\
+           </tr>'+
+            insert_rename_tr(
+                'files-tab',
+                "File",
+                file_info.ID,
+                file_info.NAME)+
+           '<tr>\
               <td class="key_td">'+tr("Datastore")+'</td>\
-              <td class="value_td">'+img_info.DATASTORE+'</td>\
+              <td class="value_td">'+file_info.DATASTORE+'</td>\
               <td></td>\
            </tr>\
            <tr>\
              <td class="key_td">'+tr("Type")+'</td>\
-             <td class="value_td_type">'+OpenNebula.Helper.image_type(img_info.TYPE)+'</td>\
+             <td class="value_td_type_files">'+OpenNebula.Helper.image_type(file_info.TYPE)+'</td>\
              <td><div id="div_edit_chg_type_files">\
-                   <a id="div_edit_chg_type_files_link" class="edit_e" href="#"><i class="icon-edit right"/></a>\
+                   <a id="div_edit_chg_type_files_link" class="edit_e" href="#"><i class="fa fa-pencil-square-o right"/></a>\
                  </div>\
              </td>\
            </tr>\
            <tr>\
              <td class="key_td">'+tr("Register time")+'</td>\
-             <td class="value_td">'+pretty_time(img_info.REGTIME)+'</td>\
+             <td class="value_td">'+pretty_time(file_info.REGTIME)+'</td>\
               <td></td>\
            </tr>\
            <tr>\
               <td class="key_td">'+tr("Filesystem type")+'</td>\
-              <td class="value_td">'+(typeof img_info.FSTYPE === "string" ? img_info.FSTYPE : "--")+'</td>\
+              <td class="value_td">'+(typeof file_info.FSTYPE === "string" ? file_info.FSTYPE : "--")+'</td>\
               <td></td>\
            </tr>\
            <tr>\
               <td class="key_td">'+tr("Size")+'</td>\
-              <td class="value_td">'+humanize_size_from_mb(img_info.SIZE)+'</td>\
+              <td class="value_td">'+humanize_size_from_mb(file_info.SIZE)+'</td>\
               <td></td>\
            </tr>\
            <tr>\
               <td class="key_td">'+tr("State")+'</td>\
-              <td class="value_td">'+OpenNebula.Helper.resource_state("file",img_info.STATE)+'</td>\
+              <td class="value_td">'+OpenNebula.Helper.resource_state("file",file_info.STATE)+'</td>\
               <td></td>\
            </tr>\
            <tr>\
               <td class="key_td">'+tr("Running VMS")+'</td>\
-              <td class="value_td">'+img_info.RUNNING_VMS+'</td>\
+              <td class="value_td">'+file_info.RUNNING_VMS+'</td>\
               <td></td>\
            </tr>\
         </table>\
-        </div>\
-        <div class="six columns">'
-           + insert_permissions_table('files-tab',
+       </div>\
+       <div class="large-6 columns">' +
+         insert_permissions_table('files-tab',
                                    "File",
-                                   img_info.ID,
-                                   img_info.UNAME,
-                                   img_info.GNAME,
-                                   img_info.UID,
-                                   img_info.GID) +
-            insert_extended_template_table(img_info.TEMPLATE,
+                                   file_info.ID,
+                                   file_info.UNAME,
+                                   file_info.GNAME,
+                                   file_info.UID,
+                                   file_info.GID) +
+       '</div>\
+     </div>\
+     <div class="row">\
+          <div class="large-9 columns">'+
+               insert_extended_template_table(file_info.TEMPLATE,
                                                "File",
-                                               img_info.ID,
-                                               "Configuration & Tags") +
-        '</div>\
-      </div></form>'
+                                               file_info.ID,
+                                               "Attributes") +
+       '</div>\
+     </div>'
     }
 
-    $("#div_edit_rename_link_files").die();
-    $(".input_edit_value_rename_files").die();
     $("#div_edit_chg_type_files_link").die();
     $("#chg_type_select_files").die();
     $("#div_edit_persistency_files").die();
     $("#persistency_select_files").die();
 
 
-    // Listener for edit link for rename
-    $("#div_edit_rename_link_files").live("click", function() {
-        var value_str = $(".value_td_rename").text();
-        $(".value_td_rename").html('<input class="input_edit_value_rename_files" id="input_edit_rename" type="text" value="'+value_str+'"/>');
-    });
-
-    $(".input_edit_value_rename_files").live("change", function() {
-        var value_str = $(".input_edit_value_rename_files").val();
-        if(value_str!="")
-        {
-            // Let OpenNebula know
-            var name_template = {"name": value_str};
-            Sunstone.runAction("File.rename",img_info.ID,name_template);
-        }
-    });
-
     // Listener for edit link for type change
     $("#div_edit_chg_type_files_link").live("click", function() {
-        var value_str = $(".value_td_type").text();
-        $(".value_td_type").html(
+        $(".value_td_type_files").html(
                   '<select id="chg_type_select_files">\
-                      <option value="KERNEL">'+tr("Kernel")+'</option>\
-                      <option value="RAMDISK">'+tr("Ramdisk")+'</option>\
-                      <option value="CONTEXT">'+tr("Context")+'</option>\
+                      <option value="KERNEL">KERNEL</option>\
+                      <option value="RAMDISK">RAMDISK</option>\
+                      <option value="CONTEXT">CONTEXT</option>\
                   </select>');
-       $('option[value="'+value_str+'"]').replaceWith('<option value="'+value_str+'" selected="selected">'+tr(value_str)+'</option>');
+
+        $('#chg_type_select_files').val(OpenNebula.Helper.image_type(file_info.TYPE));
     });
 
     $("#chg_type_select_files").live("change", function() {
-        var new_value=$("option:selected", this).text();
-        Sunstone.runAction("File.chtype", img_info.ID, new_value);
-        Sunstone.runAction("File.showinfo", img_info.ID);
+        var new_value = $(this).val();
+        Sunstone.runAction("File.chtype", file_info.ID, new_value);
     });
 
 
     Sunstone.updateInfoPanelTab("file_info_panel","file_info_tab",info_tab);
     Sunstone.popUpInfoPanel("file_info_panel", "files-tab");
 
-    $("#file_info_panel_refresh", $("#file_info_panel")).click(function(){
-      $(this).html(spinner);
-      Sunstone.runAction('File.showinfo', img_info.ID);
-    })
-
-    setPermissionsTable(img_info,'');
-
+    setPermissionsTable(file_info,'');
 }
 
 function enable_all_datastores()
@@ -666,93 +591,33 @@ function enable_all_datastores()
 
 // Prepare the file creation dialog
 function setupCreateFileDialog(){
-    dialogs_context.append('<div title="'+tr("Create File")+'" id="create_file_dialog"></div>');
+    dialogs_context.append('<div id="create_file_dialog"></div>');
     $create_file_dialog =  $('#create_file_dialog',dialogs_context);
 
     var dialog = $create_file_dialog;
     dialog.html(create_file_tmpl);
 
-    var height = Math.floor($(window).height()*0.8); //set height to a percentage of the window
+    dialog.addClass("reveal-modal medium").attr("data-reveal", "");
 
-    //Prepare jquery dialog
-    //dialog.dialog({
-    //    autoOpen: false,
-    //    modal:true,
-    //    width: 520,
-    //    height: height
-    //});
-    dialog.addClass("reveal-modal large max-height");
-
-
-    //$('#img_tabs',dialog).tabs();
-    //$('button',dialog).button();
-    //$('#datablock_img',dialogs_contextog).attr('disabled','disabled');
-
-
-    $('select#img_type',dialog).change(function(){
-        var value = $(this).val();
-        var context = $create_file_dialog;
-        switch (value){
-        case "DATABLOCK":
-            $('#datablock_img',context).removeAttr("disabled");
-            //$('#empty_datablock', context).show();
-            break;
-        default:
-            $('#datablock_img',context).attr('disabled','disabled');
-            //$('#empty_datablock', context).hide();
-            $('#path_img',context).click();
-
-        }
-    });
-
-
-    $('#img_path,#img_fstype,#img_size,#files_file-uploader',dialog).closest('.row').hide();
+    $('#files_file-uploader',dialog).closest('.row').hide();
 
     $("input[name='src_path']", dialog).change(function(){
         var context = $create_file_dialog;
         var value = $(this).val();
         switch (value){
         case "path":
-            $('#img_fstype,#img_size,#files_file-uploader',context).closest('.row').hide();
-            $('#img_path',context).closest('.row').show();
-            break;
-        case "datablock":
-            $('#img_path,#files_file-uploader',context).closest('.row').hide();
-            $('#img_fstype,#img_size',context).closest('.row').show();
+            $('#files_file-uploader',context).closest('.row').hide();
+            $('#file_path',context).closest('.row').show();
             break;
         case "upload":
-            $('#img_path,#img_fstype,#img_size',context).closest('.row').hide();
+            $('#file_path',context).closest('.row').hide();
             $('#files_file-uploader',context).closest('.row').show();
             break;
         };
     });
 
 
-    $('#path_img',dialog).click();
-
-
-    $('#add_custom_var_file_button', dialog).click(
-        function(){
-            var name = $('#custom_var_file_name',$create_file_dialog).val();
-            var value = $('#custom_var_file_value',$create_file_dialog).val();
-            if (!name.length || !value.length) {
-                notifyError(tr("Custom attribute name and value must be filled in"));
-                return false;
-            }
-            option= '<option value=\''+value+'\' name=\''+name+'\'>'+
-                name+'='+value+
-                '</option>';
-            $('select#custom_var_file_box',$create_file_dialog).append(option);
-            return false;
-        }
-    );
-
-    $('#remove_custom_var_file_button', dialog).click(
-        function(){
-            $('select#custom_var_file_box :selected',$create_file_dialog).remove();
-            return false;
-        }
-    );
+    $('#path_file',dialog).click();
 
     $('#upload-progress',dialog).css({
         border: "1px solid #AAAAAA",
@@ -765,7 +630,7 @@ function setupCreateFileDialog(){
     });
     $('#upload-progress div',dialog).css("border","1px solid #AAAAAA");
 
-    var img_obj;
+    var file_obj;
 
     // Upload is handled by FileUploader vendor plugin
     var uploader = new qq.FileUploaderBasic({
@@ -782,31 +647,18 @@ function setupCreateFileDialog(){
             //since the body is the upload, we need the pass
             //the file info here
             uploader.setParams({
-                img : JSON.stringify(img_obj),
+                img : JSON.stringify(file_obj),
                 file: fileName
             });
             //we pop up an upload progress dialog
             var pos_top = $(window).height() - 120;
             var pos_left = 220;
-            //var pb_dialog = $('<div id="pb_dialog" title="'+
-            //                  tr("Uploading...")+'">'+
-            //                  '<div id="upload-progress"></div>'+
-            //                  '</div>').dialog({
-            //                      draggable:true,
-            //                      modal:false,
-            //                      resizable:false,
-            //                      buttons:{},
-            //                      width: 460,
-            //                      minHeight: 50,
-            //                      position: [pos_left, pos_top]
-            //                  });
-
 
             $('#files_upload_progress_bars').append('<div id="files'+id+'progressBar" class="row" style="margin-bottom:10px">\
-              <div class="two columns dataTables_info">\
+              <div class="large-2 columns dataTables_info">\
                 '+tr("Uploading...")+'\
               </div>\
-              <div class="ten columns">\
+              <div class="large-10 columns">\
                 <div id="upload_progress_container" class="progress nine radius" style="height:25px !important">\
                   <span class="meter" style="width:0%"></span>\
                 </div>\
@@ -817,8 +669,6 @@ function setupCreateFileDialog(){
             $('#files'+id+'cancel_upload').click(function(){
               uploader.cancel();
             })
-
-            //$('#upload-progress',pb_dialog).progressbar({value:0});
         },
         onProgress: function(id, fileName, loaded, total){
             //update upload dialog with current progress
@@ -837,10 +687,9 @@ function setupCreateFileDialog(){
                 $('#files'+id+'progressBar').remove();
             }
 
-            //Inform complete upload, destroy upload dialog, refresh img list
+            //Inform complete upload, destroy upload dialog, refresh file list
 
-            //$('div#pb_dialog').dialog('destroy');
-            $('div#pb_dialog').trigger("reveal:close")
+            $('div#pb_dialog').foundation('reveal', 'close')
             return false;
         },
         onCancel: function(id, fileName){
@@ -852,123 +701,117 @@ function setupCreateFileDialog(){
         file_input = input;  return false;
     };
 
-
-
     $('#create_file_submit',dialog).click(function(){
-        var exit = false;
         var upload = false;
-        $('.img_man',this).each(function(){
-            if (!$('input',this).val().length){
-                notifyError(tr("There are mandatory parameters missing"));
-                exit = true;
-                return false;
-            }
-        });
-        if (exit) { return false; }
 
-        var ds_id = $('#file_datastore',dialog).val();
+        var ds_id = $('#file_datastore .resource_list_select',dialog).val();
         if (!ds_id){
             notifyError(tr("Please select a datastore for this file"));
             return false;
         };
 
-        var img_json = {};
+        var file_json = {};
 
-        var name = $('#img_name',dialog).val();
-        img_json["NAME"] = name;
+        var name = $('#file_name',dialog).val();
+        file_json["NAME"] = name;
 
-        var desc = $('#img_desc',dialog).val();
+        var desc = $('#file_desc',dialog).val();
         if (desc.length){
-            img_json["DESCRIPTION"] = desc;
+            file_json["DESCRIPTION"] = desc;
         }
 
-        var type = $('#img_type',dialog).val();
-        img_json["TYPE"]= type;
+        var type = $('#file_type',dialog).val();
+        file_json["TYPE"]= type;
 
 
         switch ($('#src_path_select input:checked',dialog).val()){
         case "path":
-            path = $('#img_path',dialog).val();
-            if (path) img_json["PATH"] = path;
+            path = $('#file_path',dialog).val();
+            if (path) file_json["PATH"] = path;
             break;
         case "upload":
             upload=true;
             break;
         }
 
-        //Time to add custom attributes
-        $('#custom_var_file_box option',$create_file_dialog).each(function(){
-            var attr_name = $(this).attr('name');
-            var attr_value = $(this).val();
-            img_json[attr_name] = attr_value;
-        });
-
-        img_obj = { "image" : img_json,
+        file_obj = { "image" : file_json,
                     "ds_id" : ds_id};
-
 
         //we this is an file upload we trigger FileUploader
         //to start the upload
         if (upload){
+            $create_file_dialog.foundation('reveal', 'close');
+            $create_file_dialog.empty();
+            setupCreateFileDialog();
+
             uploader._onInputChange(file_input);
         } else {
-            Sunstone.runAction("File.create", img_obj);
+            Sunstone.runAction("File.create", file_obj);
         };
 
-        $create_file_dialog.trigger("reveal:close")
         return false;
     });
 
     $('#create_file_submit_manual',dialog).click(function(){
         var template=$('#template',dialog).val();
-        var ds_id = $('#file_datastore_raw',dialog).val();
+        var ds_id = $('#file_datastore_raw .resource_list_select',dialog).val();
 
         if (!ds_id){
             notifyError(tr("Please select a datastore for this file"));
             return false;
         };
 
-        var img_obj = {
+        var file_obj = {
             "image" : {
                 "image_raw" : template
             },
             "ds_id" : ds_id
         };
-        Sunstone.runAction("File.create",img_obj);
-        $create_file_dialog.trigger("reveal:close")
+        Sunstone.runAction("File.create",file_obj);
         return false;
     });
 
+    setupTips(dialog);
+
+    $('#wizard_file_reset_button', dialog).click(function(){
+        $('#create_file_dialog').html("");
+        setupCreateFileDialog();
+
+        popUpCreateFileDialog();
+    });
+
+    $('#advanced_file_reset_button', dialog).click(function(){
+        $('#create_file_dialog').html("");
+        setupCreateFileDialog();
+
+        popUpCreateFileDialog();
+        $("a[href='#file_manual']").click();
+    });
 }
 
 function popUpCreateFileDialog(){
     $('#files_file-uploader input',$create_file_dialog).removeAttr("style");
     $('#files_file-uploader input',$create_file_dialog).attr('style','margin:0;width:256px!important');
 
-    datastores_str = makeSelectOptions(dataTable_datastores,
-                                          1,
-                                          4,
-                                          [10,10],//system ds
-                                          ['image','system'], //filter image & sys datastores
-                                          true
-                                         );
+    var ds_id = $("div#file_datastore .resource_list_select",
+                    $create_file_dialog).val();
 
-    $('#file_datastore',$create_file_dialog).html(datastores_str);
-    $('#file_datastore_raw',$create_file_dialog).html(datastores_str);
+    var ds_id_raw = $("div#file_datastore_raw .resource_list_select",
+                        $create_file_dialog).val();
 
-    $create_file_dialog.reveal();
+    // Filter out DS with type image (0) or system (1)
+    var filter_att = ["TYPE", "TYPE"];
+    var filter_val = ["0", "1"];
+
+    insertSelectOptions('div#file_datastore', $create_file_dialog, "Datastore",
+                        ds_id, false, null, filter_att, filter_val);
+
+    insertSelectOptions('div#file_datastore_raw', $create_file_dialog, "Datastore",
+                        ds_id_raw, false, null, filter_att, filter_val);
+
+    $create_file_dialog.foundation().foundation('reveal', 'open');
+    $("input#file_name",$create_file_dialog).focus();
 }
-
-// Set the autorefresh interval for the datatable
-function setFileAutorefresh() {
-    setInterval(function(){
-        var checked = $('input.check_item:checked',dataTable_files);
-        var filter = $("#file_search").attr('value');
-        if ((checked.length==0) && !filter){
-            Sunstone.runAction("File.autorefresh");
-        }
-    },INTERVAL+someTime());
-};
 
 function is_persistent_file(id){
     var data = getElementData(id,"#file",dataTable_files)[8];
@@ -986,7 +829,9 @@ $(document).ready(function(){
               { "sWidth": "35px", "aTargets": [0] },
               { "bVisible": true, "aTargets": Config.tabTableColumns(tab_name)},
               { "bVisible": false, "aTargets": ['_all']}
-          ]
+          ],
+          "bSortClasses" : false,
+          "bDeferRender": true,
       });
 
       $('#file_search').keyup(function(){
@@ -1000,13 +845,12 @@ $(document).ready(function(){
       Sunstone.runAction("File.list");
 
       setupCreateFileDialog();
-      setupTips($create_file_dialog);
-      setFileAutorefresh();
 
       initCheckAllBoxes(dataTable_files);
       tableCheckboxesListener(dataTable_files);
-      infoListener(dataTable_files,'File.showinfo');
+      infoListener(dataTable_files,'File.show');
 
       $('div#files_tab div.legend_div').hide();
+      dataTable_files.fnSort( [ [1,config['user_config']['table_order']] ] );
     }
 });

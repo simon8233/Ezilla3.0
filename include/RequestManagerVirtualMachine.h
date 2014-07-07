@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -56,15 +56,38 @@ protected:
                           PoolObjectAuth *        ds_perm,
                           AuthRequest::Operation  op);
 
-    int get_host_information(int hid,
-                             string& name,
-                             string& vmm,
-                             string& vnm,
-                             string& tm,
-                             string& ds_location,
-                             int&    ds_id,
-                             RequestAttributes& att,
-                             PoolObjectAuth& host_perms);
+    bool quota_resize_authorization(
+            Template *          deltas,
+            RequestAttributes&  att,
+            PoolObjectAuth&     vm_perms);
+
+    bool quota_resize_authorization(
+            int                 oid,
+            Template *          deltas,
+            RequestAttributes&  att);
+
+    int get_host_information(
+        int     hid,
+        string& name,
+        string& vmm,
+        string& vnm,
+        int&    cluster_id,
+        string& ds_location,
+        bool&   is_public_cloud,
+        PoolObjectAuth&    host_perms,
+        RequestAttributes& att);
+
+    int get_ds_information(
+        int ds_id,
+        int& ds_cluster_id,
+        string& tm_mad,
+        RequestAttributes& att);
+
+    int get_default_ds_information(
+        int cluster_id,
+        int& ds_id,
+        string& tm_mad,
+        RequestAttributes& att);
 
     bool check_host(int     hid,
                     int     cpu,
@@ -74,6 +97,7 @@ protected:
 
     int add_history(VirtualMachine * vm,
                     int              hid,
+                    int              cid,
                     const string&    hostname,
                     const string&    vmm_mad,
                     const string&    vnm_mad,
@@ -112,7 +136,7 @@ public:
     VirtualMachineDeploy():
         RequestManagerVirtualMachine("VirtualMachineDeploy",
                                      "Deploys a virtual machine",
-                                     "A:siib")
+                                     "A:siibi")
     {
          auth_op = AuthRequest::ADMIN;
     };
@@ -152,7 +176,7 @@ public:
     VirtualMachineSaveDisk():
         RequestManagerVirtualMachine("VirtualMachineSaveDisk",
                            "Saves a disk from virtual machine as a new image",
-                           "A:siissb"){};
+                           "A:siissbb"){};
 
     ~VirtualMachineSaveDisk(){};
 

@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -29,6 +29,8 @@ module OpenNebula
             :delete   => "user.delete",
             :passwd   => "user.passwd",
             :chgrp    => "user.chgrp",
+            :addgroup => "user.addgroup",
+            :delgroup => "user.delgroup",
             :update   => "user.update",
             :chauth   => "user.chauth",
             :quota    => "user.quota"
@@ -124,7 +126,7 @@ module OpenNebula
             return rc
         end
 
-        # Changes the main group
+        # Changes the primary group
         # gid:: _Integer_ the new group id. Set to -1 to leave the current one
         # [return] nil in case of success or an Error object
         def chgrp(gid)
@@ -134,6 +136,23 @@ module OpenNebula
             rc = nil if !OpenNebula.is_error?(rc)
 
             return rc
+        end
+
+        # Adds the User to a secondary group
+        # @param gid [Integer] the new group id.
+        # @return [nil, OpenNebula::Error] nil in case of success, Error
+        #   otherwise
+        def addgroup(gid)
+            return call(USER_METHODS[:addgroup], @pe_id, gid)
+        end
+
+        # Removes the User from a secondary group. Fails if the
+        # group is the main one
+        # @param gid [Integer] the group id.
+        # @return [nil, OpenNebula::Error] nil in case of success, Error
+        #   otherwise
+        def delgroup(gid)
+            return call(USER_METHODS[:delgroup], @pe_id, gid)
         end
 
         # Changes the auth driver and the password of the given User
@@ -153,8 +172,8 @@ module OpenNebula
         end
 
         # Sets the user quota limits
-        # @param quota [String] a template (XML or txt) with the new quota limits 
-        # 
+        # @param quota [String] a template (XML or txt) with the new quota limits
+        #
         # @return [nil, OpenNebula::Error] nil in case of success, Error
         #   otherwise
         def set_quota(quota)
@@ -174,6 +193,13 @@ module OpenNebula
         # [return] _Integer_ the element's group ID
         def gid
             self['GID'].to_i
+        end
+
+        # Returns a list with all the group IDs for the user including primary
+        # [return] _Array_ with the group ID's (as integers)
+        def groups
+            all_groups = self.retrieve_elements("GROUPS/ID")
+            all_groups.collect! {|x| x.to_i}
         end
     end
 end

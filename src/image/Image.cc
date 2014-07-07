@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------ */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs      */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs      */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may  */
 /* not use this file except in compliance with the License. You may obtain  */
@@ -27,6 +27,7 @@
 
 #include "AuthManager.h"
 #include "UserPool.h"
+#include "NebulaUtil.h"
 
 #define TO_UPPER(S) transform(S.begin(),S.end(),S.begin(),(int(*)(int))toupper)
 
@@ -71,10 +72,7 @@ Image::Image(int             _uid,
 
 Image::~Image()
 {
-    if (obj_template != 0)
-    {
-        delete obj_template;
-    }
+    delete obj_template;
 }
 
 /* ************************************************************************ */
@@ -147,8 +145,18 @@ int Image::insert(SqlDB *db, string& error_str)
 
             if( dev_prefix.empty() )
             {
-                SingleAttribute * dev_att = new SingleAttribute("DEV_PREFIX",
-                                              ImagePool::default_dev_prefix());
+                if (type == CDROM)
+                {
+                    dev_prefix = ImagePool::default_cdrom_dev_prefix();
+                }
+                else
+                {
+                    dev_prefix = ImagePool::default_dev_prefix();
+                }
+
+                SingleAttribute * dev_att =
+                        new SingleAttribute("DEV_PREFIX", dev_prefix);
+
                 obj_template->set(dev_att);
             }
         break;
@@ -177,12 +185,17 @@ int Image::insert(SqlDB *db, string& error_str)
     {
         if ( source.empty() && path.empty() )
         {
+            if (type != DATABLOCK)
+            {
+                goto error_no_path;
+            }
+
             erase_template_attribute("FSTYPE", fs_type);
 
             // DATABLOCK image needs FSTYPE
-            if (type != DATABLOCK || fs_type.empty())
+            if (fs_type.empty())
             {
-                goto error_no_path;
+                fs_type = "raw";
             }
         }
         else if ( !source.empty() && !path.empty() )
@@ -210,15 +223,7 @@ error_type:
     goto error_common;
 
 error_no_path:
-    if ( type == DATABLOCK )
-    {
-        error_str = "A DATABLOCK type IMAGE has to declare a PATH, or both "
-                    "SIZE and FSTYPE.";
-    }
-    else
-    {
-        error_str = "No PATH in template.";
-    }
+    error_str = "No PATH in template.";
     goto error_common;
 
 error_path_and_source:
@@ -469,17 +474,21 @@ int Image::from_xml(const string& xml)
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-int Image::disk_attribute(  VectorAttribute * disk,
-                            ImageType&        img_type,
-                            string&           dev_prefix)
+int Image::disk_attribute(  VectorAttribute *       disk,
+                            ImageType&              img_type,
+                            string&                 dev_prefix,
+                            const vector<string>&   inherit_attrs)
 {
     string target;
     string driver;
     string disk_attr_type;
+    string inherit_val;
 
     bool ro;
 
     ostringstream iid;
+
+    vector<string>::const_iterator it;
 
     img_type   = type;
     target     = disk->vector_value("TARGET");
@@ -506,7 +515,14 @@ int Image::disk_attribute(  VectorAttribute * disk,
 
         if (dev_prefix.empty())//Removed from image template, get it again
         {
-            dev_prefix = ImagePool::default_dev_prefix();
+            if ( type == CDROM )
+            {
+                dev_prefix = ImagePool::default_cdrom_dev_prefix();
+            }
+            else
+            {
+                dev_prefix = ImagePool::default_dev_prefix();
+            }
         }
 
         disk->replace("DEV_PREFIX", dev_prefix);
@@ -518,6 +534,7 @@ int Image::disk_attribute(  VectorAttribute * disk,
     disk->replace("IMAGE",    name);
     disk->replace("IMAGE_ID", iid.str());
     disk->replace("SOURCE",   source);
+    disk->replace("SIZE",     size_mb);
 
     if (driver.empty() && !template_driver.empty())//DRIVER in Image,not in DISK
     {
@@ -562,7 +579,15 @@ int Image::disk_attribute(  VectorAttribute * disk,
     }
     else
     {
-        disk->replace("CLONE", "YES");
+        if ( type == CDROM )
+        {
+            disk->replace("CLONE", "NO");
+        }
+        else
+        {
+            disk->replace("CLONE", "YES");
+        }
+
         disk->replace("SAVE", "NO");
     }
 
@@ -573,16 +598,31 @@ int Image::disk_attribute(  VectorAttribute * disk,
     {
         case OS:
         case DATABLOCK:
-        case RBD: //Type is FILE or BLOCK as inherited from the DS
             disk_attr_type = disk_type_to_str(disk_type);
-        break;
+            break;
 
         case CDROM: //Always use CDROM type for these ones
-            disk_attr_type = "CDROM";
-        break;
+            DiskType new_disk_type;
+
+            switch(disk_type)
+            {
+                case RBD:
+                    new_disk_type = RBD_CDROM;
+                    break;
+
+                case GLUSTER:
+                    new_disk_type = GLUSTER_CDROM;
+                    break;
+
+                default:
+                    new_disk_type = CD_ROM;
+            }
+
+            disk_attr_type = disk_type_to_str(new_disk_type);
+            break;
 
         default: //Other file types should not be never a DISK
-        break;
+            break;
     }
 
     disk->replace("TYPE", disk_attr_type);
@@ -594,6 +634,16 @@ int Image::disk_attribute(  VectorAttribute * disk,
     if ( target.empty() && !template_target.empty() )
     {
         disk->replace("TARGET", template_target);
+    }
+
+    for (it = inherit_attrs.begin(); it != inherit_attrs.end(); it++)
+    {
+        get_template_attribute((*it).c_str(), inherit_val);
+
+        if (!inherit_val.empty())
+        {
+            disk->replace(*it, inherit_val);
+        }
     }
 
     return 0;
@@ -707,4 +757,37 @@ Image::ImageType Image::str_to_type(string& str_type)
     }
 
     return it;
+}
+
+/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------ */
+
+Image::DiskType Image::str_to_disk_type(string& s_disk_type)
+{
+    Image::DiskType type = NONE;
+
+    one_util::toupper(s_disk_type);
+
+    if (s_disk_type == "FILE")
+    {
+        type = Image::FILE;
+    }
+    else if (s_disk_type == "BLOCK")
+    {
+        type = Image::BLOCK;
+    }
+    else if (s_disk_type == "CDROM")
+    {
+        type = Image::CD_ROM;
+    }
+    else if (s_disk_type == "RBD")
+    {
+        type = Image::RBD;
+    }
+    else if (s_disk_type == "GLUSTER")
+    {
+        type = Image::GLUSTER;
+    }
+
+    return type;
 }

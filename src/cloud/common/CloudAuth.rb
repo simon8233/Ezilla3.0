@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -91,7 +91,7 @@ class CloudAuth
     # is nil the Client is generated for the server_admin
     # username:: _String_ Name of the User
     # [return] _Client_
-    def client(username=nil)
+    def client(username=nil, endpoint=nil)
         expiration_time = @lock.synchronize {
             time_now = Time.now.to_i
 
@@ -104,7 +104,11 @@ class CloudAuth
 
         token = @server_auth.login_token(expiration_time,username)
 
-        OpenNebula::Client.new(token,@conf[:one_xmlrpc])
+        if endpoint and endpoint != "-"
+            return OpenNebula::Client.new(token,endpoint)
+        else
+            return OpenNebula::Client.new(token,@conf[:one_xmlrpc])
+        end
     end
 
     # Authenticate the request. This is a wrapper method that executes the

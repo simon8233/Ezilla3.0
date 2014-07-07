@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -24,6 +24,56 @@
 
 const float LibVirtDriver::CGROUP_BASE_CPU_SHARES = 1024;
 
+/**
+ *  This function generates the <host> element for network disks
+ */
+static void do_network_hosts(ofstream& file,
+                             const string& cg_host,
+                             const string& transport)
+{
+    if (cg_host.empty())
+    {
+        file << "'/>" << endl;
+        return;
+    }
+
+    vector<string>::const_iterator it;
+    vector<string> hosts;
+
+    hosts = one_util::split(cg_host, ' ');
+
+    file << "'>" << endl;
+
+    for (it = hosts.begin(); it != hosts.end(); it++)
+    {
+        vector<string> parts = one_util::split(*it, ':');
+
+        if (parts.empty())
+        {
+            continue;
+        }
+
+        file << "\t\t\t\t<host name='" << parts[0];
+
+        if (parts.size() > 1)
+        {
+            file << "' port='" << parts[1];
+        }
+
+        if (!transport.empty())
+        {
+            file << "' transport='" << transport;
+        }
+
+        file << "'/>" << endl;
+    }
+
+    file << "\t\t\t</source>" << endl;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
 int LibVirtDriver::deployment_description_kvm(
         const VirtualMachine *  vm,
         const string&           file_name) const
@@ -46,6 +96,9 @@ int LibVirtDriver::deployment_description_kvm(
     string  kernel_cmd = "";
     string  bootloader = "";
     string  arch       = "";
+    string  machine    = "";
+
+    vector<string> boots;
 
     const VectorAttribute * disk;
     const VectorAttribute * context;
@@ -59,6 +112,11 @@ int LibVirtDriver::deployment_description_kvm(
     string  disk_io    = "";
     string  source     = "";
     string  clone      = "";
+    string  ceph_host  = "";
+    string  ceph_secret= "";
+    string  ceph_user  = "";
+    string  gluster_host   = "";
+    string  gluster_volume = "";
 
     int     disk_id;
     string  default_driver          = "";
@@ -80,20 +138,29 @@ int LibVirtDriver::deployment_description_kvm(
 
     const VectorAttribute * graphics;
 
-    string  listen     = "";
-    string  port       = "";
-    string  passwd     = "";
-    string  keymap     = "";
+    string  listen          = "";
+    string  port            = "";
+    string  passwd          = "";
+    string  keymap          = "";
+    string  spice_options   = "";
 
     const VectorAttribute * input;
 
     const VectorAttribute * features;
 
-    bool pae  = false;
-    bool acpi = false;
+    bool pae        = false;
+    bool acpi       = false;
+    bool apic       = false;
+    bool hyperv     = false;
+    bool localtime  = false;
 
-    int pae_found  = -1;
-    int acpi_found = -1;
+    int pae_found       = -1;
+    int acpi_found      = -1;
+    int apic_found      = -1;
+    int hyperv_found    = -1;
+    int localtime_found = -1;
+
+    string hyperv_options = "";
 
     const VectorAttribute * raw;
     string default_raw;
@@ -183,6 +250,7 @@ int LibVirtDriver::deployment_description_kvm(
             kernel_cmd = os->vector_value("KERNEL_CMD");
             bootloader = os->vector_value("BOOTLOADER");
             arch       = os->vector_value("ARCH");
+            machine    = os->vector_value("MACHINE");
         }
     }
 
@@ -196,7 +264,19 @@ int LibVirtDriver::deployment_description_kvm(
         }
     }
 
-    file << "\t\t<type arch='" << arch << "'>hvm</type>" << endl;
+    if ( machine.empty() )
+    {
+        get_default("OS", "MACHINE", machine);
+    }
+
+    file << "\t\t<type arch='" << arch << "'";
+
+    if ( !machine.empty() )
+    {
+        file << " machine='" << machine << "'";
+    }
+
+    file << ">hvm</type>" << endl;
 
     if ( kernel.empty() )
     {
@@ -259,8 +339,12 @@ int LibVirtDriver::deployment_description_kvm(
         file << "\t\t<bootloader>" << bootloader << "</bootloader>" << endl;
     }
 
+    boots = one_util::split(boot, ',');
 
-    file << "\t\t<boot dev='" << boot << "'/>" << endl;
+    for (vector<string>::const_iterator it=boots.begin(); it!=boots.end(); it++)
+    {
+        file << "\t\t<boot dev='" << *it << "'/>" << endl;
+    }
 
     file << "\t</os>" << endl;
 
@@ -311,14 +395,19 @@ int LibVirtDriver::deployment_description_kvm(
             continue;
         }
 
-        type   = disk->vector_value("TYPE");
-        target = disk->vector_value("TARGET");
-        ro     = disk->vector_value("READONLY");
-        driver = disk->vector_value("DRIVER");
-        cache  = disk->vector_value("CACHE");
-        disk_io= disk->vector_value("IO");
-        source = disk->vector_value("SOURCE");
-        clone  = disk->vector_value("CLONE");
+        type        = disk->vector_value("TYPE");
+        target      = disk->vector_value("TARGET");
+        ro          = disk->vector_value("READONLY");
+        driver      = disk->vector_value("DRIVER");
+        cache       = disk->vector_value("CACHE");
+        disk_io     = disk->vector_value("IO");
+        source      = disk->vector_value("SOURCE");
+        clone       = disk->vector_value("CLONE");
+        ceph_host   = disk->vector_value("CEPH_HOST");
+        ceph_secret = disk->vector_value("CEPH_SECRET");
+        ceph_user   = disk->vector_value("CEPH_USER");
+        gluster_host    = disk->vector_value("GLUSTER_HOST");
+        gluster_volume  = disk->vector_value("GLUSTER_VOLUME");
 
         disk->vector_value_str("DISK_ID", disk_id);
 
@@ -349,18 +438,58 @@ int LibVirtDriver::deployment_description_kvm(
                  << "\t\t\t<source dev='" << vm->get_remote_system_dir()
                  << "/disk." << disk_id << "'/>" << endl;
         }
-        else if ( type == "RBD" )
+        else if ( type == "RBD" || type == "RBD_CDROM" )
         {
-            file << "\t\t<disk type='network' device='disk'>" << endl
-                 << "\t\t\t<source protocol='rbd' name='"
-                 << source;
+            if (type == "RBD")
+            {
+                file << "\t\t<disk type='network' device='disk'>" << endl;
+            }
+            else
+            {
+                file << "\t\t<disk type='network' device='cdrom'>" << endl;
+            }
+
+            file << "\t\t\t<source protocol='rbd' name='" << source;
 
             if ( clone == "YES" )
             {
                 file << "-" << vm->get_oid() << "-" << disk_id;
             }
 
-            file << "'/>" << endl;
+            do_network_hosts(file, ceph_host, "");
+
+            if ( !ceph_secret.empty() && !ceph_user.empty())
+            {
+                file << "\t\t\t<auth username='"<< ceph_user <<"'>" << endl
+                     << "\t\t\t\t<secret type='ceph' uuid='"
+                     << ceph_secret <<"'/>" << endl
+                     << "\t\t\t</auth>" << endl;
+            }
+        }
+        else if ( type == "GLUSTER" || type == "GLUSTER_CDROM" )
+        {
+            if ( type == "GLUSTER" )
+            {
+                file << "\t\t<disk type='network' device='disk'>" << endl;
+            }
+            else
+            {
+                file << "\t\t<disk type='network' device='cdrom'>" << endl;
+            }
+
+            file << "\t\t\t<source protocol='gluster' name='" << gluster_volume
+                 << "/";
+
+            if ( clone == "YES" )
+            {
+                file << vm->get_oid() << "/disk." << disk_id;
+            }
+            else
+            {
+                file << one_util::split(source, '/').back();
+            }
+
+            do_network_hosts(file, gluster_host, "tcp");
         }
         else if ( type == "CDROM" )
         {
@@ -459,7 +588,6 @@ int LibVirtDriver::deployment_description_kvm(
             vm->log("VMM", Log::WARNING, "Could not find target device to"
                 " attach context, will continue without it.");
         }
-
     }
 
     attrs.clear();
@@ -606,53 +734,16 @@ int LibVirtDriver::deployment_description_kvm(
                     file << " keymap='" << keymap << "'";
                 }
 
+                file << "/>" << endl;
+
                 if ( type == "spice" )
-		{
-                    file << ">" << endl;
-                    // for clipboard and stream compression
-                    file << "\t\t\t<image compression=\'auto_glz\'></image>" << endl;
-                    file << "\t\t\t<streaming mode=\'filter\'></streaming>" << endl;
-                    file << "\t\t\t<mouse mode='client'></mouse>" << endl;
-                    file << "\t\t\t<clipboard copypaste='yes'></clipboard>" << endl;
-                    file << "\t\t</graphics>"  << endl;
-                    // for USB Redirect
-                    /*file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-ehci1\'>" << endl;
-                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x7\'/>" << endl;
-                    file << "\t\t</controller>" << endl;
-                    file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-uhci1\'>" << endl;
-                    file << "\t\t\t<master startport=\'0\'/>" << endl;
-                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x0\' multifunction=\'on\'/>" << endl;
-                    file << "\t\t</controller>" << endl;
-                    file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-uhci2\'>" << endl;
-                    file << "\t\t\t<master startport=\'2\'/>" << endl;
-                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x1\'/>" << endl;
-                    file << "\t\t</controller>" << endl;
-                    file << "\t\t<controller type=\'usb\' index=\'0\' model=\'ich9-uhci3\'>" << endl;
-                    file << "\t\t\t<master startport=\'4\'/>" << endl;
-                    file << "\t\t\t<address type=\'pci\' domain=\'0x0000\' bus=\'0x00\' slot=\'0x08\' function=\'0x2\'/>" << endl;
-                    file << "\t\t</controller>" << endl;
-                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
-                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'3\'/>" << endl;
-                    file << "\t\t</redirdev>" << endl;
-                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
-                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'4\'/>" << endl;
-                    file << "\t\t</redirdev>" << endl;
-                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
-                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'5\'/>" << endl;
-                    file << "\t\t</redirdev>" << endl;
-                    file << "\t\t<redirdev bus=\'usb\' type=\'spicevmc\'>" << endl;
-                    file << "\t\t\t<address type=\'usb\' bus=\'0\' port=\'6\'/>" << endl;
-                    file << "\t\t</redirdev>" << endl;*/
-                    //for clipboard
-                    file << "\t\t<channel type=\'spicevmc\'><target type=\'virtio\' name=\'com.redhat.spice.0\'/></channel>" << endl;
-                    //for spice video
-                    file << "\t\t<video>" << endl;
-                    file << "\t\t\t<model type=\'qxl\' vram=\'65536\' heads=\'1\'>" << endl;
-                    file << "\t\t\t\t<acceleration accel3d=\'yes\' accel2d=\'yes\'></acceleration>" << endl;
-                    file << "\t\t\t</model>" << endl;
-                    file << "\t\t</video>" << endl;
-		}else{
-                    file << "/>" << endl;
+                {
+                    get_default("SPICE_OPTIONS", spice_options);
+
+                    if ( spice_options != "" )
+                    {
+                        file << "\t\t" << spice_options << endl;
+                    }
                 }
             }
             else
@@ -708,8 +799,11 @@ int LibVirtDriver::deployment_description_kvm(
 
         if ( features != 0 )
         {
-            pae_found  = features->vector_value("PAE", pae);
-            acpi_found = features->vector_value("ACPI", acpi);
+            pae_found       = features->vector_value("PAE", pae);
+            acpi_found      = features->vector_value("ACPI", acpi);
+            apic_found      = features->vector_value("APIC", apic);
+            hyperv_found    = features->vector_value("HYPERV", hyperv);
+            localtime_found = features->vector_value("LOCALTIME", localtime);
         }
     }
 
@@ -723,7 +817,22 @@ int LibVirtDriver::deployment_description_kvm(
         get_default("FEATURES", "ACPI", acpi);
     }
 
-    if( acpi || pae )
+    if ( apic_found != 0 )
+    {
+        get_default("FEATURES", "APIC", apic);
+    }
+
+    if ( hyperv_found != 0 )
+    {
+        get_default("FEATURES", "HYPERV", hyperv);
+    }
+
+    if ( localtime_found != 0 )
+    {
+        get_default("FEATURES", "LOCALTIME", localtime);
+    }
+
+    if ( acpi || pae || apic || hyperv )
     {
         file << "\t<features>" << endl;
 
@@ -737,7 +846,26 @@ int LibVirtDriver::deployment_description_kvm(
             file << "\t\t<acpi/>" << endl;
         }
 
+        if ( apic )
+        {
+            file << "\t\t<apic/>" << endl;
+        }
+
+        if ( hyperv )
+        {
+            get_default("HYPERV_OPTIONS", hyperv_options);
+
+            file << "\t\t<hyperv>" << endl;
+            file << hyperv_options << endl;
+            file << "\t\t</hyperv>" << endl;
+        }
+
         file << "\t</features>" << endl;
+    }
+
+    if ( localtime )
+    {
+        file << "\t<clock offset='localtime'/>" << endl;
     }
 
     attrs.clear();

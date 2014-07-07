@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -34,6 +34,13 @@ EOT
         :large => "--multiple x",
         :format => Integer,
         :description => "Instance multiple VMs"
+    }
+
+    USERDATA={
+        :name  => "userdata",
+        :large => "--userdata userdata",
+        :format => String,
+        :description => "Integrate userdata into the EC2 section"
     }
 
     def self.rname

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -195,7 +195,8 @@ static int cp_action(istringstream& is,
 
     image->unlock();
 
-    NebulaLog::log("ImM", Log::INFO, "Image copied and ready to use.");
+    oss << "Image (" << id << ") copied and ready to use.";
+    NebulaLog::log("ImM", Log::INFO, oss);
 
     return ds_id;
 
@@ -408,14 +409,13 @@ static int mkfs_action(istringstream& is,
         image->set_state(Image::READY);
     }
 
-    NebulaLog::log("ImM", Log::INFO, "Image created and ready to use");
-
     ipool->update(image);
 
     image->unlock();
 
     if ( !is_saving )
     {
+        NebulaLog::log("ImM", Log::INFO, "Image created and ready to use");
         return ds_id;
     }
 
@@ -622,8 +622,6 @@ static void monitor_action(istringstream& is,
     char*  error_msg;
     int    rc = monitor_data.parse(*dsinfo, &error_msg);
 
-    delete dsinfo;
-
     if ( rc != 0 )
     {
         oss << "Error parsing datastore information: " << error_msg
@@ -631,10 +629,13 @@ static void monitor_action(istringstream& is,
 
         NebulaLog::log("ImM", Log::ERROR, oss);
 
+        delete dsinfo;
         free(error_msg);
 
         return;
     }
+
+    delete dsinfo;
 
     float  total, free, used;
     string ds_name;
@@ -660,7 +661,7 @@ static void monitor_action(istringstream& is,
 
     oss << "Datastore " << ds_name << " (" << id << ") successfully monitored.";
 
-    NebulaLog::log("ImM", Log::INFO, oss);
+    NebulaLog::log("ImM", Log::DEBUG, oss);
 
     return;
 }

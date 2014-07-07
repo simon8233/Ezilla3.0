@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -49,7 +49,7 @@ while IFS= read -r -d '' element; do
 done < <($XPATH     /DS_DRIVER_ACTION_DATA/DATASTORE/BASE_PATH \
                     /DS_DRIVER_ACTION_DATA/DATASTORE/TEMPLATE/RESTRICTED_DIRS \
                     /DS_DRIVER_ACTION_DATA/DATASTORE/TEMPLATE/SAFE_DIRS \
-                    /DS_DRIVER_ACTION_DATA/DATASTORE/TEMPLATE/HOST \
+                    /DS_DRIVER_ACTION_DATA/DATASTORE/TEMPLATE/BRIDGE_LIST \
                     /DS_DRIVER_ACTION_DATA/DATASTORE/TEMPLATE/POOL_NAME \
                     /DS_DRIVER_ACTION_DATA/DATASTORE/TEMPLATE/STAGING_DIR \
                     /DS_DRIVER_ACTION_DATA/IMAGE/FSTYPE \
@@ -60,11 +60,18 @@ unset i
 BASE_PATH="${XPATH_ELEMENTS[i++]}"
 RESTRICTED_DIRS="${XPATH_ELEMENTS[i++]}"
 SAFE_DIRS="${XPATH_ELEMENTS[i++]}"
-DST_HOST="${XPATH_ELEMENTS[i++]:-$HOST}"
+BRIDGE_LIST="${XPATH_ELEMENTS[i++]}"
 POOL_NAME="${XPATH_ELEMENTS[i++]:-$POOL_NAME}"
 STAGING_DIR="${XPATH_ELEMENTS[i++]:-$STAGING_DIR}"
 FSTYPE="${XPATH_ELEMENTS[i++]}"
 SIZE="${XPATH_ELEMENTS[i++]}"
+
+DST_HOST=`get_destination_host $ID`
+
+if [ -z "$DST_HOST" ]; then
+    error_message "Datastore template missing 'BRIDGE_LIST' attribute."
+    exit -1
+fi
 
 set_up_datastore "$BASE_PATH" "$RESTRICTED_DIRS" "$SAFE_DIRS"
 
@@ -87,16 +94,21 @@ MKFS_CMD=`mkfs_command $TMP_DST $FSTYPE $SIZE`
 
 REGISTER_CMD=$(cat <<EOF
     set -e
+    export PATH=/usr/sbin:/sbin:\$PATH
 
-    # create and format
-    $DD if=/dev/zero of=$TMP_DST bs=1 count=1 seek=${SIZE}M
-    $MKFS_CMD
+    if [ "$FSTYPE" = "raw" ]; then
+        $QEMU_IMG create rbd:$RBD_SOURCE ${SIZE}M
+    else
+        # create and format
+        $DD if=/dev/zero of=$TMP_DST bs=1 count=1 seek=${SIZE}M
+        $MKFS_CMD
 
-    # create rbd
-    $QEMU_IMG convert -O rbd $TMP_DST rbd:$RBD_SOURCE
+        # create rbd
+        $QEMU_IMG convert $QEMU_IMG_CONVERT_ARGS $TMP_DST rbd:$RBD_SOURCE
 
-    # remove original
-    $RM -f $TMP_DST
+        # remove original
+        $RM -f $TMP_DST
+    fi
 EOF
 )
 

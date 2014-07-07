@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -23,6 +23,7 @@ BASH=bash
 CUT=cut
 DATE=date
 DD=dd
+DF=df
 DU=du
 GREP=grep
 ISCSIADM=iscsiadm
@@ -49,6 +50,8 @@ TAR=tar
 TGTADM=tgtadm
 TGTADMIN=tgt-admin
 TGTSETUPLUN=tgt-setup-lun-one
+TR=tr
+VGDISPLAY=vgdisplay
 VMKFSTOOLS=vmkfstools
 WGET=wget
 
@@ -131,6 +134,33 @@ function exec_and_log
     message=$2
 
     EXEC_LOG_ERR=`$1 2>&1 1>/dev/null`
+    EXEC_LOG_RC=$?
+
+    if [ $EXEC_LOG_RC -ne 0 ]; then
+        log_error "Command \"$1\" failed: $EXEC_LOG_ERR"
+
+        if [ -n "$2" ]; then
+            error_message "$2"
+        else
+            error_message "Error executing $1: $EXEC_LOG_ERR"
+        fi
+        exit $EXEC_LOG_RC
+    fi
+}
+
+# Executes a command, if it fails returns error message and exits. Similar to
+# exec_and_log, except that it allows multiline commands.
+# If a second parameter is present it is used as the error message when
+# the command fails.
+function multiline_exec_and_log
+{
+    message=$2
+
+    EXEC_LOG_ERR=`bash -s 2>&1 1>/dev/null <<EOF
+export LANG=C
+export LC_ALL=C
+$1
+EOF`
     EXEC_LOG_RC=$?
 
     if [ $EXEC_LOG_RC -ne 0 ]; then
@@ -308,6 +338,8 @@ function mkfs_command {
 function ssh_exec_and_log
 {
     SSH_EXEC_ERR=`$SSH $1 sh -s 2>&1 1>/dev/null <<EOF
+export LANG=C
+export LC_ALL=C
 $2
 EOF`
     SSH_EXEC_RC=$?
@@ -329,6 +361,8 @@ EOF`
 function ssh_monitor_and_log
 {
     SSH_EXEC_OUT=`$SSH $1 sh -s 2>/dev/null <<EOF
+export LANG=C
+export LC_ALL=C
 $2
 EOF`
     SSH_EXEC_RC=$?
@@ -359,6 +393,9 @@ EOF`
         exit $SSH_EXEC_RC
     fi
 }
+
+# TODO -> Use a dynamically loaded scripts directory. Not removing this due
+#         to iSCSI addon: https://github.com/OpenNebula/addon-iscsi
 
 
 # ------------------------------------------------------------------------------

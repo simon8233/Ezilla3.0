@@ -39,6 +39,7 @@ require 'OpenNebulaJSON/VirtualMachineJSON'
 require 'OpenNebulaJSON/VirtualNetworkJSON'
 require 'OpenNebulaJSON/AclJSON'
 require 'OpenNebulaJSON/DatastoreJSON'
+require 'OpenNebulaJSON/ZoneJSON'
 
 module OpenNebula
     class Error

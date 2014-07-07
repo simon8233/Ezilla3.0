@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -148,7 +148,13 @@ void TransferManager::trigger(Actions action, int _vid)
 
 void TransferManager::do_action(const string &action, void * arg)
 {
-    int vid;
+    int                 vid;
+    int                 hid;
+    VirtualMachine *    vm;
+    Host           *    host;
+    bool                host_is_public_cloud  = false;
+    bool                host_is_deleted = false;
+    Nebula&             nd = Nebula::instance();
 
     if (arg == 0)
     {
@@ -159,41 +165,181 @@ void TransferManager::do_action(const string &action, void * arg)
 
     delete static_cast<int *>(arg);
 
+    if (action == ACTION_FINALIZE)
+    {
+        NebulaLog::log("TrM",Log::INFO,"Stopping Transfer Manager...");
+
+        MadManager::stop();
+
+        return;
+    }
+
+    vm = vmpool->get(vid,true);
+
+    if (vm == 0)
+    {
+        return;
+    }
+
+    if (vm->hasHistory())
+    {
+        hid = vm->get_hid();
+
+        vm->unlock();
+
+        host = hpool->get(hid,true);
+    }
+    else
+    {
+        vm->unlock();
+
+        host = 0;
+    }
+
+    if ( host == 0)
+    {
+        host_is_deleted=true;
+    }
+    else
+    {
+        host_is_public_cloud = host->is_public_cloud();
+        host->unlock();
+    }
+
     if (action == "PROLOG")
     {
-        prolog_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::PROLOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::PROLOG_FAILURE,vid);
+        }
+        else
+        {
+            prolog_action(vid);
+        }
     }
     else if (action == "PROLOG_MIGR")
     {
-        prolog_migr_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::PROLOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::PROLOG_FAILURE,vid);
+        }
+        else
+        {
+            prolog_migr_action(vid);
+        }
     }
     else if (action == "PROLOG_RESUME")
     {
-        prolog_resume_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::PROLOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::PROLOG_FAILURE,vid);
+        }
+        else
+        {
+            prolog_resume_action(vid);
+        }
     }
     else if (action == "EPILOG")
     {
-        epilog_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_FAILURE,vid);
+        }
+        else
+        {
+            epilog_action(vid);
+        }
     }
     else if (action == "EPILOG_STOP")
     {
-        epilog_stop_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_FAILURE,vid);
+        }
+        else
+        {
+            epilog_stop_action(vid);
+        }
     }
     else if (action == "EPILOG_DELETE")
     {
-        epilog_delete_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_FAILURE,vid);
+        }
+        else
+        {
+            epilog_delete_action(vid);
+        }
     }
     else if (action == "EPILOG_DELETE_STOP")
     {
-        epilog_delete_stop_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_FAILURE,vid);
+        }
+        else
+        {
+            epilog_delete_stop_action(vid);
+        }
     }
     else if (action == "EPILOG_DELETE_PREVIOUS")
     {
-        epilog_delete_previous_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_FAILURE,vid);
+        }
+        else
+        {
+            epilog_delete_previous_action(vid);
+        }
     }
     else if (action == "EPILOG_DELETE_BOTH")
     {
-        epilog_delete_both_action(vid);
+        if (host_is_public_cloud)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_SUCCESS,vid);
+        }
+        else if (host_is_deleted)
+        {
+            (nd.get_lcm())->trigger(LifeCycleManager::EPILOG_FAILURE,vid);
+        }
+        else
+        {
+            epilog_delete_both_action(vid);
+        }
     }
     else if (action == "CHECKPOINT")
     {
@@ -206,12 +352,6 @@ void TransferManager::do_action(const string &action, void * arg)
     else if (action == "DRIVER_CANCEL")
     {
         driver_cancel_action(vid);
-    }
-    else if (action == ACTION_FINALIZE)
-    {
-        NebulaLog::log("TrM",Log::INFO,"Stopping Transfer Manager...");
-
-        MadManager::stop();
     }
     else
     {
@@ -240,11 +380,8 @@ int TransferManager::prolog_transfer_command(
     string format;
     string tm_mad;
     string ds_id;
-    string vm_ds_id;
 
-    int    disk_id;
-
-    vm_ds_id = vm->get_ds_id();
+    int disk_id;
 
     disk->vector_value("DISK_ID", disk_id);
 
@@ -266,14 +403,14 @@ int TransferManager::prolog_transfer_command(
             return 0;
         }
 
-        //MKSWAP tm_mad size host:remote_system_dir/disk.i vmid dsid(=0)
+        //MKSWAP tm_mad size host:remote_system_dir/disk.i vmid dsid(system)
         xfr << "MKSWAP "
             << vm_tm_mad << " "
             << size   << " "
             << vm->get_hostname() << ":"
             << vm->get_remote_system_dir() << "/disk." << disk_id << " "
             << vm->get_oid() << " "
-            << vm_ds_id
+            << vm->get_ds_id()
             << endl;
     }
     else if ( type == "FS" )
@@ -284,14 +421,19 @@ int TransferManager::prolog_transfer_command(
         size   = disk->vector_value("SIZE");
         format = disk->vector_value("FORMAT");
 
-        if ( size.empty() || format.empty() )
+        if (format.empty())
         {
-            os << "No size or format in FS";
-            vm->log("TM", Log::WARNING, "No size or format in FS, skipping");
+            format = "raw";
+        }
+
+        if ( size.empty() )
+        {
+            os << "No size in FS";
+            vm->log("TM", Log::WARNING, "No size in FS, skipping");
             return 0;
         }
 
-        //MKIMAGE tm_mad size format host:remote_system_dir/disk.i vmid dsid(=0)
+        //MKIMAGE tm_mad size format host:remote_system_dir/disk.i vmid dsid(system)
         xfr << "MKIMAGE "
             << vm_tm_mad << " "
             << size   << " "
@@ -299,7 +441,7 @@ int TransferManager::prolog_transfer_command(
             << vm->get_hostname() << ":"
             << vm->get_remote_system_dir() << "/disk." << disk_id << " "
             << vm->get_oid() << " "
-            << vm_ds_id
+            << vm->get_ds_id()
             << endl;
     }
     else
@@ -455,7 +597,6 @@ void TransferManager::prolog_action(int vid)
     }
 
     int uid = vm->get_uid();
-
     vm->unlock();
 
     User * user = Nebula::instance().get_upool()->get(uid, true);
@@ -648,19 +789,6 @@ error_common:
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-static bool isVolatile(const VectorAttribute * disk)
-{
-    string type;
-
-    type = disk->vector_value("TYPE");
-    transform(type.begin(),type.end(),type.begin(),(int(*)(int))toupper);
-
-    return ( type == "SWAP" || type == "FS");
-}
-
-/* -------------------------------------------------------------------------- */
-/* -------------------------------------------------------------------------- */
-
 void TransferManager::prolog_migr_action(int vid)
 {
     ofstream        xfr;
@@ -670,9 +798,9 @@ void TransferManager::prolog_migr_action(int vid)
     const VectorAttribute * disk;
     string tm_mad;
     string vm_tm_mad;
-    string vm_ds_id;
-    string ds_id;
-    int    disk_id;
+
+    int ds_id;
+    int disk_id;
 
     vector<const Attribute *> attrs;
     int                       num;
@@ -698,10 +826,9 @@ void TransferManager::prolog_migr_action(int vid)
     }
 
     vm_tm_mad = vm->get_tm_mad();
-    vm_ds_id  = vm->get_ds_id();
     tm_md     = get();
 
-    if ( tm_md == 0 || vm_tm_mad.empty() || vm_ds_id.empty())
+    if ( tm_md == 0 || vm_tm_mad.empty())
     {
         goto error_drivers;
     }
@@ -731,23 +858,23 @@ void TransferManager::prolog_migr_action(int vid)
 
         disk->vector_value_str("DISK_ID", disk_id);
 
-        if ( isVolatile(disk) == true )
+        if ( VirtualMachine::isVolatile(disk) == true )
         {
             tm_mad = vm_tm_mad;
-            ds_id  = vm_ds_id;
+            ds_id  = vm->get_ds_id();
         }
         else
         {
-            tm_mad = disk->vector_value("TM_MAD");
-            ds_id  = disk->vector_value("DATASTORE_ID");
+            tm_mad    = disk->vector_value("TM_MAD");
+            int vv_rc = disk->vector_value("DATASTORE_ID", ds_id);
 
-            if ( tm_mad.empty() ||  ds_id.empty() )
+            if (tm_mad.empty() || vv_rc == -1)
             {
                 continue;
             }
         }
 
-        //MV tm_mad prev_host:remote_system_dir/disk.i host:remote_system_dir/disk.i vmid dsid
+        //MV tm_mad prev_host:remote_system_dir/disk.i host:remote_system_dir/disk.i vmid dsid(image)
         xfr << "MV "
             << tm_mad << " "
             << vm->get_previous_hostname() << ":"
@@ -758,7 +885,7 @@ void TransferManager::prolog_migr_action(int vid)
             << ds_id << endl;
     }
 
-    //MV tm_mad prev_host:remote_system_dir host:remote_system_dir VMID 0
+    //MV tm_mad prev_host:remote_system_dir host:remote_system_dir VMID dsid(system)
     xfr << "MV "
         << vm_tm_mad << " "
         << vm->get_previous_hostname() << ":"
@@ -766,7 +893,7 @@ void TransferManager::prolog_migr_action(int vid)
         << vm->get_hostname() << ":"
         << vm->get_remote_system_dir() << " "
         << vm->get_oid() << " "
-        << vm_ds_id << endl;
+        << vm->get_ds_id() << endl;
 
     xfr.close();
 
@@ -810,9 +937,9 @@ void TransferManager::prolog_resume_action(int vid)
     const VectorAttribute * disk;
     string tm_mad;
     string vm_tm_mad;
-    string vm_ds_id;
-    string ds_id;
-    int    disk_id;
+
+    int ds_id;
+    int disk_id;
 
     vector<const Attribute *> attrs;
     int                       num;
@@ -838,10 +965,9 @@ void TransferManager::prolog_resume_action(int vid)
     }
 
     vm_tm_mad = vm->get_tm_mad();
-    vm_ds_id  = vm->get_ds_id();
     tm_md     = get();
 
-    if ( tm_md == 0 || vm_tm_mad.empty() || vm_ds_id.empty())
+    if ( tm_md == 0 || vm_tm_mad.empty())
     {
         goto error_drivers;
     }
@@ -870,23 +996,23 @@ void TransferManager::prolog_resume_action(int vid)
 
         disk->vector_value_str("DISK_ID", disk_id);
 
-        if ( isVolatile(disk) == true )
+        if ( VirtualMachine::isVolatile(disk) == true )
         {
             tm_mad = vm_tm_mad;
-            ds_id  = vm_ds_id;
+            ds_id  = vm->get_ds_id();
         }
         else
         {
-            tm_mad = disk->vector_value("TM_MAD");
-            ds_id  = disk->vector_value("DATASTORE_ID");
+            tm_mad    = disk->vector_value("TM_MAD");
+            int vv_rc = disk->vector_value("DATASTORE_ID", ds_id);
 
-            if ( tm_mad.empty() ||  ds_id.empty() )
+            if ( tm_mad.empty() || vv_rc == -1)
             {
                 continue;
             }
         }
 
-        //MV tm_mad fe:system_dir/disk.i host:remote_system_dir/disk.i vmid dsid
+        //MV tm_mad fe:system_dir/disk.i host:remote_system_dir/disk.i vmid dsid(image)
         xfr << "MV "
             << tm_mad << " "
             << nd.get_nebula_hostname() << ":"
@@ -897,13 +1023,13 @@ void TransferManager::prolog_resume_action(int vid)
             << ds_id << endl;
     }
 
-    //MV tm_mad fe:system_dir host:remote_system_dir vmid 0
+    //MV tm_mad fe:system_dir host:remote_system_dir vmid dsid(system)
     xfr << "MV "
         << vm_tm_mad << " "
         << nd.get_nebula_hostname() << ":"<< vm->get_system_dir() << " "
         << vm->get_hostname() << ":" << vm->get_remote_system_dir()<< " "
         << vm->get_oid() << " "
-        << vm_ds_id << endl;
+        << vm->get_ds_id() << endl;
 
     xfr.close();
 
@@ -945,7 +1071,6 @@ void TransferManager::epilog_transfer_command(
 {
     string save;
     string tm_mad;
-    string ds_id;
     int    disk_id;
 
     disk->vector_value("DISK_ID", disk_id);
@@ -958,6 +1083,7 @@ void TransferManager::epilog_transfer_command(
     {
         string source;
         string save_source;
+        string ds_id;
 
         source      = disk->vector_value("SOURCE");
         save_source = disk->vector_value("SAVE_AS_SOURCE");
@@ -994,18 +1120,21 @@ void TransferManager::epilog_transfer_command(
     }
     else //No saving disk
     {
-        if ( isVolatile(disk) == true )
+        int ds_id_i;
+        int vv_rc = 0;
+
+        if ( VirtualMachine::isVolatile(disk) == true )
         {
             tm_mad = vm->get_tm_mad();
-            ds_id  = vm->get_ds_id();
+            ds_id_i= vm->get_ds_id();
         }
         else
         {
             tm_mad = disk->vector_value("TM_MAD");
-            ds_id  = disk->vector_value("DATASTORE_ID");
+            vv_rc  = disk->vector_value("DATASTORE_ID", ds_id_i);
         }
 
-        if ( !tm_mad.empty() && !ds_id.empty() )
+        if ( !tm_mad.empty() && vv_rc == 0)
         {
             //DELETE tm_mad hostname:remote_system_dir/disk.i vmid ds_id
             xfr << "DELETE "
@@ -1013,7 +1142,7 @@ void TransferManager::epilog_transfer_command(
                 << vm->get_hostname() << ":"
                 << vm->get_remote_system_dir() << "/disk." << disk_id << " "
                 << vm->get_oid() << " "
-                << ds_id
+                << ds_id_i
                 << endl;
         }
     }
@@ -1028,7 +1157,6 @@ void TransferManager::epilog_action(int vid)
     ostringstream   os;
     string xfr_name;
     string vm_tm_mad;
-    string vm_ds_id;
     string error_str;
 
     const VectorAttribute * disk;
@@ -1057,10 +1185,9 @@ void TransferManager::epilog_action(int vid)
     }
 
     vm_tm_mad = vm->get_tm_mad();
-    vm_ds_id  = vm->get_ds_id();
     tm_md     = get();
 
-    if ( tm_md == 0 || vm_tm_mad.empty() || vm_ds_id.empty())
+    if ( tm_md == 0 || vm_tm_mad.empty())
     {
         goto error_drivers;
     }
@@ -1095,7 +1222,7 @@ void TransferManager::epilog_action(int vid)
         << vm_tm_mad << " "
         << vm->get_hostname() << ":" << vm->get_remote_system_dir() << " "
         << vm->get_oid() << " "
-        << vm_ds_id << endl;
+        << vm->get_ds_id() << endl;
 
     xfr.close();
 
@@ -1138,9 +1265,8 @@ void TransferManager::epilog_stop_action(int vid)
     string xfr_name;
     string tm_mad;
     string vm_tm_mad;
-    string vm_ds_id;
-    string ds_id;
 
+    int ds_id;
     int disk_id;
 
     VirtualMachine * vm;
@@ -1168,10 +1294,9 @@ void TransferManager::epilog_stop_action(int vid)
     }
 
     vm_tm_mad = vm->get_tm_mad();
-    vm_ds_id  = vm->get_ds_id();
     tm_md     = get();
 
-    if ( tm_md == 0 || vm_tm_mad.empty() || vm_ds_id.empty())
+    if (tm_md == 0 || vm_tm_mad.empty())
     {
         goto error_drivers;
     }
@@ -1200,23 +1325,23 @@ void TransferManager::epilog_stop_action(int vid)
 
         disk->vector_value_str("DISK_ID", disk_id);
 
-        if ( isVolatile(disk) == true )
+        if ( VirtualMachine::isVolatile(disk) == true )
         {
             tm_mad = vm_tm_mad;
-            ds_id  = vm_ds_id;
+            ds_id  = vm->get_ds_id();
         }
         else
         {
-            tm_mad = disk->vector_value("TM_MAD");
-            ds_id  = disk->vector_value("DATASTORE_ID");
+            tm_mad    = disk->vector_value("TM_MAD");
+            int vv_rc = disk->vector_value("DATASTORE_ID", ds_id);
 
-            if ( tm_mad.empty() ||  ds_id.empty() )
+            if (tm_mad.empty() || vv_rc == -1)
             {
                 continue;
             }
         }
 
-        //MV tm_mad host:remote_system_dir/disk.i fe:system_dir/disk.i vmid dsid
+        //MV tm_mad host:remote_system_dir/disk.i fe:system_dir/disk.i vmid dsid(image)
         xfr << "MV "
             << tm_mad << " "
             << vm->get_hostname() << ":"
@@ -1227,13 +1352,13 @@ void TransferManager::epilog_stop_action(int vid)
             << ds_id << endl;
     }
 
-    //MV vm_tm_mad hostname:remote_system_dir fe:system_dir
+    //MV vm_tm_mad hostname:remote_system_dir fe:system_dir vmid dsid(system)
     xfr << "MV "
         << vm_tm_mad << " "
         << vm->get_hostname() << ":" << vm->get_remote_system_dir() << " "
         << nd.get_nebula_hostname() << ":" << vm->get_system_dir() << " "
         << vm->get_oid() << " "
-        << vm_ds_id << endl;
+        << vm->get_ds_id() << endl;
 
     xfr.close();
 
@@ -1279,12 +1404,11 @@ int TransferManager::epilog_delete_commands(VirtualMachine *vm,
 
     string vm_tm_mad;
     string tm_mad;
-    string vm_ds_id;
-    string ds_id;
-
     string host;
     string system_dir;
 
+    int ds_id;
+    int vm_ds_id;
     int disk_id;
 
     Nebula& nd = Nebula::instance();
@@ -1331,7 +1455,7 @@ int TransferManager::epilog_delete_commands(VirtualMachine *vm,
         vm_ds_id  = vm->get_ds_id();
     }
 
-    if ( vm_tm_mad.empty() || vm_ds_id.empty())
+    if (vm_tm_mad.empty())
     {
         goto error_drivers;
     }
@@ -1352,25 +1476,25 @@ int TransferManager::epilog_delete_commands(VirtualMachine *vm,
 
         disk->vector_value_str("DISK_ID", disk_id);
 
-        if ( isVolatile(disk) == true )
+        if ( VirtualMachine::isVolatile(disk) == true )
         {
             tm_mad = vm_tm_mad;
             ds_id  = vm_ds_id;
         }
         else
         {
-            tm_mad = disk->vector_value("TM_MAD");
-            ds_id  = disk->vector_value("DATASTORE_ID");
+            tm_mad    = disk->vector_value("TM_MAD");
+            int vv_rc = disk->vector_value("DATASTORE_ID", ds_id);
 
-            if ( tm_mad.empty() ||  ds_id.empty() )
+            if (tm_mad.empty() || vv_rc == -1)
             {
                 continue;
             }
         }
 
-        //DELETE tm_mad host:remote_system_dir/disk.i vmid dsid
-        // *local* DELETE tm_mad fe:system_dir/disk.i vmid dsid
-        // *prev*  DELETE tm_mad prev_host:remote_system_dir/disk.i vmid ds_id
+        //DELETE tm_mad host:remote_system_dir/disk.i vmid dsid(image)
+        // *local* DELETE tm_mad fe:system_dir/disk.i vmid dsid(image)
+        // *prev*  DELETE tm_mad prev_host:remote_system_dir/disk.i vmid ds_id(image)
         xfr << "DELETE "
             << tm_mad << " "
             << host << ":"
@@ -1379,9 +1503,9 @@ int TransferManager::epilog_delete_commands(VirtualMachine *vm,
             << ds_id << endl;
     }
 
-    //DELETE vm_tm_mad hostname:remote_system_dir vmid dsid
-    // *local* DELETE vm_tm_mad fe:system_dir vmid dsid
-    // *prev*  DELTE vm_tm_mad prev_host:remote_system_dir vmid ds_id
+    //DELETE vm_tm_mad hostname:remote_system_dir vmid dsid(system)
+    // *local* DELETE vm_tm_mad fe:system_dir vmid dsid(system)
+    // *prev*  DELTE vm_tm_mad prev_host:remote_system_dir vmid ds_id(system)
     xfr << "DELETE "
         << vm_tm_mad << " "
         << host <<":"<< system_dir << " "
@@ -1833,7 +1957,7 @@ void TransferManager::migrate_transfer_command(
 /* MAD Loading                                                                */
 /* ************************************************************************** */
 
-void TransferManager::load_mads(int uid)
+int TransferManager::load_mads(int uid)
 {
     ostringstream oss;
 
@@ -1855,7 +1979,7 @@ void TransferManager::load_mads(int uid)
     if ( vattr == 0 )
     {
         NebulaLog::log("TM",Log::ERROR,"Failed to load Transfer Manager driver.");
-        return;
+        return -1;
     }
 
     VectorAttribute tm_conf("TM_MAD",vattr->value());
@@ -1875,4 +1999,6 @@ void TransferManager::load_mads(int uid)
 
         NebulaLog::log("TM",Log::INFO,oss);
     }
+
+    return rc;
 }

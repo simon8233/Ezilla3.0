@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -36,8 +36,17 @@ class OpenvSwitchVLAN < OpenNebulaNetwork
         process do |nic|
             @nic = nic
 
+            if @nic[:tap].nil?
+                STDERR.puts "No tap device found for nic #{@nic[:nic_id]}"
+                unlock
+                exit 1
+            end
+
             # Apply VLAN
-            tag_vlan if @nic[:vlan] == "YES"
+            if @nic[:vlan] == "YES"
+                tag_vlan
+                tag_trunk_vlans
+            end
 
             # Prevent Mac-spoofing
             mac_spoofing
@@ -79,7 +88,22 @@ class OpenvSwitchVLAN < OpenNebulaNetwork
         run cmd
     end
 
+    def tag_trunk_vlans
+        range = @nic[:vlan_tagged_id]
+        if range? range
+            ovs_vsctl_cmd = "#{COMMANDS[:ovs_vsctl]} set Port #{@nic[:tap]}"
+
+            cmd = "#{ovs_vsctl_cmd} trunks=#{range}"
+            run cmd
+
+            cmd = "#{ovs_vsctl_cmd} vlan_mode=native-untagged"
+            run cmd
+        end
+    end
+
     def mac_spoofing
+        add_flow("in_port=#{port},arp,dl_src=#{@nic[:mac]}",:drop,45000)
+        add_flow("in_port=#{port},arp,dl_src=#{@nic[:mac]},nw_src=#{@nic[:ip]}",:normal,46000)
         add_flow("in_port=#{port},dl_src=#{@nic[:mac]}",:normal,40000)
         add_flow("in_port=#{port}",:drop,39000)
     end
@@ -163,6 +187,6 @@ class OpenvSwitchVLAN < OpenNebulaNetwork
     end
 
     def range?(range)
-        !range.match(/^\d+(,\d+)*$/).nil?
+        !range.to_s.match(/^\d+(,\d+)*$/).nil?
     end
 end

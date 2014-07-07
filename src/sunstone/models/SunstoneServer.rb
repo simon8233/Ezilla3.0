@@ -52,7 +52,9 @@ class SunstoneServer < CloudServer
     ############################################################################
     #
     ############################################################################
-    def get_pool(kind,gid)
+    def get_pool(kind,gid, client=nil)
+        client = @client if !client
+
         if gid == "0"
             user_flag = Pool::INFO_ALL
         else
@@ -60,27 +62,28 @@ class SunstoneServer < CloudServer
         end
 
         pool = case kind
-            when "group"      then GroupPoolJSON.new(@client)
-            when "cluster"    then ClusterPoolJSON.new(@client)
-            when "host"       then HostPoolJSON.new(@client)
-            when "image"      then ImagePoolJSON.new(@client, user_flag)
-            when "vmtemplate" then TemplatePoolJSON.new(@client, user_flag)
-            when "vm"         then VirtualMachinePoolJSON.new(@client, user_flag)
-            when "vnet"       then VirtualNetworkPoolJSON.new(@client, user_flag)
-            when "user"       then UserPoolJSON.new(@client)
-            when "acl"        then AclPoolJSON.new(@client)
-            when "datastore"  then DatastorePoolJSON.new(@client)
+            when "group"      then GroupPoolJSON.new(client)
+            when "cluster"    then ClusterPoolJSON.new(client)
+            when "host"       then HostPoolJSON.new(client)
+            when "image"      then ImagePoolJSON.new(client, user_flag)
+            when "vmtemplate" then TemplatePoolJSON.new(client, user_flag)
+            when "vm"         then VirtualMachinePoolJSON.new(client, user_flag)
+            when "vnet"       then VirtualNetworkPoolJSON.new(client, user_flag)
+            when "user"       then UserPoolJSON.new(client)
+            when "acl"        then AclPoolJSON.new(client)
+            when "datastore"  then DatastorePoolJSON.new(client)
+            when "zone"       then ZonePoolJSON.new(client)
             else
                 error = Error.new("Error: #{kind} resource not supported")
                 return [404, error.to_json]
         end
 
-        rc = pool.info
+        rc = pool.get_hash
 
         if OpenNebula.is_error?(rc)
             return [500, rc.to_json]
         else
-            return [200, pool.to_json]
+            return [200, rc.to_json]
         end
     end
 
@@ -124,6 +127,7 @@ class SunstoneServer < CloudServer
             when "user"       then UserJSON.new(User.build_xml, @client)
             when "acl"        then AclJSON.new(Acl.build_xml, @client)
             when "datastore"  then DatastoreJSON.new(Acl.build_xml, @client)
+            when "zone"       then ZoneJSON.new(Zone.build_xml, @client)
             else
                 error = Error.new("Error: #{kind} resource not supported")
                 return [404, error.to_json]
@@ -188,7 +192,7 @@ class SunstoneServer < CloudServer
 
         # clean spice redirect function process        
         graphics = resource["TEMPLATE/GRAPHICS/TYPE"]
-            if  graphics.downcase.eql? "spice"
+            if  graphics.to_s.downcase.eql? "spice"
                 ip = resource['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']
                 cport  = resource["TEMPLATE/GRAPHICS/PORT"] 
                 File.delete("/tmp/redir/#{ip}:#{cport}") if File.exist?("/tmp/redir/#{ip}:#{cport}")
@@ -519,6 +523,30 @@ class SunstoneServer < CloudServer
         return [200, {:monitoring => result}.to_json]
     end
 
+    def get_vm_accounting(options)
+        pool = VirtualMachinePool.new(@client)
+
+        filter_flag = options[:userfilter] ? options[:userfilter].to_i : VirtualMachinePool::INFO_ALL
+        start_time  = options[:start_time] ? options[:start_time].to_i : -1
+        end_time    = options[:end_time]   ? options[:end_time].to_i : -1
+
+        acct_options = {
+            :start_time => start_time,
+            :end_time   => end_time,
+            :group      => options[:group]
+        }
+
+        rc = pool.accounting(filter_flag, acct_options)
+
+        if OpenNebula.is_error?(rc)
+            error = Error.new(rc.message)
+            return [500, error.to_json]
+        end
+
+        return [200, rc.to_json]
+    end
+
+
     private
 
     ############################################################################
@@ -536,6 +564,7 @@ class SunstoneServer < CloudServer
             when "user"       then UserJSON.new_with_id(id, @client)
             when "acl"        then AclJSON.new_with_id(id, @client)
             when "datastore"  then DatastoreJSON.new_with_id(id, @client)
+            when "zone"       then ZoneJSON.new_with_id(id, @client)
             else
                 error = Error.new("Error: #{kind} resource not supported")
                 return error

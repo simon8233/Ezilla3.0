@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -232,6 +232,7 @@ public:
         int seq,
         int hid,
         const string& hostname,
+        int cid,
         const string& vmm,
         const string& vnm,
         const string& tmm,
@@ -275,8 +276,9 @@ private:
     int     oid;
     int     seq;
 
-    string  hostname;
     int     hid;
+    string  hostname;
+    int     cid;
 
     string  vmm_mad_name;
     string  vnm_mad_name;

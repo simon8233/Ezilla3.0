@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs
+ * Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ public class HostTest
     @Before
     public void setUp() throws Exception
     {
-        res = Host.allocate(client, name, "im_dummy", "vmm_dummy", "dummy");
+        res = Host.allocate(client, name, "dummy", "dummy", "dummy");
 
         int hid = !res.isError() ? Integer.parseInt(res.getMessage()) : -1;
         host    = new Host(hid, client);
@@ -76,6 +76,7 @@ public class HostTest
     public void tearDown() throws Exception
     {
         host.delete();
+        Thread.sleep(2000);
     }
 
     @Test

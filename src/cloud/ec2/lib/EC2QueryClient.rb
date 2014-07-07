@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -256,7 +256,9 @@ module EC2QueryClient
                 if connection.response_code == 200
                     return AWS::Response.parse(:xml => connection.body_str)
                 else
-                    return CloudClient::Error.new(connection.body_str)
+                    r=AWS::Response.parse(:xml => connection.body_str)
+                    message=r['Errors']['Error']['Message']
+                    return CloudClient::Error.new(message)
                 end
             else
                 if !MULTIPART_LOADED
@@ -278,10 +280,12 @@ module EC2QueryClient
 
                 file.close
 
-                if res.code == '200'
+                if !CloudClient.is_error?(res)
                     return AWS::Response.parse(:xml => res.body)
                 else
-                    return CloudClient::Error.new(res.body)
+                    r=AWS::Response.parse(:xml => res.message)
+                    message=r['Errors']['Error']['Message']
+                    return CloudClient::Error.new(message)
                 end
             end
         end

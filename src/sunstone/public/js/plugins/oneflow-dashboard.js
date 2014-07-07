@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------------*/
-/* Copyright (C) 2013                                                            */
+/* Copyright (C) 2013-2014                                                       */
 /*                                                                               */
 /* This file is part of ezilla.                                                  */
 /*                                                                               */
@@ -25,7 +25,8 @@
 /*-------------------------------------------------------------------------------*/
 
 var oneflow_dashboard_tab = {
-    title: '<i class="icon-code-fork icon-rotate-90"></i> OneFlow'
+    title: '<i class="fa fa-lg fa-fw fa-code-fork fa-rotate-90"></i>&emsp;OneFlow',
+    no_content: true
 }
 
 

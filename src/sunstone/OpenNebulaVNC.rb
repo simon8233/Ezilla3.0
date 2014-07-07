@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Copyright (C) 2013
+# Copyright (C) 2013-2014
 #
 # This file is part of ezilla.
 #
@@ -32,6 +32,13 @@
 require 'rubygems'
 require 'json'
 require 'opennebula'
+
+
+if !ONE_LOCATION
+    NOVNC_LOCK_FILE = "/var/lock/one/.novnc.lock"
+else
+    NOVNC_LOCK_FILE= ONE_LOCATION + "/var/.novnc.lock"
+end
 
 TOKEN_EXPIRE_SECONDS = 4
 
@@ -84,9 +91,11 @@ class OpenNebulaVNC
         @proxy_path   = File.join(SHARE_LOCATION, "websockify/websocketproxy.py")
         @proxy_port   = config[:vnc_proxy_port]
 
+        @proxy_ipv6   = config[:vnc_proxy_ipv6]
+
         @wss = config[:vnc_proxy_support_wss]
 
-        @lock_file = config[:lock_file] || '/tmp/novnc.lock'
+        @lock_file = NOVNC_LOCK_FILE
 
         if (@wss == "yes") || (@wss == "only") || (@wss == true)
             @enable_wss = true
@@ -115,6 +124,10 @@ class OpenNebulaVNC
             proxy_options << " --cert #{@cert}"
             proxy_options << " --key #{@key}" if @key && @key.size > 0
             proxy_options << " --ssl-only" if @wss == "only"
+        end
+
+        if @proxy_ipv6
+            proxy_options << " -6"
         end
 
         cmd ="python #{@proxy_path} #{proxy_options} #{@proxy_port}"
@@ -207,7 +220,7 @@ class OpenNebulaVNC
         if pid
             @logger.info "Killing VNC proxy"
 
-            signal=(force ? 'KILL' : 'TERM')
+            signal=(force ? '-KILL' : '-TERM')
             Process.kill(signal ,pid)
 
             sleep 1
@@ -215,7 +228,7 @@ class OpenNebulaVNC
             begin
                 Process.getpgid(pid)
 
-                Process.kill('KILL', pid)
+                Process.kill('-KILL', pid)
             rescue
             end
 
@@ -271,7 +284,6 @@ class OpenNebulaVNC
                 Dir.glob("#{@token_folder}/*").each do |file|
                     File.delete(file)
                 end
-                Dir.rmdir(@token_folder)
             rescue => e
                 @logger.error "Error deleting token folder"
                 @logger.error e.message

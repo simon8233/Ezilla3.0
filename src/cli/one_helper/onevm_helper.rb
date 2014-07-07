@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -247,6 +247,9 @@ class OneVMHelper < OpenNebulaHelper::OneHelper
         puts str % ["RESCHED", OpenNebulaHelper.boolean_to_str(vm['RESCHED'])]
         puts str % ["HOST",
             vm['/VM/HISTORY_RECORDS/HISTORY[last()]/HOSTNAME']] if
+                %w{ACTIVE SUSPENDED POWEROFF}.include? vm.state_str
+        puts str % ["CLUSTER ID", 
+            vm['/VM/HISTORY_RECORDS/HISTORY[last()]/CID'] ] if 
                 %w{ACTIVE SUSPENDED POWEROFF}.include? vm.state_str
         puts str % ["START TIME",
             OpenNebulaHelper.time_to_str(vm['/VM/STIME'])]
@@ -547,6 +550,10 @@ class OneVMHelper < OpenNebulaHelper::OneHelper
                 VirtualMachine.get_reason d["REASON"]
             end
 
+            column :DS, "System Datastore", :size=>4 do |d|
+                d["DS_ID"]
+            end
+
             column :START, "Time when the state changed", :size=>15 do |d|
                 OpenNebulaHelper.time_to_str(d['STIME'])
             end
@@ -569,7 +576,7 @@ class OneVMHelper < OpenNebulaHelper::OneHelper
                 OpenNebulaHelper.short_period_to_str(dtime)
             end
 
-            default :SEQ, :HOST, :ACTION, :REASON, :START, :TIME, :PROLOG
+            default :SEQ, :HOST, :ACTION, :DS, :START, :TIME, :PROLOG
         end
 
         vm_hash=vm.to_hash

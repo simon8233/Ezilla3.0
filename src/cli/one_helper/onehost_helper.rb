@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -18,6 +18,9 @@ require 'one_helper'
 require 'one_helper/onevm_helper'
 
 class OneHostHelper < OpenNebulaHelper::OneHelper
+    TEMPLATE_XPATH  = '//HOST/TEMPLATE'
+    VERSION_XPATH   = "#{TEMPLATE_XPATH}/VERSION"
+
     def self.rname
         "HOST"
     end
@@ -29,7 +32,7 @@ class OneHostHelper < OpenNebulaHelper::OneHelper
     def self.state_to_str(id)
         id        = id.to_i
         state_str = Host::HOST_STATES[id]
-        
+
         return Host::SHORT_HOST_STATES[state_str]
     end
 
@@ -51,6 +54,10 @@ class OneHostHelper < OpenNebulaHelper::OneHelper
 
             column :RVM, "Number of Virtual Machines running", :size=>3 do |d|
                 d["HOST_SHARE"]["RUNNING_VMS"]
+            end
+
+            column :ZVM, "Number of Virtual Machine zombies", :size=>3 do |d|
+                d["TEMPLATE"]["TOTAL_ZOMBIES"] || 0
             end
 
             column :TCPU, "Total CPU percentage", :size=>4 do |d|
@@ -114,7 +121,7 @@ class OneHostHelper < OpenNebulaHelper::OneHelper
                         "#{cpu_usage} / #{max_cpu} (#{ratio}%)"
                     else
                         "#{cpu_usage} / -"
-                    end                    
+                    end
                 end
             end
 
@@ -156,7 +163,166 @@ class OneHostHelper < OpenNebulaHelper::OneHelper
         table
     end
 
+
+    NUM_THREADS = 15
+    def sync(host_ids, options)
+        begin
+            current_version = File.read(REMOTES_LOCATION+'/VERSION').strip
+        rescue
+            STDERR.puts("Could not read #{REMOTES_LOCATION}/VERSION")
+            exit(-1)
+        end
+
+        if current_version.empty?
+            STDERR.puts "Remotes version can not be empty"
+            exit(-1)
+        end
+
+        cluster_id = options[:cluster]
+
+        # Get remote_dir (implies oneadmin group)
+        rc = OpenNebula::System.new(@client).get_configuration
+        return -1, rc.message if OpenNebula.is_error?(rc)
+
+        conf = rc
+        remote_dir = conf['SCRIPTS_REMOTE_DIR']
+
+        # Verify the existence of REMOTES_LOCATION
+        if !File.directory? REMOTES_LOCATION
+            error_msg = "'#{REMOTES_LOCATION}' does not exist. " <<
+                            "This command must be run in the frontend."
+            return -1,error_msg
+        end
+
+        # Touch the update file
+        FileUtils.touch(File.join(REMOTES_LOCATION,'.update'))
+
+        # Get the Host pool
+        filter_flag ||= OpenNebula::Pool::INFO_ALL
+
+        pool = factory_pool(filter_flag)
+
+        rc = pool.info
+        return -1, rc.message if OpenNebula.is_error?(rc)
+
+        # Assign hosts to threads
+        i = 0
+        queue = Array.new
+
+        pool.each do |host|
+            if host_ids
+                next if !host_ids.include?(host['ID'].to_i)
+            elsif cluster_id
+                next if host['CLUSTER_ID'].to_i != cluster_id
+            end
+
+            host_version=host['TEMPLATE/VERSION']
+
+            if !options[:force]
+                next if host_version && host_version >= current_version
+            end
+
+            puts "* Adding #{host['NAME']} to upgrade"
+
+            queue << host
+        end
+
+        # Run the jobs in threads
+        host_errors = Array.new
+        queue_lock = Mutex.new
+        error_lock = Mutex.new
+        total = queue.length
+
+        if total==0
+            puts "No hosts are going to be updated."
+            exit(0)
+        end
+
+        ts = (1..NUM_THREADS).map do |t|
+            Thread.new do
+                while true do
+                    host = nil
+                    size = 0
+
+                    queue_lock.synchronize do
+                        host=queue.shift
+                        size=queue.length
+                    end
+
+                    break if !host
+
+                    print_update_info(total-size, total, host['NAME'])
+
+                    if options[:rsync]
+                        sync_cmd = "rsync -Laz --delete #{REMOTES_LOCATION}" <<
+                            " #{host['NAME']}:#{remote_dir}"
+                    else
+                        sync_cmd = "scp -rp #{REMOTES_LOCATION}/. " <<
+                            "#{host['NAME']}:#{remote_dir} 2> /dev/null"
+                    end
+
+                    `#{sync_cmd} 2>/dev/null`
+
+                    if !$?.success?
+                        error_lock.synchronize {
+                            host_errors << host['NAME']
+                        }
+                    else
+                        update_version(host, current_version)
+                    end
+                end
+            end
+        end
+
+        # Wait for threads to finish
+        ts.each{|t| t.join}
+
+        puts
+
+        if host_errors.empty?
+            puts "All hosts updated successfully."
+            0
+        else
+            STDERR.puts "Failed to update the following hosts:"
+            host_errors.each{|h| STDERR.puts "* #{h}"}
+            -1
+        end
+    end
+
     private
+
+    def print_update_info(current, total, host)
+        bar_length=40
+
+        percentage=current.to_f/total.to_f
+        done=(percentage*bar_length).floor
+
+        bar="["
+        bar+="="*done
+        bar+="-"*(bar_length-done)
+        bar+="]"
+
+        info="#{current}/#{total}"
+
+        str="#{bar} #{info} "
+        name=host[0..(79-str.length)]
+        str=str+name
+        str=str+" "*(80-str.length)
+
+        print "#{str}\r"
+        STDOUT.flush
+    end
+
+    def update_version(host, version)
+        if host.has_elements?(VERSION_XPATH)
+            host.delete_element(VERSION_XPATH)
+        end
+
+        host.add_element(TEMPLATE_XPATH, 'VERSION' => version)
+
+        template=host.template_str
+        host.update(template)
+    end
 
     def factory(id=nil)
         if id
@@ -199,6 +365,22 @@ class OneHostHelper < OpenNebulaHelper::OneHelper
         puts str % ["USED CPU (ALLOCATED)", host['HOST_SHARE/CPU_USAGE']]
         puts str % ["RUNNING VMS", host['HOST_SHARE/RUNNING_VMS']]
         puts
+
+        datastores = host.to_hash['HOST']['HOST_SHARE']['DATASTORES']['DS']
+
+        if datastores.nil?
+            datastores = []
+        else
+            datastores = [datastores].flatten
+        end
+
+        datastores.each do |datastore|
+            CLIHelper.print_header(str_h1 % "LOCAL SYSTEM DATASTORE ##{datastore['ID']} CAPACITY", false)
+            puts str % ["TOTAL:", OpenNebulaHelper.unit_to_str(datastore['TOTAL_MB'].to_i, {},'M')]
+            puts str % ["USED: ", OpenNebulaHelper.unit_to_str(datastore['USED_MB'].to_i, {},'M')]
+            puts str % ["FREE:",  OpenNebulaHelper.unit_to_str(datastore['FREE_MB'].to_i, {},'M')]
+            puts
+        end
 
         CLIHelper.print_header(str_h1 % "MONITORING INFORMATION", false)
 

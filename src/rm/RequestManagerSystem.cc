@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -30,7 +30,7 @@ void SystemVersion::request_execute(xmlrpc_c::paramList const& paramList,
     // Should we make the version call accessible even
     // if no user is provided?
 
-    success_response(Nebula::instance().db_version(), att);
+    success_response(Nebula::instance().code_version(), att);
 
     return;
 }

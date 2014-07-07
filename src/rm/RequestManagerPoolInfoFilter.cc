@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -261,6 +261,16 @@ void DocumentPoolInfo::request_execute(
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
 
+void ZonePoolInfo::request_execute(
+        xmlrpc_c::paramList const& paramList,
+        RequestAttributes& att)
+{
+    dump(att, ALL, -1, -1, "", "");
+}
+
+/* ------------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
 void RequestManagerPoolInfoFilter::where_filter(
         RequestAttributes& att,
         int                filter_flag,
@@ -279,9 +289,9 @@ void RequestManagerPoolInfoFilter::where_filter(
 
     ostringstream filter;
 
-    PoolSQL::acl_filter(att.uid, att.gid, auth_object, all, acl_str);
+    PoolSQL::acl_filter(att.uid, att.group_ids, auth_object, all, acl_str);
 
-    PoolSQL::usr_filter(att.uid, att.gid, filter_flag, all, acl_str, uid_str);
+    PoolSQL::usr_filter(att.uid, att.group_ids, filter_flag, all, acl_str, uid_str);
 
     PoolSQL::oid_filter(start_id, end_id, oid_str);
 
@@ -343,7 +353,7 @@ void RequestManagerPoolInfoFilter::dump(
         const string&      or_clause)
 {
     ostringstream oss;
-    string        where_string;
+    string        where_string, limit_clause;
     int           rc;
 
     if ( filter_flag < MINE )
@@ -362,7 +372,14 @@ void RequestManagerPoolInfoFilter::dump(
                  or_clause,
                  where_string);
 
-    rc = pool->dump(oss, where_string);
+    if ( end_id < -1 )
+    {
+        oss << start_id << "," << -end_id;
+        limit_clause = oss.str();
+        oss.str("");
+    }
+
+    rc = pool->dump(oss, where_string, limit_clause);
 
     if ( rc != 0 )
     {

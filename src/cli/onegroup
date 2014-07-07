@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -61,17 +61,82 @@ cmd=CommandParser::CmdParser.new(ARGV) do
         helper.list_to_id(arg)
     end
 
+    set :format, :clusterid, OpenNebulaHelper.rname_to_id_desc("CLUSTER") do |arg|
+        OpenNebulaHelper.rname_to_id(arg, "CLUSTER")
+    end
+
+    set :format, :zoneid, OpenNebulaHelper.rname_to_id_desc("ZONE") do |arg|
+        OpenNebulaHelper.rname_to_id(arg, "ZONE")
+    end
+
     ########################################################################
     # Commands
     ########################################################################
 
     create_desc = <<-EOT.unindent
-        Creates a new Group
+        Creates a new Group. A group name can be passed as the only argument,
+        or a file containing a group template or via command line arguments
+
+        Examples:
+
+          - create a group with admin user and allow group users
+            to only create new templates and VMs, and group admin to manage
+            templates, vms, images and virtual networks
+
+            onegroup create --name groupA
+                            --admin_user admin_userA --admin_password somestr
+                            --resources TEMPLATE+VM
+                            --admin_resources TEMPLATE+VM+IMAGE+NET
+
     EOT
 
-    command :create, create_desc, :name do
-        helper.create_resource(options) do |group|
-            group.allocate(args[0])
+    command :create, create_desc, [:group_name, nil], :options =>
+            OpenNebulaHelper::GROUP_OPTIONS do
+
+
+        if !args[0] && options.empty?
+            STDERR.puts "Please use either a group name or command arguments"
+            next -1
+        end
+
+        if options && options[:admin_user]
+            if !options[:admin_password]
+                STDERR.puts "Admin user needs password"
+                next -1
+            end
+
+            admin_user=Hash.new
+            admin_user[:name]       = options[:admin_user]
+            admin_user[:password]   = options[:admin_password]
+            admin_user[:auth_driver]= options[:admin_driver] if options[:admin_driver]
+            admin_user[:resources]  = options[:admin_resources] if options[:admin_resources]
+
+            options[:group_admin] = admin_user
+        end
+
+        if !options.empty?
+            helper.create_complete_resource(options)
+        elsif args[0]
+            options[:name] = args[0]
+            helper.create_complete_resource(options)
+        end
+    end
+
+    update_desc = <<-EOT.unindent
+        Update the template contents. If a path is not provided the editor will
+        be launched to modify the current content.
+    EOT
+
+    command :update, update_desc, :groupid, [:file, nil],
+    :options=>OpenNebulaHelper::APPEND do
+        helper.perform_action(args[0],options,"modified") do |obj|
+            if options[:append]
+                str = OpenNebulaHelper.append_template(args[0], obj, args[1])
+            else
+                str = OpenNebulaHelper.update_template(args[0], obj, args[1])
+            end
+
+            obj.update(str, options[:append])
         end
     end
 
@@ -124,7 +189,7 @@ cmd=CommandParser::CmdParser.new(ARGV) do
                 exit -1
             end
         end
-    end  
+    end
 
     batchquota_desc = <<-EOT.unindent
         Sets the quota limits in batch for various groups. If a path is not
@@ -163,7 +228,7 @@ cmd=CommandParser::CmdParser.new(ARGV) do
             exit(-1)
         end
 
-        str = OneQuotaHelper.set_quota(default_quotas, args[0])
+        str = OneQuotaHelper.set_quota(default_quotas, args[0], true)
 
         rc  = system.set_group_quotas(str)
 
@@ -173,5 +238,34 @@ cmd=CommandParser::CmdParser.new(ARGV) do
         end
 
         exit 0
+    end
+
+    add_provider_desc = <<-EOT.unindent
+        Adds a resource provider (cluster of a zone) to the given group.
+        clusterid can be set to ALL
+    EOT
+
+    command :add_provider, add_provider_desc, [:range, :groupid_list], :zoneid, :clusterid do
+        if args[2] and args[2].class != Fixnum and args[2].upcase == "ALL"
+            args[2]=10
+        end
+
+        helper.perform_actions(args[0],options,"resource provider added") do |obj|
+            obj.add_provider(args[1].to_i, args[2].to_i)
+        end
+    end
+
+    del_provider_desc = <<-EOT.unindent
+        Deletes a resource provider (cluster of a zone) from the given group
+        clusterid can be set to ALL
+    EOT
+
+    command :del_provider, del_provider_desc, [:range, :groupid_list], :zoneid, :clusterid do
+        if args[2] and args[2].class != Fixnum and args[2].upcase == "ALL"
+            args[2]=10
+        end
+        helper.perform_actions(args[0],options,"resource provider deleted") do |obj|
+            obj.del_provider(args[1].to_i, args[2].to_i)
+        end
     end
 end

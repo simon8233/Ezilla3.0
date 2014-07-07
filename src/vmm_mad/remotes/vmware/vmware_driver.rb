@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright 2010-2013, C12G Labs S.L                                           #
+# Copyright 2010-2014, C12G Labs S.L                                           #
 #                                                                              #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may      #
 # not use this file except in compliance with the License. You may obtain      #
@@ -58,20 +58,21 @@ class VMwareDriver
     SHUTDOWN_TIMEOUT  = 500
 
     def initialize(host)
-       conf  = YAML::load(File.read(CONF_FILE))
+       conf            = YAML::load(File.read(CONF_FILE))
 
-       @uri  = conf[:libvirt_uri].gsub!('@HOST@', host)
-       @host = host
+       @uri            = conf[:libvirt_uri].gsub!('@HOST@', host)
+       @host           = host
+       @reserve_memory = conf[:reserve_memory_in_disk]
 
-       @user = conf[:username]
+       @user           = conf[:username]
        if conf[:password] and !conf[:password].empty?
           @pass=conf[:password]
        else
           @pass="\"\""
        end
 
-       @datacenter = conf[:datacenter]
-       @vcenter    = conf[:vcenter]
+       @datacenter     = conf[:datacenter]
+       @vcenter        = conf[:vcenter]
     end
 
     # ######################################################################## #
@@ -109,12 +110,16 @@ class VMwareDriver
     # Cancels & undefine the VM                                                #
     # ------------------------------------------------------------------------ #
     def cancel(deploy_id)
-        # Destroy the VM
-        rc, info = do_action("virsh -c #{@uri} destroy #{deploy_id}")
+        rc, info = do_action("virsh -c #{@uri} --readonly dominfo #{deploy_id}")
 
-        exit info if rc == false
+        if rc
+            # Destroy the VM
+            rc, info = do_action("virsh -c #{@uri} destroy #{deploy_id}")
 
-        OpenNebula.log_debug("Successfully canceled domain #{deploy_id}.")
+            exit info if rc == false
+
+            OpenNebula.log_debug("Successfully canceled domain #{deploy_id}.")
+        end
 
         # Undefine the VM
         undefine_domain(deploy_id)
@@ -194,9 +199,9 @@ class VMwareDriver
     # ------------------------------------------------------------------------ #
     def restore(checkpoint)
         begin
+            vm_id = File.basename(File.dirname(checkpoint))
             vm_folder=VAR_LOCATION <<
-                      "/vms/" <<
-                      File.basename(File.dirname(checkpoint))
+                      "/vms/" << vm_id
             dfile=`ls -1 #{vm_folder}/deployment*|tail -1`
             dfile.strip!
         rescue => e
@@ -204,9 +209,12 @@ class VMwareDriver
             exit(-1)
         end
 
-        deploy_id = define_domain(dfile)
-
-        exit(-1) if deploy_id.nil?
+        if not domain_defined?(id)
+            deploy_id = define_domain(dfile)
+            exit(-1) if deploy_id.nil?
+        else
+            deploy_id = "one-#{id}"
+        end
 
         # Revert snapshot VM
         # Note: This assumes the checkpoint name is "checkpoint", to change
@@ -349,7 +357,20 @@ class VMwareDriver
 
     # Undefines a domain in the ESX hypervisor
     def undefine_domain(id)
-        rc, info = do_action("virsh -c #{@uri} undefine #{id}")
+        if @vcenter and !@vcenter.empty? and @datacenter and !@datacenter.empty?
+            undefine_uri = 
+                  "vpx://#{@vcenter}/#{@datacenter}/#{@host}/?no_verify=1"
+        else
+            undefine_uri = @uri
+        end
+
+        rc = false
+
+        30.times do
+            rc, info = do_action("virsh -c #{undefine_uri} undefine #{id}")
+            break if rc
+            sleep 1
+        end
 
         if rc == false
             OpenNebula.log_error("Error undefining domain #{id}")
@@ -425,6 +446,15 @@ class VMwareDriver
         # Reconstruct path to vmx & add metadata
         path_to_vmx =  "\$(find /vmfs/volumes/#{ds_id}/#{vm_id}/"
         path_to_vmx << " -name #{name}.vmx)"
+
+        if !@reserve_memory
+            mem_txt = REXML::XPath.first(dfile_hash, "/domain/memory").text
+            mem     = mem_txt.to_i/1024
+
+            metadata << "\\nsched.mem.min = \"#{mem}\""
+            metadata << "\\nsched.mem.shares = \"normal\""
+            metadata << "\\nsched.mem.pin = \"TRUE\""
+        end
 
         metadata.gsub!("\\n","\n")
 

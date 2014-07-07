@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        #
+# Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -123,15 +123,27 @@ function set_downloader_args {
 #------------------------------------------------------------------------------
 
 function file_size {
-	stat --version &> /dev/null
+    stat --version &> /dev/null
 
-	if [ $? = 0 ]; then
-		STAT_CMD="stat -c %s"
-	else
-		STAT_CMD="stat -f %z"
-	fi
+    if [ $? = 0 ]; then
+        # Linux
+        STAT_CMD="stat -c %s"
+    else
+        # Darwin
+        STAT_CMD="stat -f %z"
+    fi
 
-	$STAT_CMD "$*"
+    $STAT_CMD "$*"
+}
+
+#------------------------------------------------------------------------------
+# Gets the size in bytes of a gzipped file
+#   @param $1 - Path to the image
+#   @return size of the image in bytes
+#------------------------------------------------------------------------------
+
+function gzip_file_size {
+    gzip -l "$1" | tail -n 1 | awk '{print $2}'
 }
 
 #-------------------------------------------------------------------------------
@@ -141,44 +153,50 @@ function file_size {
 #-------------------------------------------------------------------------------
 function fs_size {
 
-	case $1 in
-	http://*/download|https://*/download)
-		BASE_URL=${1%%/download}
-		HEADERS=`wget -S --spider --no-check-certificate $BASE_URL 2>&1`
+    case $1 in
+    http://*)
+        HEADERS=`curl -LIk --max-time 60 $1 2>&1`
 
-		echo $HEADERS | grep "market" > /dev/null 2>&1
+        if echo "$HEADERS" | grep -q "OpenNebula-AppMarket-Size"; then
+            # An AppMarket/Marketplace URL
+            SIZE=$(echo "$HEADERS" | grep "^OpenNebula-AppMarket-Size:" | tail -n1 | cut -d: -f2)
+        else
+            # Not an AppMarket/Marketplace URL
+            SIZE=$(echo "$HEADERS" | grep "^Content-Length:" | tail -n1 | cut -d: -f2)
+        fi
+        error=$?
+        ;;
+    *)
+        if [ -d "$1" ]; then
+            SIZE=`du -sb "$1" | cut -f1`
+            error=$?
+        else
+            TYPE=$(cat "$1" | head -n 1024 | file -b - | tr A-Z a-z)
+            case "$TYPE" in
+            *gzip*)
+                SIZE=$(gzip_file_size "$1")
+                ;;
+            *qcow*)
+                SIZE=$($QEMU_IMG info "$1" | sed -n 's/.*(\([0-9]*\) bytes).*/\1/p')
+                ;;
+            *)
+                SIZE=$(file_size "$1")
+                ;;
+            esac
+            error=$?
+        fi
+        ;;
+    esac
 
-		if [ $? -eq 0 ]; then
-			#URL is from market place
-			SIZE=`wget -O - -S --no-check-certificate $BASE_URL 2>&1|grep -E "^ *\"size\": \"?[0-9]+\"?.$"|tr -dc 0-9`
-		else
-			#Not a marketplace URL
-			SIZE=`wget -S --spider --no-check-certificate $1 2>&1 | grep Content-Length  | cut -d':' -f2`
-		fi
-		error=$?
-	    ;;
-	http://*|https://*)
-		SIZE=`wget -S --spider --no-check-certificate $1 2>&1 | grep Content-Length  | cut -d':' -f2`
-		error=$?
-	    ;;
-	*)
-		if [ -d "$1" ]; then
-			SIZE=`du -sb "$1" | cut -f1`
-			error=$?
-		else
-			SIZE=$(file_size "$1")
-			error=$?
-		fi
-		;;
-	esac
+    SIZE=$(echo $SIZE | tr -d "\r")
 
-	if [ $error -ne 0 ]; then
-		SIZE=0
-	else
-		SIZE=$((($SIZE+1048575)/1048576))
-	fi
+    if [ $error -ne 0 ]; then
+        SIZE=0
+    else
+        SIZE=$((($SIZE+1048575)/1048576))
+    fi
 
-	echo "$SIZE"
+    echo "$SIZE"
 }
 
 #-------------------------------------------------------------------------------
@@ -211,7 +229,14 @@ function check_restricted {
 #   @return host to be used as bridge
 #-------------------------------------------------------------------------------
 function get_destination_host {
-	HOSTS_ARRAY=($BRIDGE_LIST)
-    ARRAY_INDEX=`expr $1 % ${#HOSTS_ARRAY[@]}`
-	echo ${HOSTS_ARRAY[$ARRAY_INDEX]}
+    HOSTS_ARRAY=($BRIDGE_LIST)
+    N_HOSTS=${#HOSTS_ARRAY[@]}
+
+    if [ -n "$1" ]; then
+        ARRAY_INDEX=$(($1 % ${N_HOSTS}))
+    else
+        ARRAY_INDEX=$((RANDOM % ${N_HOSTS}))
+    fi
+
+    echo ${HOSTS_ARRAY[$ARRAY_INDEX]}
 }

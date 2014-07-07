@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2013, OpenNebula Project (OpenNebula.org), C12G Labs        */
+/* Copyright 2002-2014, OpenNebula Project (OpenNebula.org), C12G Labs        */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -37,6 +37,7 @@ public:
         HostPool *                _hpool,
         time_t                    _timer_period,
         time_t                    _poll_period,
+        bool                      _do_vm_poll,
         int                       _vm_limit,
         vector<const Attribute*>& _mads);
 
@@ -103,7 +104,7 @@ public:
      *   identity will be used. Otherwise the Mad will be loaded through the
      *   sudo application.
      */
-    void load_mads(int uid);
+    int load_mads(int uid);
 
 private:
     /**
@@ -130,6 +131,11 @@ private:
      *  Virtual Machine polling interval
      */
     time_t                  poll_period;
+
+    /**
+     *  Perform pro-active VM monitoring
+     */
+    bool                    do_vm_poll;
 
     /**
      *  Virtual Machine polling limit
@@ -211,6 +217,7 @@ private:
      *    @param cfile checkpoint file to save the VM
      *    @param disk_id Disk to attach/detach, if any
      *    @param tm_command Transfer Manager command to attach/detach, if any
+     *    @param tm_command_rollback TM command in case of attach failure
      *    @param disk_target_path Path of the disk to attach, if any
      *    @param tmpl the VM information in XML
      */
@@ -224,6 +231,7 @@ private:
         const string& rdfile,
         const string& cfile,
         const string& tm_command,
+        const string& tm_command_rollback,
         const string& disk_target_path,
         const string& tmpl);
 
