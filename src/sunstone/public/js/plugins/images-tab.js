@@ -774,6 +774,7 @@ function updateImageInfo(request,img){
                   <th>'+tr("IPs")+'</th>\
                   <th>'+tr("Start Time")+'</th>\
                   <th>'+tr("VNC")+'</th>\
+                  <th>'+tr("Endpoint")+'</th>\
                 </tr>\
               </thead>\
               <tbody id="tbody_image_vmachines">\
