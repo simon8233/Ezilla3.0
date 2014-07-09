@@ -2169,7 +2169,8 @@ $(document).ready(function(){
       var GRAPHIC_TYPE = $("input[name='graphics_type']:checked" , context).val(); 
       graphics_json.push({
              'PASSWD': generatepass(password_length),
-             'TYPE': GRAPHIC_TYPE
+             'TYPE': GRAPHIC_TYPE,
+             'LISTEN': '0.0.0.0'
       });
       extra_info.template.GRAPHICS = graphics_json;
 //Ezilla Password end     
