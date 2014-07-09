@@ -2160,6 +2160,8 @@ $(document).ready(function(){
              'USER_PASSWD': user_passwd,
              'ROOT_PASSWD': user_passwd,
              'OSTYPE': opennebula_ostype,
+             'NETWORK' : 'YES',
+             'SSH_PUBLIC_KEY' : '$USER[SSH_PUBLIC_KEY]',
              'FILES': FILEPATH
          });
          extra_info.template.CONTEXT = context_json;
