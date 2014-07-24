@@ -96,11 +96,11 @@ var create_vm_tmpl ='\
         </fieldset>\
      </div>\
   </div>\
-    <div class="show_hide" id="advanced_passwd">\
+    <div class="show_hide" id="advanced_passwd" >\
        <h4><small><i class=" fa fa-caret-down"/> '+tr("Password options")+'<a id="add_os_boot_opts" class="icon_left" href="#"></a></small></h4>\
     </div>\
     <div class="row">\
-        <div class="advanced_passwd">\
+        <div class="advanced_passwd" >\
              <div class="large-6 columns">\
                 <label for="user_passwd">'+tr("User Password")+':\
                    <span class="tip">'+tr("Account will be created using this password in Virtual Machines")+'.</span>\
@@ -480,11 +480,12 @@ var vm_actions = {
             // fill image_ostype to template.
             tmp_template.CONTEXT["OSTYPE"] = ostype;
         }
-        if (!$('#user_passwd',$create_vm_dialog).is(":hidden")){ // inloop vm need password initialization.
+        if(!$('.advanced_passwd',$create_vm_dialog).is(':hidden')){ // inloop vm need password initialization.
                 tmp_template.CONTEXT["USERNAME"] = username_array[0];
                 tmp_template.CONTEXT["USER_PASSWD"] = user_passwd;
                 tmp_template.CONTEXT["ROOT_PASSWD"] = user_passwd;
         }
+
         if (typeof(tmp_template.CONTEXT.OSTYPE) != "undefined"){ // inloop select vm specific OS initialization 
             if (tmp_template.CONTEXT["OSTYPE"] == "WINDOWS") {
                 tmp_template.CONTEXT["FILES"]="/usr/share/one/script/init.ps1";
@@ -531,6 +532,7 @@ var vm_actions = {
                                 };
                         };
                 }
+	$create_vm_dialog.foundation('reveal', 'close')
         },
         error: onError
     },
@@ -3133,7 +3135,7 @@ function setupCreateVMDialog(include_select_image){
         var n_times = $('#vm_n_times',this).val();
         var n_times_int=1;
 //Ezilla - Check Passwd - Start
-        if (!$('#user_passwd',this).is(":hidden")){
+        if (!$('.advanced_passwd',this).is(":hidden")){
                 var user_passwd = $('#user_passwd',this).val();
                 var user_passwd_confirm = $('#user_passwd_confirm',this).val();
                 var CheckData = /[|]|{|}|<|>|'|;|&|#|"|'|!| /;
@@ -3204,12 +3206,14 @@ function setupCreateVMDialog(include_select_image){
         }
 */
         Sunstone.runAction("VM.Template_submit", template_id );
-//Ezilla - Create VM - End
+	
 
         setTimeout(function(){
             Sunstone.runAction("VM.list");
         },1500);
-        $create_vm_dialog.foundation('reveal', 'close')
+       // $create_vm_dialog.foundation('reveal', 'close')
+ // above function put on Template_submit ajax.
+//Ezilla - Create VM - End
         return false;
     });
 }
