@@ -339,6 +339,8 @@ SUNSTONE_DIRS="$SUNSTONE_LOCATION/routes \
                $SUNSTONE_LOCATION/public/vendor/4.0/nouislider \
                $SUNSTONE_LOCATION/public/vendor/4.0/jdpicker_1.1 \
                $SUNSTONE_LOCATION/public/vendor/4.0/jdpicker_1.1/images \
+               $SUNSTONE_LOCATION/public/vendor/jquery.ibutton \
+               $SUNSTONE_LOCATION/public/vendor/smartwizard \
                $SUNSTONE_LOCATION/public/images \
                $SUNSTONE_LOCATION/public/images/vncsnapshot \
                $SUNSTONE_LOCATION/views"
@@ -512,6 +514,8 @@ INSTALL_SUNSTONE_FILES=(
     SUNSTONE_PUBLIC_VENDOR_FILEUPLOADER:$SUNSTONE_LOCATION/public/vendor/fileuploader
     SUNSTONE_PUBLIC_VENDOR_NOVNC:$SUNSTONE_LOCATION/public/vendor/noVNC
     SUNSTONE_PUBLIC_VENDOR_NOVNC_WEBSOCKET:$SUNSTONE_LOCATION/public/vendor/noVNC/web-socket-js
+    SUNSTONE_PUBLIC_VENDOR_SMARTWIZARD:$SUNSTONE_LOCATION/public/vendor/smartwizard/
+    SUNSTONE_PUBLIC_VENDOR_IBUTTON:$SUNSTONE_LOCATION/public/vendor/jquery.ibutton/
     SUNSTONE_PUBLIC_NEW_VENDOR_DATATABLES:$SUNSTONE_LOCATION/public/vendor/4.0/datatables
     SUNSTONE_PUBLIC_NEW_VENDOR_FOUNDATION_DATATABLES:$SUNSTONE_LOCATION/public/vendor/4.0/foundation_datatables
     SUNSTONE_PUBLIC_NEW_VENDOR_JGROWL:$SUNSTONE_LOCATION/public/vendor/4.0/jgrowl
@@ -1477,6 +1481,8 @@ SUNSTONE_VIEWS_FILES="src/sunstone/views/index.erb \
 SUNSTONE_PUBLIC_JS_FILES="src/sunstone/public/js/login.js \
                         src/sunstone/public/js/sunstone.js \
                         src/sunstone/public/js/opennebula.js \
+                        src/sunstone/public/css/smart_wizard_vertical.css \
+                        src/sunstone/public/css/jquery.ibutton.min.css \
                         src/sunstone/public/js/locale.js"
 
 SUNSTONE_PUBLIC_JS_PLUGINS_FILES="\
@@ -1508,6 +1514,13 @@ SUNSTONE_ROUTES_FILES="src/sunstone/routes/oneflow.rb"
 SUNSTONE_PUBLIC_CSS_FILES="src/sunstone/public/css/app.css \
                 src/sunstone/public/css/opensans.woff \
                 src/sunstone/public/css/login.css"
+
+SUNSTONE_PUBLIC_VENDOR_SMARTWIZARD="\
+src/sunstone/public/vendor/smartwizard/jquery.smartWizard-2.0.min.js"
+
+SUNSTONE_PUBLIC_VENDOR_IBUTTON="\
+src/sunstone/public/vendor/jquery.ibutton/jquery.ibutton.min.js"
+
 
 SUNSTONE_PUBLIC_VENDOR_FLOT="\
 src/sunstone/public/vendor/flot/jquery.flot.min.js \
@@ -1623,6 +1636,9 @@ SUNSTONE_PUBLIC_IMAGES_FILES="src/sunstone/public/images/ajax-loader.gif \
                         src/sunstone/public/images/favicon.ico \
                         src/sunstone/public/images/login_over.png \
                         src/sunstone/public/images/login.png \
+                        src/sunstone/public/images/ibutton-slider-default.png \
+                        src/sunstone/public/images/ibutton-slider-giva2.png \
+                        src/sunstone/public/images/ibutton-slider-giva-original.png \
                         src/sunstone/public/images/opennebula-sunstone-big.png \
                         src/sunstone/public/images/opennebula-sunstone-small.png \
                         src/sunstone/public/images/opennebula-sunstone-v4.0.png \

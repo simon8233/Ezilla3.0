@@ -597,6 +597,37 @@ post '/vm/:id/redirspice/:port' do
     end
 
 end
+
+###############################################################################
+#
+###############################################################################
+post '/diskver/wizardSetup/'  do
+     begin
+        diskver = JSON.parse(request.body.read)
+     rescue Exception => e
+        msg = "Error parsing configuration JSON"
+        logger.error { msg }
+        logger.error { e.message }
+        [500, OpenNebula::Error.new(msg).to_json]
+    end
+    rc = @SunstoneServer.setup_slave_environment(diskver)
+    return rc
+end
+post '/diskver/startInstallServ/' do
+    rc  = @SunstoneServer.startInstallServ()
+    return rc
+end
+post '/diskver/stopInstallServ/' do
+    rc  = @SunstoneServer.stopInstallServ()
+    return rc
+end
+post '/diskver/statusInstallServ/' do
+    rc  = @SunstoneServer.statusInstallServ()
+    info = rc[1]
+    rc = [  200 , info.to_json  ]
+    return rc
+end
+
 ##############################################################################
 # Perform an action on a Resource
 ##############################################################################

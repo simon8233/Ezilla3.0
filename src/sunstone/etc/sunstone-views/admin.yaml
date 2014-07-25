@@ -20,6 +20,7 @@ enabled_tabs:
     oneflow-services: true
     oneflow-templates: true
     zones-tab: true
+    diskver-tab: true
 autorefresh: true
 tabs:
     dashboard-tab:
@@ -451,3 +452,7 @@ tabs:
             Zone.refresh: true
             Zone.create_dialog: true
             Zone.delete: true
+    diskver-tab:
+        panel_tabs:
+        table_columns:
+        action:

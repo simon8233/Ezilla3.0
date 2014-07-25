@@ -1575,5 +1575,57 @@ var OpenNebula = {
                 }
             });
         }
+    },
+    "Diskver" :  {
+        "resource" : "DISKVER",
+
+        "installserver" : function(params,startstop){
+            var callback = params.success;
+            var callback_error = params.error;
+            var method= startstop;
+
+            $.ajax({
+                url: "diskver/"+method+"/",
+                type: "POST",
+                dataType: "json",
+                success : function (response){
+                    return callback ? callback(response) :null;
+                }
+
+            });
+        },
+        "startInstallServ" : function(params){
+            OpenNebula.Diskver.installserver(params,"startInstallServ")
+        },
+        "stopInstallServ" : function (params){
+            OpenNebula.Diskver.installserver(params,"stopInstallServ")
+        },
+        "statusInstallServ" : function(params){
+            OpenNebula.Diskver.installserver(params,"statusInstallServ")
+        },
+        "wizardSetup": function(params){
+            var config_diskver = params;
+            var method = "wizardSetup";
+            var callback=params.success;
+            var callback_error = params.error;
+
+
+            $.ajax({
+                url:"diskver/"+ method + "/",
+                type: "POST",
+                dataType: "json",
+                data: JSON.stringify(config_diskver),
+                success  : function (response){
+                    return callback ? callback(request,response): null;
+                },
+                error : function (response){
+                    return callback_error ?
+                        callback_error(request,OpenNebula.Error(response)):null;
+                }
+
+            });
+
+       }
     }
+
 }

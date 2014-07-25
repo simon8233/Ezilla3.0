@@ -395,7 +395,65 @@ class SunstoneServer < CloudServer
         redir_port = File.new("/tmp/redir/#{ip}:#{cport}").read
         info = {:info=>redir_port,:loc=>loc,:id=>id,:cport=>cport,:spice_pw=>spice_pw}
         return [200,info]
-    end    
+    end
+    ############################################################################
+    #    Ezilla Auto-Installation Service for Slave Node
+    #############################################################################
+    def startInstallServ()
+            cmd = "sudo /opt/ezilla/sbin/ezilla-autoinstall-server restart"
+        begin
+            %x{#{cmd}}
+            return [ 200 , "Everything will be ok!!!" ]
+        rescue Exception => e
+            return [ 500 , OpenNebula::Error.new(e.message).to_json ]
+        end
+    end
+    def stopInstallServ()
+            cmd = "sudo /opt/ezilla/sbin/ezilla-autoinstall-server stop"
+        begin
+            %x{#{cmd}}
+            return [ 200 , "Everything will be ok!!!" ]
+        rescue Exception => e
+            return [ 500 , OpenNebula::Error.new(e.message).to_json ]
+        end
+    end
+    def statusInstallServ()
+            cmd = "sudo /opt/ezilla/sbin/ezilla-autoinstall-server status"
+        begin
+            status = %x{#{cmd}}
+            puts status
+            info = {:status=>status}
+            return [ 200 , info ]
+        rescue Exception => e
+            return [ 500 , OpenNebula::Error.new(e.message).to_json ]
+        end
+
+    end
+ 
+    #############################################################################
+    #     Setup Slave node environment 
+    #############################################################################   
+    def setup_slave_environment(diskver)
+           diskver_config_file = "/var/www/preseed/slave_config"
+           cmd = "sudo /opt/ezilla/sbin/ezilla-slave-setup.sh"
+
+        File.open(diskver_config_file,"w+")  do |f|
+            f.write("INSTALL_MODE=#{diskver["install_mode"]}\n")
+            f.write("DISK_NUM=#{diskver["disk"].size}\n")
+            f.write("DISK=#{diskver["disk"].join(",")}\n")
+            f.write("FILESYSTEM=#{diskver["filesystem"]}\n")
+            f.write("NETWORK=#{diskver["net_card"]}\n")
+        end
+
+
+        begin
+            %x{#{cmd}}
+            return [ 200 , "Everything will be ok!!!" ]
+        rescue Exception => e
+            return [ 500 , OpenNebula::Error.new(e.message).to_json ]
+        end
+    end
+ 
     ########################################################################
     # Accounting & Monitoring
     ########################################################################
