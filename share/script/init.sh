@@ -51,9 +51,12 @@ if [ "$USERNAME" != "$user_exist" ]; then
 			fi
 		else
 			if [ -n "$USER_PASSWD" ]; then
-				useradd -s /bin/bash -m $USERNAME -p "$USER_PASSWD"
-				echo "$USER_PASSWD" | passwd $USERNAME --stdin
-				echo "$USER_PASSWD" | passwd root --stdin
+#				useradd -s /bin/bash -m $USERNAME -p "$USER_PASSWD"
+				useradd -s /bin/bash -m $USERNAME				
+               		        echo $USERNAME:"$USER_PASSWD" | chpasswd
+		                echo "root:$USER_PASSWD" | chpasswd
+#				echo "$USER_PASSWD" | passwd $USERNAME --stdin
+#				echo "$USER_PASSWD" | passwd root --stdin
 			else
 				useradd -s /bin/bash -m $USERNAME
 			fi
