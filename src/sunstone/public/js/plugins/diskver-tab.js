@@ -220,23 +220,15 @@ function setupDiskVerSetting(){
     var dialog = $diskver_dialog;
     dialog.html(ezilla_diskver_wizard);
     dialog.addClass("reveal-modal large max-height").attr("data-reveal","");
-        //Sunstone.runAction("Diskver.statusInstallServ");
+    Sunstone.runAction("Diskver.statusInstallServ");
     $diskver_dialog.foundation(); 
-   /* dialog.dialog({
-        autoOpen:  false,
-        height:450,
-        width: 1020,
-        resizeable:true,
-        closeOnEscape:false
-    });*/
+    
     $('div#wizard').smartWizard({
         onLeaveStep:leaveAStepCallback,
         onFinish:onFinishCallback
     });
     $('button#setupSlaveEnv').click(function(){
         $diskver_dialog.foundation("reveal","open");
-//        $redir_dialog.foundation("reveal", "open");
-
     });
   
 
@@ -244,11 +236,11 @@ function setupDiskVerSetting(){
     $('input#EzillaAutoInstallation').iButton({
     change:function($input){
         if ( $input.is(":checked") ){
-//            Sunstone.runAction("Diskver.startInstallServ");
+            Sunstone.runAction("Diskver.startInstallServ");
             $('#diskver_table #SetupYourSlaveEnvironment').show();
         }
         else {
-//            Sunstone.runAction("Diskver.stopInstallServ");
+            Sunstone.runAction("Diskver.stopInstallServ");
             $('#diskver_table #SetupYourSlaveEnvironment').hide();
         }
     }

@@ -1481,8 +1481,6 @@ SUNSTONE_VIEWS_FILES="src/sunstone/views/index.erb \
 SUNSTONE_PUBLIC_JS_FILES="src/sunstone/public/js/login.js \
                         src/sunstone/public/js/sunstone.js \
                         src/sunstone/public/js/opennebula.js \
-                        src/sunstone/public/css/smart_wizard_vertical.css \
-                        src/sunstone/public/css/jquery.ibutton.min.css \
                         src/sunstone/public/js/locale.js"
 
 SUNSTONE_PUBLIC_JS_PLUGINS_FILES="\
@@ -1507,13 +1505,16 @@ SUNSTONE_PUBLIC_JS_PLUGINS_FILES="\
                         src/sunstone/public/js/plugins/oneflow-dashboard.js \
                         src/sunstone/public/js/plugins/oneflow-services.js \
                         src/sunstone/public/js/plugins/oneflow-templates.js \
-                        src/sunstone/public/js/plugins/zones-tab.js"
+                        src/sunstone/public/js/plugins/zones-tab.js \
+                        src/sunstone/public/js/plugins/diskver-tab.js"
 
 SUNSTONE_ROUTES_FILES="src/sunstone/routes/oneflow.rb"
 
 SUNSTONE_PUBLIC_CSS_FILES="src/sunstone/public/css/app.css \
                 src/sunstone/public/css/opensans.woff \
-                src/sunstone/public/css/login.css"
+                src/sunstone/public/css/login.css \
+                src/sunstone/public/css/jquery.ibutton.min.css \
+                src/sunstone/public/css/smart_wizard_vertical.css"
 
 SUNSTONE_PUBLIC_VENDOR_SMARTWIZARD="\
 src/sunstone/public/vendor/smartwizard/jquery.smartWizard-2.0.min.js"
@@ -1616,6 +1617,8 @@ src/sunstone/public/vendor/4.0/fontawesome/fonts/fontawesome-webfont.ttf \
 src/sunstone/public/vendor/4.0/fontawesome/fonts/fontawesome-webfont.svg \
 src/sunstone/public/vendor/4.0/fontawesome/fonts/FontAwesome.otf \
 "
+
+
 
 SUNSTONE_PUBLIC_NEW_VENDOR_NOUISLIDER="\
                 src/sunstone/public/vendor/4.0/nouislider/jquery.nouislider.min.js \
