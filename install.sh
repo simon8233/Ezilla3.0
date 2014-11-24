@@ -340,6 +340,7 @@ SUNSTONE_DIRS="$SUNSTONE_LOCATION/routes \
                $SUNSTONE_LOCATION/public/vendor/4.0/jdpicker_1.1 \
                $SUNSTONE_LOCATION/public/vendor/4.0/jdpicker_1.1/images \
                $SUNSTONE_LOCATION/public/vendor/jquery.ibutton \
+               $SUNSTONE_LOCATION/public/vendor/resumable \
                $SUNSTONE_LOCATION/public/vendor/smartwizard \
                $SUNSTONE_LOCATION/public/images \
                $SUNSTONE_LOCATION/public/images/vncsnapshot \
@@ -512,6 +513,7 @@ INSTALL_SUNSTONE_FILES=(
     SUNSTONE_PUBLIC_VENDOR_EXPLORERCANVAS:$SUNSTONE_LOCATION/public/vendor/explorercanvas
     SUNSTONE_PUBLIC_VENDOR_FLOT:$SUNSTONE_LOCATION/public/vendor/flot
     SUNSTONE_PUBLIC_VENDOR_FILEUPLOADER:$SUNSTONE_LOCATION/public/vendor/fileuploader
+    SUNSTONE_PUBLIC_VENDOR_RESUMABLE:$SUNSTONE_LOCATION/public/vendor/resumable
     SUNSTONE_PUBLIC_VENDOR_NOVNC:$SUNSTONE_LOCATION/public/vendor/noVNC
     SUNSTONE_PUBLIC_VENDOR_NOVNC_WEBSOCKET:$SUNSTONE_LOCATION/public/vendor/noVNC/web-socket-js
     SUNSTONE_PUBLIC_VENDOR_SMARTWIZARD:$SUNSTONE_LOCATION/public/vendor/smartwizard/
@@ -1548,6 +1550,9 @@ src/sunstone/public/vendor/explorercanvas/LICENSE.txt"
 SUNSTONE_PUBLIC_VENDOR_FILEUPLOADER="\
 src/sunstone/public/vendor/fileuploader/NOTICE \
 src/sunstone/public/vendor/fileuploader/fileuploader.js"
+
+SUNSTONE_PUBLIC_VENDOR_RESUMABLE="\
+src/sunstone/public/vendor/resumable/resumable.js"
 
 SUNSTONE_PUBLIC_VENDOR_NOVNC="\
 src/sunstone/public/vendor/noVNC/LICENSE.txt \
